@@ -111,9 +111,9 @@ class TGMassDM:
         control_frame = ttk.Frame(log_container, padding="5")
         control_frame.pack(fill=tk.X)
 
-        # 开始按钮（点击弹出菜单）
+        # 开始按钮（根据当前标签页决定行为）
         self.start_btn = ttk.Button(control_frame, text="🚀 开始", width=15,
-                                    command=lambda: self.show_main_start_menu(self.start_btn))
+                                    command=self.on_start_button_click)
         self.start_btn.pack(side=tk.LEFT, padx=5)
 
         self.stop_btn = ttk.Button(control_frame, text="⏸️ 停止", width=15,
@@ -988,8 +988,22 @@ class TGMassDM:
         self.update_account_stats()
         self.update_selected_count()
     
+    def on_start_button_click(self):
+        """开始按钮点击事件 - 根据当前标签页决定行为"""
+        current_tab = self.notebook.index(self.notebook.select())
+        
+        if current_tab == 0:
+            # 账号管理页面 - 显示菜单
+            self.show_main_start_menu(self.start_btn)
+        elif current_tab == 1:
+            # 私信广告页面 - 直接开始发送
+            self.start_send()
+        elif current_tab == 2:
+            # 采集用户页面 - 直接开始采集
+            self.start_scrape()
+    
     def show_main_start_menu(self, button):
-        """显示主界面开始菜单"""
+        """显示主界面开始菜单（仅账号管理页面）"""
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label="检查账号限制", command=self.check_accounts)
         menu.add_separator()
