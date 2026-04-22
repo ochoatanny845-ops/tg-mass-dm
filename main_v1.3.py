@@ -1986,39 +1986,50 @@ class TGMassDM:
         
         export_path = Path(export_folder)
         exported_count = 0
+        removed_accounts = []
         
         for acc in accounts:
             try:
                 import shutil
                 session_path = Path(acc["path"])
                 
-                # 复制 session 文件
+                # 移动 session 文件
                 if session_path.exists():
                     dest_session = export_path / session_path.name
-                    shutil.copy2(session_path, dest_session)
+                    shutil.move(str(session_path), str(dest_session))
                     exported_count += 1
                 
-                # 复制 session-journal 文件(如果存在)
+                # 移动 session-journal 文件(如果存在)
                 journal_path = session_path.with_suffix('.session-journal')
                 if journal_path.exists():
                     dest_journal = export_path / journal_path.name
-                    shutil.copy2(journal_path, dest_journal)
+                    shutil.move(str(journal_path), str(dest_journal))
                 
-                # 复制 json 文件(如果存在)
+                # 移动 json 文件(如果存在)
                 # 123.session → 123.json（不是 123.session.json）
                 json_path = session_path.parent / f"{session_path.stem}.json"
                 if json_path.exists():
                     dest_json = export_path / json_path.name
-                    shutil.copy2(json_path, dest_json)
+                    shutil.move(str(json_path), str(dest_json))
                     self.log(f"  📤 已导出: {session_path.name} (含JSON)")
                 else:
                     self.log(f"  📤 已导出: {session_path.name}")
                 
+                # 标记为待删除
+                removed_accounts.append(acc)
+                
             except Exception as e:
                 self.log(f"  ⚠️ 导出失败: {session_path.name} - {str(e)}")
         
+        # 从账号列表中删除
+        for acc in removed_accounts:
+            self.accounts.remove(acc)
+        
         self.log(f"📤 导出完成: {exported_count}/{len(accounts)} 个{export_name}")
-        messagebox.showinfo("导出完成", f"成功导出 {exported_count} 个账号到:\n{export_folder}")
+        self.log(f"✅ 已从程序中删除 {len(removed_accounts)} 个账号")
+        self.refresh_account_tree()
+        self.save_config()
+        messagebox.showinfo("导出完成", f"成功导出 {exported_count} 个账号到:\n{export_folder}\n\n已从程序中删除")
 
     def update_account_stats(self):
         """更新账号统计"""
