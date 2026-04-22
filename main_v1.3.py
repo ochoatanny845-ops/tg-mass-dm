@@ -191,7 +191,7 @@ class TGMassDM:
             self.account_tree.delete(item)
 
         # 重新填充
-        for acc in self.accounts:
+        for index, acc in enumerate(self.accounts, start=1):
             # 复选框：☑ (已选) 或 ☐ (未选)
             check = "☑" if acc["selected"] else "☐"
             
@@ -205,6 +205,7 @@ class TGMassDM:
             twofa_display = acc.get("2fa", "")
             
             self.account_tree.insert("", tk.END, values=(
+                index,  # 序号
                 check,
                 acc["phone"],
                 acc["username"],
@@ -251,7 +252,7 @@ class TGMassDM:
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
         self.account_tree = ttk.Treeview(tree_frame,
-                                         columns=("选择", "手机号", "用户名", "姓名", "状态", "代理", "2FA"),
+                                         columns=("#", "选择", "手机号", "用户名", "姓名", "状态", "代理", "2FA"),
                                          show="headings", height=25)
         
         # 设置字体（放大复选框）
@@ -259,6 +260,7 @@ class TGMassDM:
         style.configure("Treeview", font=("微软雅黑", 11))
         style.configure("Treeview.Heading", font=("微软雅黑", 10, "bold"))
 
+        self.account_tree.heading("#", text="#")
         self.account_tree.heading("选择", text="✓")
         self.account_tree.heading("手机号", text="手机号")
         self.account_tree.heading("用户名", text="用户名")
@@ -267,6 +269,7 @@ class TGMassDM:
         self.account_tree.heading("代理", text="代理")
         self.account_tree.heading("2FA", text="2FA")
 
+        self.account_tree.column("#", width=40, anchor=tk.CENTER)
         self.account_tree.column("选择", width=50, anchor=tk.CENTER)
         self.account_tree.column("手机号", width=120)
         self.account_tree.column("用户名", width=120)
@@ -959,7 +962,7 @@ class TGMassDM:
         # 复选框：☑ (已选) 或 ☐ (未选)
         check = "☑" if self.accounts[index]["selected"] else "☐"
         values = list(self.account_tree.item(item, "values"))
-        values[0] = check
+        values[1] = check  # 第二列是复选框（第一列是序号）
         self.account_tree.item(item, values=tuple(values))
 
         self.update_account_stats()
@@ -971,7 +974,7 @@ class TGMassDM:
             account["selected"] = True
             item = self.account_tree.get_children()[i]
             values = list(self.account_tree.item(item, "values"))
-            values[0] = "☑"
+            values[1] = "☑"  # 第二列是复选框（第一列是序号）
             self.account_tree.item(item, values=tuple(values))
 
         self.log("✅ 已全选所有账号")
@@ -984,7 +987,7 @@ class TGMassDM:
             account["selected"] = False
             item = self.account_tree.get_children()[i]
             values = list(self.account_tree.item(item, "values"))
-            values[0] = "☐"
+            values[1] = "☐"  # 第二列是复选框（第一列是序号）
             self.account_tree.item(item, values=tuple(values))
 
         self.log("❌ 已清空所有选择")
@@ -1041,10 +1044,10 @@ class TGMassDM:
         
         # 获取手机号
         values = self.account_tree.item(item, "values")
-        if len(values) < 2:
+        if len(values) < 3:
             return
         
-        phone = values[1]  # 第二列是手机号
+        phone = values[2]  # 第三列是手机号（第一列序号，第二列复选框）
         
         # 创建菜单
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
