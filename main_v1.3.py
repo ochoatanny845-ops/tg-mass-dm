@@ -1428,13 +1428,24 @@ class TGMassDM:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
                     account["phone"] = "-"
+                    account["first_name"] = "-"
                     self.log(f"  🚫 封禁")
                     await client.disconnect()
                     self.root.after(0, self.refresh_account_tree)
                     return
 
+                # 更新账号信息（从 Telegram 读取）
                 account["username"] = f"@{me.username}" if me.username else "-"
                 account["phone"] = me.phone or "-"
+                
+                # 更新姓名（first_name + last_name）
+                first_name = me.first_name or ""
+                last_name = me.last_name or ""
+                if first_name:
+                    full_name = f"{first_name} {last_name}".strip() if last_name else first_name
+                    account["first_name"] = full_name
+                else:
+                    account["first_name"] = "-"
 
             except Exception as e:
                 error_type = type(e).__name__
@@ -1444,16 +1455,19 @@ class TGMassDM:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
                     account["phone"] = "-"
+                    account["first_name"] = "-"
                     self.log(f"  🚫 封禁")
                 elif "timeout" in error_str or "connection" in error_str or "network" in error_str:
                     account["status"] = "⚠️ 连接错误"
                     account["username"] = "-"
                     account["phone"] = "-"
+                    account["first_name"] = "-"
                     self.log(f"  ⚠️ 连接错误")
                 else:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
                     account["phone"] = "-"
+                    account["first_name"] = "-"
                     self.log(f"  🚫 封禁")
 
                 await client.disconnect()
@@ -1586,6 +1600,37 @@ class TGMassDM:
                 self.root.after(0, self.refresh_account_tree)
 
             account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+            
+            # 更新 JSON 文件（保存最新的姓名）
+            try:
+                session_path = Path(account["path"])
+                json_file = session_path.parent / f"{session_path.stem}.json"
+                
+                if json_file.exists():
+                    import json
+                    with open(json_file, 'r', encoding='utf-8') as f:
+                        json_data = json.load(f)
+                    
+                    # 更新姓名
+                    if account["first_name"] and account["first_name"] != "-":
+                        # 分离 first_name 和 last_name
+                        parts = account["first_name"].split(' ', 1)
+                        json_data["first_name"] = parts[0]
+                        json_data["last_name"] = parts[1] if len(parts) > 1 else None
+                    
+                    # 更新用户名
+                    if account["username"] and account["username"] != "-":
+                        json_data["username"] = account["username"].lstrip('@')
+                    
+                    # 更新手机号
+                    if account["phone"] and account["phone"] != "-":
+                        json_data["phone"] = account["phone"]
+                    
+                    # 保存
+                    with open(json_file, 'w', encoding='utf-8') as f:
+                        json.dump(json_data, f, indent=2, ensure_ascii=False)
+            except:
+                pass  # 忽略 JSON 保存错误
             
             # 确保断开连接
             try:
