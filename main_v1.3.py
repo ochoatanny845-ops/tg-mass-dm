@@ -147,9 +147,12 @@ class TGMassDM:
         
         # 更新选中数量和表头
         self.update_selected_count()
+        
+        # 延迟设置私信广告分割位置
+        self.root.after(200, self.set_messaging_sash_position)
 
     def set_initial_sash_position(self):
-        """设置初始分割位置（延迟执行）"""
+        """设置初始分割位置（延迟执行）- 仅影响主界面"""
         try:
             # 强制更新窗口
             self.root.update()
@@ -175,6 +178,20 @@ class TGMassDM:
                 self.log(f"⚠️ 窗口高度异常: {window_height}px")
         except Exception as e:
             self.log(f"❌ 设置布局失败: {e}")
+
+    def set_messaging_sash_position(self):
+        """设置私信广告分割位置（独立布局）"""
+        try:
+            self.root.update()
+            window_width = self.root.winfo_width()
+            
+            # 左侧占70%，右侧占30%
+            split_position = int(window_width * 0.70)
+            
+            self.messaging_paned.sashpos(0, split_position)
+            self.log(f"✅ 私信广告布局已设置: 左{split_position}px")
+        except Exception as e:
+            self.log(f"❌ 设置私信广告布局失败: {e}")
 
         # 窗口关闭时保存配置
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
@@ -303,13 +320,13 @@ class TGMassDM:
         tab2 = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab2, text="✉️ 私信广告")
 
-        # 左右分栏
+        # 左右分栏（私信广告独立布局）
         paned = ttk.PanedWindow(tab2, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
         # ========== 左侧:消息设置 ==========
         left = ttk.Frame(paned)
-        paned.add(left, weight=2)
+        paned.add(left, weight=3)  # 左侧占更多空间
 
         # 选择账号提示
         account_frame = ttk.LabelFrame(left, text="📱 选择账号", padding="10")
@@ -391,7 +408,10 @@ class TGMassDM:
 
         # ========== 右侧:发送设置 ==========
         right = ttk.Frame(paned)
-        paned.add(right, weight=1)
+        paned.add(right, weight=1)  # 右侧占较少空间
+        
+        # 保存 paned 引用，稍后设置分割位置
+        self.messaging_paned = paned
 
         # 并发控制
         concurrent_frame = ttk.LabelFrame(right, text="⚡ 并发控制", padding="10")
