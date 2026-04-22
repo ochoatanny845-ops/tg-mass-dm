@@ -81,9 +81,9 @@ class TGMassDM:
         main_paned = ttk.PanedWindow(tab_frame, orient=tk.VERTICAL)
         main_paned.pack(fill=tk.BOTH, expand=True)
 
-        # 上方：标签页区域（60%）
+        # 上方：标签页区域（40%）
         notebook_frame = ttk.Frame(main_paned)
-        main_paned.add(notebook_frame, weight=3)
+        main_paned.add(notebook_frame, weight=2)
 
         self.notebook = ttk.Notebook(notebook_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -97,9 +97,9 @@ class TGMassDM:
         self.setup_tab_messaging()
         self.setup_tab_scraper()
 
-        # 下方：日志区域（40%）
+        # 下方：日志区域（60%）
         log_container = ttk.Frame(main_paned)
-        main_paned.add(log_container, weight=2)
+        main_paned.add(log_container, weight=3)
 
         # 控制按钮
         control_frame = ttk.Frame(log_container, padding="5")
