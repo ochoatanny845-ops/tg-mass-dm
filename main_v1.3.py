@@ -200,14 +200,8 @@ class TGMassDM:
             else:
                 proxy_display = "直连"
             
-            # 2FA 状态
-            twofa_status = acc.get("2fa", "-")
-            if twofa_status == "yes":
-                twofa_display = "✓"
-            elif twofa_status == "no":
-                twofa_display = "✗"
-            else:
-                twofa_display = "-"
+            # 2FA 状态（直接显示值）
+            twofa_display = acc.get("2fa", "-")
             
             self.account_tree.insert("", tk.END, values=(
                 check,
@@ -759,13 +753,11 @@ class TGMassDM:
                     twofa = json_data.get('twoFA')
                     passwordfa = json_data.get('passwordFA')
                     
-                    # 如果任一字段有值（不是 null），说明已启用
-                    if twofa or passwordfa:
-                        account["2fa"] = "yes"
-                    # 如果字段存在但为 null，说明未启用
-                    elif 'twoFA' in json_data or 'passwordFA' in json_data:
-                        account["2fa"] = "no"
-                    # 如果字段不存在，未知
+                    # 优先显示 twoFA，如果没有则显示 passwordFA
+                    if twofa:
+                        account["2fa"] = str(twofa)
+                    elif passwordfa:
+                        account["2fa"] = str(passwordfa)
                     else:
                         account["2fa"] = "-"
                     
@@ -899,13 +891,11 @@ class TGMassDM:
                     twofa = json_data.get('twoFA')
                     passwordfa = json_data.get('passwordFA')
                     
-                    # 如果任一字段有值（不是 null），说明已启用
-                    if twofa or passwordfa:
-                        account["2fa"] = "yes"
-                    # 如果字段存在但为 null，说明未启用
-                    elif 'twoFA' in json_data or 'passwordFA' in json_data:
-                        account["2fa"] = "no"
-                    # 如果字段不存在，未知
+                    # 优先显示 twoFA，如果没有则显示 passwordFA
+                    if twofa:
+                        account["2fa"] = str(twofa)
+                    elif passwordfa:
+                        account["2fa"] = str(passwordfa)
                     else:
                         account["2fa"] = "-"
                     
