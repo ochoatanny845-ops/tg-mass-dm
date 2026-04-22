@@ -199,14 +199,14 @@ class TGMassDM:
             self.log(f"🔍 窗口宽度: {window_width}px")
             
             if window_width > 100:  # 确保窗口已渲染
-                # 左侧占65%，右侧占35%
-                split_position = int(window_width * 0.65)
+                # 左侧占60%，右侧占40%（给右侧更多空间）
+                split_position = int(window_width * 0.60)
                 
                 self.messaging_paned.sashpos(0, split_position)
                 
                 # 验证分割位置
                 actual_pos = self.messaging_paned.sashpos(0)
-                self.log(f"✅ 私信广告布局: 左{split_position}px (实际{actual_pos}px)")
+                self.log(f"✅ 私信广告布局: 左{split_position}px (实际{actual_pos}px) - 左60% 右40%")
                 
                 # 如果位置不对，重试
                 if abs(actual_pos - split_position) > 10:
