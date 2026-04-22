@@ -195,11 +195,13 @@ class TGMassDM:
             # 提取姓名（first_name）
             first_name = acc.get("first_name", "-")
             
-            # 代理状态
-            proxy_status = acc.get("proxy", "直连")
-            if proxy_status and proxy_status != "直连":
-                proxy_display = "代理已连接"
+            # 代理状态（仅显示配置，不表示已连接）
+            proxy_status = acc.get("proxy", "")
+            if proxy_status and proxy_status != "直连" and str(proxy_status).lower() not in ["false", "null", "none", ""]:
+                # 有代理配置
+                proxy_display = "有代理配置"
             else:
+                # 无代理配置
                 proxy_display = "直连"
             
             # 2FA 状态（直接显示值）
