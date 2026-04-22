@@ -763,7 +763,8 @@ class TGMassDM:
                         account["2fa"] = ""
                     
                     # 提取状态
-                    spamblock = json_data.get('spamblock', '').lower()
+                    spamblock = json_data.get('spamblock') or ''
+                    spamblock = str(spamblock).lower()
                     if spamblock == 'free':
                         account["status"] = "✅ 无限制（来自JSON）"
                     elif spamblock == 'permanent':
@@ -901,7 +902,8 @@ class TGMassDM:
                         account["2fa"] = ""
                     
                     # 提取状态
-                    spamblock = json_data.get('spamblock', '').lower()
+                    spamblock = json_data.get('spamblock') or ''
+                    spamblock = str(spamblock).lower()
                     if spamblock == 'free':
                         account["status"] = "✅ 无限制（来自JSON）"
                     elif spamblock == 'permanent':
