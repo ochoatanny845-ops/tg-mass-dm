@@ -971,7 +971,23 @@ class TGMassDM:
             client = TelegramClient(path, self.api_id, self.api_hash)
             
             self.log(f"  ✅ 客户端创建成功")
-            await client.connect()
+            
+            try:
+                await client.connect()
+            except Exception as e:
+                error_type = type(e).__name__
+                error_str = str(e).lower()
+                
+                # AuthKeyDuplicatedError - 重复登录
+                if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
+                    account["status"] = "⚠️ 重复登录"
+                    account["username"] = "-"
+                    account["phone"] = "-"
+                    self.log(f"  ⚠️ 重复登录（同一账号在其他地方使用中）")
+                    self.root.after(0, self.refresh_account_tree)
+                    return
+                else:
+                    raise  # 其他连接错误继续抛出
 
             # 1. 尝试登录
             try:
@@ -1081,12 +1097,26 @@ class TGMassDM:
                     self.root.after(0, self.refresh_account_tree)
 
             except Exception as e:
-                account["status"] = f"⚠️ 检测失败"
-                self.log(f"  ⚠️ SpamBot 检测失败: {type(e).__name__}")
+                error_type = type(e).__name__
+                
+                # YouBlockedUserError - 拉黑了 SpamBot
+                if "youblocked" in error_type.lower():
+                    account["status"] = "⚠️ 已拉黑SpamBot"
+                    self.log(f"  ⚠️ 已拉黑 SpamBot，无法检测")
+                # 其他错误
+                else:
+                    account["status"] = f"⚠️ 检测失败"
+                    self.log(f"  ⚠️ SpamBot 检测失败: {error_type}")
+                
                 self.root.after(0, self.refresh_account_tree)
 
             account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            await client.disconnect()
+            
+            # 确保断开连接
+            try:
+                await client.disconnect()
+            except:
+                pass  # 忽略断开连接时的错误
 
         except Exception as e:
             account["status"] = "⚠️ 检测失败"
@@ -1095,6 +1125,13 @@ class TGMassDM:
             import traceback
             self.log(f"     追踪: {traceback.format_exc()[:200]}")
             self.root.after(0, self.refresh_account_tree)
+            
+            # 确保断开连接
+            try:
+                if 'client' in locals():
+                    await client.disconnect()
+            except:
+                pass  # 忽略断开连接时的错误
 
     async def check_accounts_async(self):
         """并发批量检测账号"""
