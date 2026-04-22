@@ -173,18 +173,31 @@ class TGMassDM:
         
         self.send_type = tk.StringVar(value="text")
         ttk.Radiobutton(type_frame, text="📝 文本消息", variable=self.send_type, 
-                       value="text").pack(anchor=tk.W, pady=2)
+                       value="text", command=self.on_send_type_change).pack(anchor=tk.W, pady=2)
         ttk.Radiobutton(type_frame, text="🔗 转发贴子", variable=self.send_type, 
-                       value="forward").pack(anchor=tk.W, pady=2)
+                       value="forward", command=self.on_send_type_change).pack(anchor=tk.W, pady=2)
         
-        # 消息内容
-        msg_frame = ttk.LabelFrame(left, text="✉️ 消息内容", padding="10")
-        msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        # 文本消息框
+        self.text_msg_frame = ttk.LabelFrame(left, text="✉️ 文本消息", padding="10")
+        self.text_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
-        self.message_text = scrolledtext.ScrolledText(msg_frame, height=8, 
+        self.message_text = scrolledtext.ScrolledText(self.text_msg_frame, height=8, 
                                                       font=("微软雅黑", 10), wrap=tk.WORD)
         self.message_text.pack(fill=tk.BOTH, expand=True)
         self.message_text.insert("1.0", "你好 {firstname}！\n\n这是一条测试消息。\n\n支持变量：\n• {username} - 用户名\n• {firstname} - 名字")
+        
+        # 转发贴子框（默认隐藏）
+        self.forward_msg_frame = ttk.LabelFrame(left, text="🔗 转发贴子", padding="10")
+        # 不 pack，等切换时显示
+        
+        ttk.Label(self.forward_msg_frame, text="贴子链接 (格式: https://t.me/channel/12345):").pack(anchor=tk.W)
+        self.forward_url = ttk.Entry(self.forward_msg_frame, font=("微软雅黑", 10))
+        self.forward_url.pack(fill=tk.X, pady=5)
+        self.forward_url.insert(0, "https://t.me/")
+        
+        self.hide_source = tk.BooleanVar(value=True)
+        ttk.Checkbutton(self.forward_msg_frame, text="隐藏来源（推荐）", 
+                       variable=self.hide_source).pack(anchor=tk.W, pady=5)
         
         # 目标用户
         target_frame = ttk.LabelFrame(left, text="👥 目标用户", padding="10")
@@ -412,6 +425,17 @@ class TGMassDM:
         self.log_text.see(tk.END)
         self.root.update_idletasks()
         print(message)
+    
+    def on_send_type_change(self):
+        """切换发送类型"""
+        if self.send_type.get() == "text":
+            # 显示文本框，隐藏转发框
+            self.forward_msg_frame.pack_forget()
+            self.text_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_text.master)
+        else:
+            # 显示转发框，隐藏文本框
+            self.text_msg_frame.pack_forget()
+            self.forward_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_text.master)
     
     # ========== 账号管理功能 ==========
     
@@ -951,8 +975,9 @@ class TGMassDM:
             self.log(f"  ✅ 已登录: @{account_name}")
             
             account_sent = 0
+            success_targets = []  # 记录发送成功的用户
             
-            for target in self.targets:
+            for target in self.targets[:]:  # 复制列表避免修改时出错
                 if not self.is_running:
                     break
                 
@@ -969,54 +994,156 @@ class TGMassDM:
                 try:
                     username = target.lstrip("@")
                     
-                    message = self.message_text.get("1.0", tk.END).strip()
-                    message = message.replace("{username}", username)
-                    
-                    try:
-                        user = await client.get_entity(username)
-                        message = message.replace("{firstname}", user.first_name or "")
-                    except:
-                        pass
-                    
-                    await client.send_message(username, message)
+                    # 根据发送类型执行不同操作
+                    if self.send_type.get() == "forward":
+                        # 转发贴子模式
+                        forward_url = self.forward_url.get().strip() if hasattr(self, 'forward_url') else ""
+                        
+                        if forward_url:
+                            # 解析转发链接
+                            if "t.me/" in forward_url:
+                                try:
+                                    # 提取频道/群组和消息ID
+                                    parts = forward_url.split("/")
+                                    if len(parts) >= 2:
+                                        channel_username = parts[-2]
+                                        message_id = int(parts[-1])
+                                        
+                                        # 获取原始消息
+                                        channel = await client.get_entity(channel_username)
+                                        message_obj = await client.get_messages(channel, ids=message_id)
+                                        
+                                        if message_obj:
+                                            # 转发消息（隐藏来源根据设置）
+                                            hide_sender = self.hide_source.get() if hasattr(self, 'hide_source') else True
+                                            await client.send_message(
+                                                username, 
+                                                message_obj,
+                                                silent=True
+                                            )
+                                            self.log(f"  ✅ [{account_name}] 转发成功: @{username}")
+                                        else:
+                                            raise Exception("无法获取原始消息")
+                                    else:
+                                        raise Exception("链接格式错误")
+                                except ValueError:
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 链接格式错误: {forward_url}")
+                                    async with self.send_lock:
+                                        self.total_failed += 1
+                                    continue
+                            else:
+                                self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 无效链接: {forward_url}")
+                                async with self.send_lock:
+                                    self.total_failed += 1
+                                continue
+                        else:
+                            self.log(f"  ⚠️ [{account_name}] 未设置转发链接，跳过: @{username}")
+                            continue
+                    else:
+                        # 文本消息模式
+                        message = self.message_text.get("1.0", tk.END).strip()
+                        message = message.replace("{username}", username)
+                        
+                        try:
+                            user = await client.get_entity(username)
+                            message = message.replace("{firstname}", user.first_name or "")
+                        except:
+                            pass
+                        
+                        # 发送文本消息并确认
+                        sent_msg = await client.send_message(username, message)
+                        
+                        # 验证发送成功（检查返回的消息对象）
+                        if not sent_msg or not sent_msg.id:
+                            raise Exception("发送失败，未收到消息ID")
+                        
+                        self.log(f"  ✅ [{account_name}] 发送成功: @{username} (msg_id: {sent_msg.id})")
                     
                     account_sent += 1
+                    success_targets.append(target)  # 记录成功
                     
                     async with self.send_lock:
                         self.total_sent += 1
                         current_total = self.total_sent
                     
-                    self.log(f"  ✅ [{account_name}] 发送成功: @{username} [总计:{current_total}]")
+                    self.log(f"  📊 [{account_name}] 总计: {current_total} 条")
                     
                     interval = random.uniform(self.interval_min.get(), self.interval_max.get())
                     await asyncio.sleep(interval)
                     
                 except errors.FloodWaitError as e:
-                    self.log(f"  ⚠️ [{account_name}] 触发频率限制，需等待 {e.seconds} 秒")
+                    self.log(f"  ⚠️ [{account_name}] 触发频率限制: @{username} - 需等待 {e.seconds} 秒")
+                    self.log(f"      详细: FloodWaitError - Telegram 要求等待 {e.seconds} 秒后再发送")
+                    async with self.send_lock:
+                        self.total_failed += 1
                     if self.auto_switch.get():
                         self.log(f"  🔄 [{account_name}] 提前结束，切换下一批")
                         break
                     else:
                         await asyncio.sleep(e.seconds)
                 
-                except errors.UserPrivacyRestrictedError:
+                except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
+                    self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                except errors.UserIsBlockedError:
+                        
+                except errors.UserIsBlockedError as e:
                     self.log(f"  ❌ [{account_name}] 已被用户拉黑: @{username}")
+                    self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                        
+                except errors.PeerIdInvalidError as e:
+                    self.log(f"  ❌ [{account_name}] 用户不存在或无效: @{username}")
+                    self.log(f"      详细: {str(e)}")
+                    async with self.send_lock:
+                        self.total_failed += 1
+                        
+                except errors.ChatWriteForbiddenError as e:
+                    self.log(f"  ❌ [{account_name}] 无权限发送消息: @{username}")
+                    self.log(f"      详细: {str(e)}")
+                    async with self.send_lock:
+                        self.total_failed += 1
+                        
                 except Exception as e:
-                    self.log(f"  ❌ [{account_name}] 发送失败: @{username} - {type(e).__name__}")
+                    self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
+                    self.log(f"      错误类型: {type(e).__name__}")
+                    self.log(f"      错误详情: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+            
+            # 从目标列表中删除发送成功的用户
+            if success_targets:
+                self.remove_successful_targets(success_targets)
+                self.log(f"  🗑️ [{account_name}] 已从列表删除 {len(success_targets)} 个成功发送的用户")
             
             await client.disconnect()
             self.log(f"  📊 [{account_name}] 完成，本账号发送: {account_sent} 条")
             
         except Exception as e:
-            self.log(f"  ❌ 账号错误: {type(e).__name__}: {str(e)[:50]}")
+            self.log(f"  ❌ 账号错误: {type(e).__name__}")
+            self.log(f"      详细: {str(e)}")
+    
+    def remove_successful_targets(self, success_targets):
+        """从目标列表中删除成功发送的用户"""
+        try:
+            # 获取当前列表
+            current = self.target_text.get("1.0", tk.END).strip()
+            lines = [line.strip() for line in current.split("\n") if line.strip()]
+            
+            # 删除成功的
+            remaining = [line for line in lines if line not in success_targets]
+            
+            # 更新显示
+            self.target_text.delete("1.0", tk.END)
+            self.target_text.insert("1.0", "\n".join(remaining))
+            
+            # 更新计数
+            self.target_count_label.config(text=f"共 {len(remaining)} 个目标用户")
+            
+        except Exception as e:
+            self.log(f"  ⚠️ 更新目标列表失败: {type(e).__name__}")
     
     def start_scraping(self):
         """开始采集用户"""
