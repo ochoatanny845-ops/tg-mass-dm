@@ -1099,10 +1099,53 @@ class TGMassDM:
             except Exception as e:
                 error_type = type(e).__name__
                 
-                # YouBlockedUserError - 拉黑了 SpamBot
+                # YouBlockedUserError - 拉黑了 SpamBot，尝试自动取消拉黑
                 if "youblocked" in error_type.lower():
-                    account["status"] = "⚠️ 已拉黑SpamBot"
-                    self.log(f"  ⚠️ 已拉黑 SpamBot，无法检测")
+                    self.log(f"  ⚠️ 检测到已拉黑 SpamBot，正在自动取消拉黑...")
+                    
+                    try:
+                        # 取消拉黑 @spambot
+                        await client.unblock_user("@spambot")
+                        self.log(f"  ✅ 已取消拉黑 SpamBot")
+                        await asyncio.sleep(1)
+                        
+                        # 重试检测
+                        self.log(f"  🔄 重新检测...")
+                        await client.send_message("@spambot", "/start")
+                        await asyncio.sleep(2)
+                        
+                        messages = await client.get_messages("@spambot", limit=1)
+                        
+                        if messages and len(messages) > 0:
+                            response = (messages[0].message or "").strip().lower()
+                            
+                            # 重新判断状态（使用相同的逻辑）
+                            if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
+                                account["status"] = "✅ 无限制（地理受限）"
+                                self.log(f"  ✅ 无限制（地理受限）: {account['username']}")
+                            elif any(keyword in response for keyword in FROZEN_KEYWORDS):
+                                account["status"] = "🚫 冻结"
+                                self.log(f"  🚫 冻结: {account['username']}")
+                            elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
+                                account["status"] = "⚠️ 永久双向限制"
+                                self.log(f"  ⚠️ 永久双向限制: {account['username']}")
+                            elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
+                                account["status"] = "⚠️ 临时限制"
+                                self.log(f"  ⚠️ 临时限制: {account['username']}")
+                            elif any(keyword in response for keyword in NORMAL_KEYWORDS):
+                                account["status"] = "✅ 无限制"
+                                self.log(f"  ✅ 无限制: {account['username']}")
+                            else:
+                                account["status"] = "⚠️ 未知状态"
+                                self.log(f"  ⚠️ 未知状态: {account['username']}")
+                        else:
+                            account["status"] = "⚠️ 无回复"
+                            self.log(f"  ⚠️ SpamBot 无回复")
+                        
+                    except Exception as retry_error:
+                        account["status"] = "⚠️ 取消拉黑失败"
+                        self.log(f"  ❌ 取消拉黑失败: {type(retry_error).__name__}")
+                
                 # 其他错误
                 else:
                     account["status"] = f"⚠️ 检测失败"
