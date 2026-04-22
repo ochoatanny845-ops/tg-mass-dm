@@ -997,10 +997,10 @@ class TGMassDM:
             self.show_main_start_menu(self.start_btn)
         elif current_tab == 1:
             # 私信广告页面 - 直接开始发送
-            self.start_send()
+            self.start_messaging()
         elif current_tab == 2:
             # 采集用户页面 - 直接开始采集
-            self.start_scrape()
+            self.start_scraping()
     
     def show_main_start_menu(self, button):
         """显示主界面开始菜单（仅账号管理页面）"""
