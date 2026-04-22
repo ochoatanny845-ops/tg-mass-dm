@@ -1841,12 +1841,12 @@ class TGMassDM:
         if not self.stop_flag:
             self.log("✅ 账号检测完成")
         
-        # 统计各状态数量
+        # 统计各状态数量（只统计本次检测的账号）
         normal_count = sum(1 for acc in accounts if "✅ 无限制" in acc["status"])
         limited_count = sum(1 for acc in accounts if "⚠️ 永久双向限制" in acc["status"])
-        frozen_count = sum(1 for acc in self.accounts if "🚫 冻结" in acc["status"])
-        banned_count = sum(1 for acc in self.accounts if "🚫 封禁" in acc["status"])
-        temp_limited_count = sum(1 for acc in self.accounts if "⚠️ 临时限制" in acc["status"])
+        frozen_count = sum(1 for acc in accounts if "🚫 冻结" in acc["status"])
+        banned_count = sum(1 for acc in accounts if "🚫 封禁" in acc["status"])
+        temp_limited_count = sum(1 for acc in accounts if "⚠️ 临时限制" in acc["status"])
         other_count = total - normal_count - limited_count - frozen_count - banned_count - temp_limited_count
         
         self.log("=" * 50)
