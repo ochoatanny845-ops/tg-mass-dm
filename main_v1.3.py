@@ -60,6 +60,10 @@ class TGMassDM:
         self.notebook = ttk.Notebook(tab_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
         
+        # 设置标签字体
+        style = ttk.Style()
+        style.configure('TNotebook.Tab', font=('微软雅黑', 12, 'bold'), padding=[20, 10])
+        
         # 创建三个功能标签页
         self.setup_tab_accounts()
         self.setup_tab_messaging()
