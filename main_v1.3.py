@@ -126,6 +126,13 @@ class TGMassDM:
         self.log("📋 功能: 账号管理、私信广告、采集用户")
         self.log("💡 点击顶部标签切换功能")
 
+        # 设置初始分割位置（日志区域占 60%）
+        self.root.update_idletasks()  # 确保窗口已渲染
+        window_height = self.root.winfo_height()
+        if window_height > 100:  # 确保窗口高度有效
+            split_position = int(window_height * 0.4)  # 标签页占 40%
+            main_paned.sashpos(0, split_position)
+
         # 应用加载的配置
         self.apply_loaded_config()
 
