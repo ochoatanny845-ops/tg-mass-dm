@@ -755,14 +755,19 @@ class TGMassDM:
                     if proxy:
                         account["proxy"] = proxy
                     
-                    # 提取 2FA 状态（注意字段名是 twoFA）
-                    twofa = json_data.get('twoFA') or json_data.get('2fa')
-                    if twofa:
+                    # 提取 2FA 状态（检测 twoFA 和 passwordFA）
+                    twofa = json_data.get('twoFA')
+                    passwordfa = json_data.get('passwordFA')
+                    
+                    # 如果任一字段有值（不是 null），说明已启用
+                    if twofa or passwordfa:
                         account["2fa"] = "yes"
-                    elif twofa is None:
-                        account["2fa"] = "-"
-                    else:
+                    # 如果字段存在但为 null，说明未启用
+                    elif 'twoFA' in json_data or 'passwordFA' in json_data:
                         account["2fa"] = "no"
+                    # 如果字段不存在，未知
+                    else:
+                        account["2fa"] = "-"
                     
                     # 提取状态
                     spamblock = json_data.get('spamblock', '').lower()
@@ -890,14 +895,19 @@ class TGMassDM:
                     if proxy:
                         account["proxy"] = proxy
                     
-                    # 提取 2FA 状态（注意字段名是 twoFA）
-                    twofa = json_data.get('twoFA') or json_data.get('2fa')
-                    if twofa:
+                    # 提取 2FA 状态（检测 twoFA 和 passwordFA）
+                    twofa = json_data.get('twoFA')
+                    passwordfa = json_data.get('passwordFA')
+                    
+                    # 如果任一字段有值（不是 null），说明已启用
+                    if twofa or passwordfa:
                         account["2fa"] = "yes"
-                    elif twofa is None:
-                        account["2fa"] = "-"
-                    else:
+                    # 如果字段存在但为 null，说明未启用
+                    elif 'twoFA' in json_data or 'passwordFA' in json_data:
                         account["2fa"] = "no"
+                    # 如果字段不存在，未知
+                    else:
+                        account["2fa"] = "-"
                     
                     # 提取状态
                     spamblock = json_data.get('spamblock', '').lower()
