@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.18.0"
+VERSION = "v1.19.0"
 
 import os
 import sys
@@ -127,11 +127,6 @@ class TGMassDM:
         self.stop_btn = ttk.Button(control_frame, text="⏸️ 停止", width=15,
                                    command=self.stop_task, state=tk.DISABLED)
         self.stop_btn.pack(side=tk.LEFT, padx=5)
-        
-        # 私信进度显示（只在私信广告页面显示）
-        self.progress_label = ttk.Label(control_frame, text="",
-                                       font=("微软雅黑", 10), foreground="blue")
-        self.progress_label.pack(side=tk.LEFT, padx=20)
 
         # 日志框架
         log_frame = ttk.LabelFrame(log_container, text="📝 运行日志", padding="10")
@@ -561,7 +556,7 @@ class TGMassDM:
         
         self.messaging_progress_label = ttk.Label(progress_frame, 
                                                   text="任务未开始",
-                                                  font=("微软雅黑", 11, "bold"),
+                                                  font=("微软雅黑", 14, "bold"),
                                                   foreground="gray")
         self.messaging_progress_label.pack(anchor=tk.W)
 
@@ -2419,14 +2414,9 @@ class TGMassDM:
             text = f"总计: {total} 条 | 成功: {success} 条 | 失败: {failed} 条"
             if hasattr(self, 'messaging_progress_label'):
                 self.messaging_progress_label.config(text=text, foreground="blue")
-            # 同时更新顶部的进度标签（兼容）
-            if hasattr(self, 'progress_label'):
-                self.progress_label.config(text=f"📊 {text}")
         else:
             if hasattr(self, 'messaging_progress_label'):
                 self.messaging_progress_label.config(text="任务未开始", foreground="gray")
-            if hasattr(self, 'progress_label'):
-                self.progress_label.config(text="")
 
     # ========== 私信广告功能 ==========
 
@@ -2790,8 +2780,6 @@ class TGMassDM:
                 text=f"任务完成 | 总计: {total} 条 | 成功: {self.total_sent} 条 | 失败: {self.total_failed} 条",
                 foreground="green"
             )
-        if hasattr(self, 'progress_label'):
-            self.progress_label.config(text="")
 
     async def countdown_wait(self, wait_time, account_name):
         """倒计时等待（显示剩余时间）"""
