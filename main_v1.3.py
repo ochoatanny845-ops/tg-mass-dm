@@ -831,6 +831,7 @@ class TGMassDM:
 
                     await client.disconnect()
                     # 使用 after 在主线程更新界面
+                    self.log(f"     [DEBUG] 更新状态为: {account['status']}")
                     self.root.after(0, self.refresh_account_tree)
                     continue
 
