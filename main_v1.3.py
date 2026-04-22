@@ -1422,8 +1422,17 @@ class TGMassDM:
                     
                     # 检测 "Too many requests" 错误
                     if "too many requests" in error_str or "flood" in error_str:
+                        # 尝试从错误信息中提取等待时间
+                        import re
+                        wait_match = re.search(r'(\d+)\s*second', error_str)
+                        if wait_match:
+                            wait_time = min(int(wait_match.group(1)), 300)  # 最多等待 5 分钟
+                        else:
+                            wait_time = 60  # 默认等待 60 秒
+                        
                         self.log(f"  ⚠️ [{account_name}] 触发请求限制: @{username}")
                         self.log(f"      错误: {str(e)}")
+                        self.log(f"      自动等待: {wait_time} 秒")
                         async with self.send_lock:
                             self.total_failed += 1
                         
@@ -1431,9 +1440,8 @@ class TGMassDM:
                             self.log(f"  🔄 [{account_name}] 触发限制，切换下一个账号")
                             break  # 切换账号
                         else:
-                            # 等待后重试
-                            wait_time = 60  # 默认等待 60 秒
-                            self.log(f"  ⏳ [{account_name}] 等待 {wait_time} 秒后重试...")
+                            # 自动等待后重试
+                            self.log(f"  ⏳ [{account_name}] 等待 {wait_time} 秒后自动重试...")
                             await asyncio.sleep(wait_time)
                             continue
                     
