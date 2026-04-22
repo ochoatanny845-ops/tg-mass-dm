@@ -1073,6 +1073,8 @@ class TGMassDM:
         menu.add_command(label="导出失效账号", command=self.export_invalid)
         menu.add_command(label="导出冻结账号", command=self.export_frozen)
         menu.add_command(label="导出封禁账号", command=self.export_banned)
+        menu.add_command(label="导出永久双向限制", command=self.export_permanent_limited)
+        menu.add_command(label="导出临时限制", command=self.export_temp_limited)
         
         # 在按钮下方显示菜单
         x = button.winfo_rootx()
@@ -1918,6 +1920,64 @@ class TGMassDM:
         """导出封禁账号"""
         banned_accounts = [acc for acc in self.accounts if "🚫 封禁" in acc["status"]]
         self._export_accounts(banned_accounts, "封禁账号")
+    
+    def export_permanent_limited(self):
+        """导出永久双向限制账号"""
+        permanent_accounts = [acc for acc in self.accounts if "永久双向限制" in acc["status"]]
+        self._export_and_remove_accounts(permanent_accounts, "永久双向限制账号")
+    
+    def export_temp_limited(self):
+        """导出临时限制账号"""
+        temp_accounts = [acc for acc in self.accounts if "临时限制" in acc["status"] or "临时垃圾邮件" in acc["status"]]
+        self._export_and_remove_accounts(temp_accounts, "临时限制账号")
+    
+    def _export_and_remove_accounts(self, accounts, export_name):
+        """导出账号并从程序中删除（移动文件）"""
+        if not accounts:
+            messagebox.showinfo("提示", f"没有{export_name}")
+            return
+        
+        # 选择导出文件夹
+        export_folder = filedialog.askdirectory(title=f"选择导出文件夹（{export_name}）")
+        if not export_folder:
+            return
+        
+        export_path = Path(export_folder)
+        exported_count = 0
+        removed_accounts = []
+        
+        for acc in accounts:
+            try:
+                import shutil
+                session_path = Path(acc["path"])
+                
+                # 移动 session 文件
+                if session_path.exists():
+                    dest_session = export_path / session_path.name
+                    shutil.move(str(session_path), str(dest_session))
+                    exported_count += 1
+                    
+                    # 移动对应的 JSON 文件
+                    json_file = session_path.parent / f"{session_path.stem}.json"
+                    if json_file.exists():
+                        dest_json = export_path / json_file.name
+                        shutil.move(str(json_file), str(dest_json))
+                    
+                    # 标记为待删除
+                    removed_accounts.append(acc)
+                    
+            except Exception as e:
+                self.log(f"❌ 导出失败: {session_path.name} - {str(e)}")
+        
+        # 从账号列表中删除
+        for acc in removed_accounts:
+            self.accounts.remove(acc)
+        
+        self.log(f"✅ 导出 {exported_count} 个{export_name}到: {export_folder}")
+        self.log(f"✅ 已从程序中删除 {len(removed_accounts)} 个账号")
+        self.refresh_account_tree()
+        self.save_config()
+        messagebox.showinfo("导出成功", f"成功导出 {exported_count} 个{export_name}\n并从程序中删除")
     
     def _export_accounts(self, accounts, export_name):
         """通用导出函数"""
