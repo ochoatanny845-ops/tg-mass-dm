@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.26.0"
+VERSION = "v1.27.0"
 
 import os
 import sys
@@ -2891,9 +2891,15 @@ class TGMassDM:
 
             account_sent = 0
             account_failed_count = 0  # 记录连续失败次数
+            consecutive_fails = 0  # 连续失败计数（用于检测刷屏）
             has_spam_restriction = False  # 是否有垃圾邮件限制
 
             while self.is_running:
+                # 检测连续失败过多，停止该账号
+                if consecutive_fails >= 10:
+                    self.log(f"  🚫 [{account_name}] 连续失败 {consecutive_fails} 次，停止该账号")
+                    break
+                
                 # 动态从共享列表中获取下一个目标（避免重复发送）
                 async with self.send_lock:
                     if not self.targets or len(self.targets) == 0:
@@ -3021,6 +3027,7 @@ class TGMassDM:
 
                     account_sent += 1
                     account_failed_count = 0  # 重置失败计数（发送成功）
+                    consecutive_fails = 0  # 重置连续失败计数
 
                     async with self.send_lock:
                         self.total_sent += 1
@@ -3040,6 +3047,7 @@ class TGMassDM:
 
                 except errors.FloodWaitError as e:
                     self.log(f"  ❌ [{account_name}] 触发频率限制: @{username} - 跳过")
+                    consecutive_fails += 1
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3050,12 +3058,10 @@ class TGMassDM:
 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
-                    self.log(f"      详细: {str(e)}")
+                    consecutive_fails += 1
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
-                        
-                        # 更新进度显示
                         self.root.after(0, self.update_progress)
                     
                     # 检测是否是双向限制（连续多个用户失败）
@@ -3076,7 +3082,7 @@ class TGMassDM:
 
                 except errors.UserIsBlockedError as e:
                     self.log(f"  ❌ [{account_name}] 已被用户拉黑: @{username}")
-                    self.log(f"      详细: {str(e)}")
+                    consecutive_fails += 1
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3084,7 +3090,7 @@ class TGMassDM:
 
                 except errors.PeerIdInvalidError as e:
                     self.log(f"  ❌ [{account_name}] 用户不存在或无效: @{username}")
-                    self.log(f"      详细: {str(e)}")
+                    consecutive_fails += 1
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3092,7 +3098,7 @@ class TGMassDM:
 
                 except errors.ChatWriteForbiddenError as e:
                     self.log(f"  ❌ [{account_name}] 无权限发送消息: @{username}")
-                    self.log(f"      详细: {str(e)}")
+                    consecutive_fails += 1
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3108,6 +3114,7 @@ class TGMassDM:
 
                 except Exception as e:
                     error_str = str(e).lower()
+                    consecutive_fails += 1
 
                     # 检测 "Too many requests" 错误
                     if "too many requests" in error_str or "flood" in error_str:
@@ -3121,7 +3128,7 @@ class TGMassDM:
 
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
                     self.log(f"      错误类型: {type(e).__name__}")
-                    self.log(f"      错误详情: {str(e)}")
+                    self.log(f"      错误详情: {str(e)[:100]}")  # 只显示前100字符
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
