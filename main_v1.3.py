@@ -1,7 +1,10 @@
 """
-TG 批量私信系统 v1.3 - 多功能版
-功能:账号管理、私信广告、采集用户
+TG 批量私信系统 - 多功能版
+功能：账号管理、私信广告、采集用户
 """
+
+# 版本号（每次更新修改这里）
+VERSION = "v1.5.3"
 
 import os
 import sys
@@ -21,14 +24,14 @@ try:
     from telethon.tl.functions.messages import GetDialogsRequest
     from telethon.tl.types import InputPeerEmpty, UserStatusOnline, UserStatusRecently
 except ImportError:
-    print("❌ 缺少 telethon 库,请运行: pip install telethon")
+    print("❌ 缺少 telethon 库，请运行: pip install telethon")
     sys.exit(1)
 
 
 class TGMassDM:
     def __init__(self, root):
         self.root = root
-        self.root.title("TG 批量私信系统 v1.3")
+        self.root.title(f"TG 批量私信系统 {VERSION}")
         self.root.geometry("1200x800")
 
         # Telegram API 配置
@@ -62,7 +65,7 @@ class TGMassDM:
         title_frame = ttk.Frame(self.root, padding="10")
         title_frame.pack(fill=tk.X)
 
-        ttk.Label(title_frame, text="📱 TG 批量私信系统 v1.3",
+        ttk.Label(title_frame, text=f"📱 TG 批量私信系统 {VERSION}",
                  font=("微软雅黑", 16, "bold")).pack(side=tk.LEFT, padx=10)
 
         # ========== 功能标签栏 ==========
@@ -102,7 +105,7 @@ class TGMassDM:
         self.log_text.pack(fill=tk.BOTH, expand=True)
 
         # 欢迎日志
-        self.log("✅ TG 批量私信系统 v1.3 已启动")
+        self.log(f"✅ TG 批量私信系统 {VERSION} 已启动")
         self.log("📋 功能: 账号管理、私信广告、采集用户")
         self.log("💡 点击顶部标签切换功能")
 
@@ -858,11 +861,11 @@ class TGMassDM:
                             account["status"] = "⚠️ 临时垃圾邮件"
                             self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
                         else:
-                            # 未匹配到关键词，显示原始回复供分析
+                            # 未匹配到关键词,显示原始回复供分析
                             account["status"] = "⚠️ 未知状态"
                             self.log(f"  ⚠️ 未知状态: {account['username']}")
                             self.log(f"     SpamBot 回复: {response[:200]}")
-                        
+
                         # 使用 after 在主线程更新显示
                         self.root.after(0, self.refresh_account_tree)
                     else:
