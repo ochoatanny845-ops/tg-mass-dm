@@ -996,7 +996,7 @@ class TGMassDM:
     
     def show_main_start_menu(self, button):
         """显示主界面开始菜单"""
-        menu = tk.Menu(self.root, tearoff=0)
+        menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label="检查账号限制", command=self.check_accounts)
         menu.add_separator()
         menu.add_command(label="新功能待开发", state=tk.DISABLED)
@@ -1008,7 +1008,7 @@ class TGMassDM:
     
     def show_start_menu(self, button):
         """显示开始菜单（账号管理页面）"""
-        menu = tk.Menu(self.root, tearoff=0)
+        menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label="检查账号限制", command=self.check_accounts)
         menu.add_separator()
         menu.add_command(label="新功能待开发", state=tk.DISABLED)
@@ -1036,7 +1036,7 @@ class TGMassDM:
         phone = values[1]  # 第二列是手机号
         
         # 创建菜单
-        menu = tk.Menu(self.root, tearoff=0)
+        menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label=f"📋 复制手机号: {phone}", 
                         command=lambda: self.copy_to_clipboard(phone))
         
@@ -1051,7 +1051,7 @@ class TGMassDM:
     
     def show_delete_menu(self, button):
         """显示删除菜单"""
-        menu = tk.Menu(self.root, tearoff=0)
+        menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label="删除选择的账号", command=self.delete_selected)
         menu.add_command(label="删除全部账号", command=self.delete_all)
         menu.add_separator()
@@ -1066,7 +1066,7 @@ class TGMassDM:
     
     def show_export_menu(self, button):
         """显示导出菜单"""
-        menu = tk.Menu(self.root, tearoff=0)
+        menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label="导出选择的账号", command=self.export_selected)
         menu.add_command(label="导出全部账号", command=self.export_all)
         menu.add_separator()
