@@ -188,7 +188,8 @@ class TGMassDM:
 
         # 重新填充
         for acc in self.accounts:
-            check = "✓" if acc["selected"] else ""
+            # 复选框：☑ (已选) 或 ☐ (未选)
+            check = "☑" if acc["selected"] else "☐"
             
             # 提取姓名（first_name）
             first_name = acc.get("first_name", "-")
@@ -933,7 +934,8 @@ class TGMassDM:
 
         self.accounts[index]["selected"] = not self.accounts[index]["selected"]
 
-        check = "✓" if self.accounts[index]["selected"] else ""
+        # 复选框：☑ (已选) 或 ☐ (未选)
+        check = "☑" if self.accounts[index]["selected"] else "☐"
         values = list(self.account_tree.item(item, "values"))
         values[0] = check
         self.account_tree.item(item, values=tuple(values))
@@ -947,7 +949,7 @@ class TGMassDM:
             account["selected"] = True
             item = self.account_tree.get_children()[i]
             values = list(self.account_tree.item(item, "values"))
-            values[0] = "✓"
+            values[0] = "☑"
             self.account_tree.item(item, values=tuple(values))
 
         self.log("✅ 已全选所有账号")
@@ -960,7 +962,7 @@ class TGMassDM:
             account["selected"] = False
             item = self.account_tree.get_children()[i]
             values = list(self.account_tree.item(item, "values"))
-            values[0] = ""
+            values[0] = "☐"
             self.account_tree.item(item, values=tuple(values))
 
         self.log("❌ 已清空所有选择")
