@@ -1,1 +1,2 @@
 telethon==1.38.1
+deep-translator==1.11.4

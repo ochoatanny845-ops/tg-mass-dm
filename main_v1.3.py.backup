@@ -44,11 +44,6 @@ class TGMassDM:
         self.collected_users = []  # 采集的用户
         self.is_running = False
 
-        # 检测配置（问题 4：并发优化）
-        self.check_concurrent = tk.IntVar(value=5)  # 并发数量
-        self.check_batch_delay = tk.IntVar(value=2)  # 批次间隔(秒)
-        self.check_timeout = tk.IntVar(value=30)  # 超时时间(秒)
-
         # 配置文件路径
         self.config_file = "config.json"
         self.accounts_dir = "accounts"
@@ -77,15 +72,7 @@ class TGMassDM:
         tab_frame = ttk.Frame(self.root)
         tab_frame.pack(fill=tk.BOTH, expand=True, padx=10)
 
-        # 使用 PanedWindow 可拖动分隔栏（问题 11：UI 布局优化）
-        main_paned = ttk.PanedWindow(tab_frame, orient=tk.VERTICAL)
-        main_paned.pack(fill=tk.BOTH, expand=True)
-
-        # 上方：标签页区域（60%）
-        notebook_frame = ttk.Frame(main_paned)
-        main_paned.add(notebook_frame, weight=3)
-
-        self.notebook = ttk.Notebook(notebook_frame)
+        self.notebook = ttk.Notebook(tab_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
 
         # 设置标签字体
@@ -97,13 +84,9 @@ class TGMassDM:
         self.setup_tab_messaging()
         self.setup_tab_scraper()
 
-        # 下方：日志区域（40%）
-        log_container = ttk.Frame(main_paned)
-        main_paned.add(log_container, weight=2)
-
-        # 控制按钮
-        control_frame = ttk.Frame(log_container, padding="5")
-        control_frame.pack(fill=tk.X)
+        # ========== 控制按钮(日志上方)==========
+        control_frame = ttk.Frame(self.root, padding="5")
+        control_frame.pack(fill=tk.X, padx=10)
 
         self.start_btn = ttk.Button(control_frame, text="🚀 开始", width=15,
                                     command=self.start_task)
@@ -113,9 +96,9 @@ class TGMassDM:
                                    command=self.stop_task, state=tk.DISABLED)
         self.stop_btn.pack(side=tk.LEFT, padx=5)
 
-        # 日志框架
-        log_frame = ttk.LabelFrame(log_container, text="📝 运行日志", padding="10")
-        log_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
+        # ========== 底部日志 ==========
+        log_frame = ttk.LabelFrame(self.root, text="📝 运行日志", padding="10")
+        log_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=(5, 10))
 
         self.log_text = scrolledtext.ScrolledText(log_frame, height=10,
                                                   font=("Consolas", 9))
@@ -762,57 +745,6 @@ class TGMassDM:
         self.update_account_stats()
         self.update_selected_count()
 
-    # ========== 辅助函数 ==========
-    
-    def translate_to_english(self, text):
-        """将任意语言翻译成英文"""
-        try:
-            from deep_translator import GoogleTranslator
-            translator = GoogleTranslator(source='auto', target='en')
-            return translator.translate(text)
-        except Exception as e:
-            self.log(f"  ⚠️ 翻译失败: {str(e)}")
-            return text  # 翻译失败返回原文
-    
-    def parse_limitation_time(self, response):
-        """解析限制到期时间"""
-        import re
-        from datetime import datetime
-        
-        # 匹配模式: "until DD MMM YYYY, HH:MM UTC"
-        pattern = r"(?:until|on|до)\s+(\d{1,2})\s+([A-Za-z]+|[а-я]+)\s+(\d{4})(?:,?\s+г\.?)?"
-        match = re.search(pattern, response, re.IGNORECASE)
-        
-        if match:
-            day, month_str, year = match.groups()[:3]
-            
-            # 月份映射（英文和俄文）
-            months = {
-                # 英文
-                'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
-                'may': 5, 'jun': 6, 'jul': 7, 'aug': 8,
-                'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
-                # 俄文
-                'января': 1, 'февраля': 2, 'марта': 3, 'апреля': 4,
-                'мая': 5, 'июня': 6, 'июля': 7, 'августа': 8,
-                'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12,
-            }
-            
-            month = months.get(month_str[:3].lower(), None)
-            if not month:
-                return None
-            
-            try:
-                # 构造时间对象
-                release_time = datetime(int(year), month, int(day))
-                return release_time
-            except:
-                return None
-        
-        return None
-    
-    # ========== 账号检测功能 ==========
-
     def check_accounts(self):
         """检测账号状态"""
         if not self.accounts:
@@ -830,47 +762,26 @@ class TGMassDM:
         loop.run_until_complete(self.check_accounts_async())
 
     async def check_accounts_async(self):
-        """异步检测账号(使用 SpamBot 精准检测 + 多语言支持)"""
-        # SpamBot 关键词库（优先级：地理受限 > 正常 > 冻结 > 临时限制）
-        
-        # 1. 地理受限（优先级最高）
-        GEO_RESTRICTED_KEYWORDS = [
-            "phone numbers may trigger",
-            "some phone numbers may trigger",
-            "certain phone numbers",
-        ]
-        
-        # 2. 正常状态
+        """异步检测账号(使用 SpamBot 精准检测)"""
+        # SpamBot 关键词库(参考专业检测脚本 V8.0)
+        # 优先级:正常 > 临时垃圾邮件 > 冻结
+
         NORMAL_KEYWORDS = [
             "good news", "no limits", "free as a bird", "no restrictions",
             "all good", "account is free", "working fine", "not limited",
-            "you're free", "free from any restrictions",
+            "you're free", "不受限", "所有良好", "没有限制"
         ]
-        
-        # 3. 冻结状态
+
+        SPAM_TEMP_KEYWORDS = [
+            "account is now limited", "limited until", "temporarily limited",
+            "too many undelivered", "temporarily restricted", "temporary ban",
+            "暂时限制", "临时限制"
+        ]
+
         FROZEN_KEYWORDS = [
-            "frozen",
-            "заморожен",
-            "account is frozen",
-        ]
-        
-        # 4. 永久冻结/封禁
-        PERMANENT_BAN_KEYWORDS = [
             "permanently banned", "permanently restricted", "permanently blocked",
-            "blocked for violations",
-            "terms of service",
-            "user reports confirmed",
-            "account was blocked",
-            "some actions can trigger",
-            "limited by mistake",
-            "your account was limited",
-        ]
-        
-        # 5. 临时限制
-        TEMP_LIMITED_KEYWORDS = [
-            "account is now limited",
-            "limited until",
-            "automatically released on",
+            "account has been banned", "account banned", "blocked permanently",
+            "frozen permanently", "永久封禁", "永久受限"
         ]
 
         for i, account in enumerate(self.accounts):
@@ -888,6 +799,7 @@ class TGMassDM:
                         account["username"] = "-"
                         account["phone"] = "-"
                         self.log(f"  ❌ 登录失败(死号)")
+                        self.log(f"     [DEBUG] 更新状态为: {account['status']}")
                         await client.disconnect()
                         self.root.after(0, self.refresh_account_tree)
                         continue
@@ -901,102 +813,63 @@ class TGMassDM:
 
                     # 区分封禁和网络错误
                     if "authkey" in error_str or "unauthorized" in error_str or "banned" in error_str:
+                        # 账号被封禁
                         account["status"] = "❌ 封禁"
                         account["username"] = "-"
                         account["phone"] = "-"
                         self.log(f"  ❌ 封禁(死号): {error_type}")
                     elif "timeout" in error_str or "connection" in error_str or "network" in error_str:
+                        # 网络问题
                         account["status"] = "⚠️ 连接错误"
                         account["username"] = "-"
                         account["phone"] = "-"
                         self.log(f"  ⚠️ 连接错误: {error_type}")
                     else:
+                        # 其他错误
                         account["status"] = "❌ 无法登录"
                         account["username"] = "-"
                         account["phone"] = "-"
                         self.log(f"  ❌ 无法登录: {error_type}")
 
                     await client.disconnect()
+                    # 使用 after 在主线程更新界面
+                    self.log(f"     [DEBUG] 更新状态为: {account['status']}")
                     self.root.after(0, self.refresh_account_tree)
                     continue
 
                 # 2. 向 @spambot 发送消息检测状态
                 try:
+                    # 发送 /start 给 spambot
                     await client.send_message("@spambot", "/start")
-                    await asyncio.sleep(2)
+                    await asyncio.sleep(2)  # 等待回复
 
+                    # 获取最新消息
                     messages = await client.get_messages("@spambot", limit=1)
 
                     if messages and len(messages) > 0:
-                        response_original = (messages[0].message or "").strip()
-                        
-                        # 检测是否英文
-                        is_english = all(ord(c) < 128 for c in response_original.replace(' ', '')[:50])
-                        
-                        if not is_english:
-                            # 翻译成英文
-                            self.log(f"  🌍 检测到非英文回复，翻译中...")
-                            response = self.translate_to_english(response_original).lower()
-                            self.log(f"     原始: {response_original[:60]}...")
-                            self.log(f"     翻译: {response[:60]}...")
-                        else:
-                            response = response_original.lower()
-                        
-                        # 优先级判断
-                        # 1. 地理受限（最高优先级）
-                        if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
-                            account["status"] = "✅ 正常（地理受限）"
-                            self.log(f"  ✅ 正常（地理受限）: {account['username']}")
-                        
-                        # 2. 冻结（检测申诉期限）
-                        elif any(keyword in response for keyword in FROZEN_KEYWORDS):
-                            appeal_time = self.parse_limitation_time(response_original)
-                            if appeal_time:
-                                time_str = appeal_time.strftime("%Y-%m-%d")
-                                account["status"] = f"🚫 冻结（申诉至 {time_str}）"
-                                self.log(f"  🚫 冻结: {account['username']}")
-                                self.log(f"     申诉期限: {time_str}")
-                            else:
-                                account["status"] = "🚫 冻结"
-                                self.log(f"  🚫 冻结: {account['username']}")
-                        
-                        # 3. 永久封禁
-                        elif any(keyword in response for keyword in PERMANENT_BAN_KEYWORDS):
-                            account["status"] = "🚫 永久冻结"
-                            self.log(f"  🚫 永久冻结: {account['username']}")
-                        
-                        # 4. 临时限制（检测到期时间）
-                        elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
-                            release_time = self.parse_limitation_time(response_original)
-                            if release_time:
-                                from datetime import datetime
-                                now = datetime.utcnow()
-                                remaining = release_time - now
-                                if remaining.total_seconds() > 0:
-                                    days = remaining.days
-                                    hours = remaining.seconds // 3600
-                                    account["status"] = f"⚠️ 临时限制（剩余 {days}天{hours}时）"
-                                    self.log(f"  ⚠️ 临时限制: {account['username']}")
-                                    self.log(f"     到期: {release_time.strftime('%Y-%m-%d %H:%M UTC')}")
-                                    self.log(f"     剩余: {days}天 {hours}小时")
-                                else:
-                                    account["status"] = "⚠️ 临时限制（已过期）"
-                                    self.log(f"  ⚠️ 临时限制（已过期）: {account['username']}")
-                            else:
-                                account["status"] = "⚠️ 临时垃圾邮件"
-                                self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
-                        
-                        # 5. 正常
-                        elif any(keyword in response for keyword in NORMAL_KEYWORDS):
+                        response = (messages[0].message or "").lower()
+
+                        # 优先级判断:正常 > 临时垃圾邮件 > 冻结
+                        is_normal = any(keyword.lower() in response for keyword in NORMAL_KEYWORDS)
+                        is_spam_temp = any(keyword.lower() in response for keyword in SPAM_TEMP_KEYWORDS)
+                        is_frozen = any(keyword.lower() in response for keyword in FROZEN_KEYWORDS)
+
+                        if is_normal:
                             account["status"] = "✅ 正常"
                             self.log(f"  ✅ 正常: {account['username']}")
-                        
-                        # 6. 未知
+                        elif is_frozen:
+                            account["status"] = "🚫 永久冻结"
+                            self.log(f"  🚫 永久冻结: {account['username']}")
+                        elif is_spam_temp:
+                            account["status"] = "⚠️ 临时垃圾邮件"
+                            self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
                         else:
+                            # 未匹配到关键词,显示原始回复供分析
                             account["status"] = "⚠️ 未知状态"
                             self.log(f"  ⚠️ 未知状态: {account['username']}")
                             self.log(f"     SpamBot 回复: {response[:200]}")
-                        
+
+                        # 使用 after 在主线程更新显示
                         self.root.after(0, self.refresh_account_tree)
                     else:
                         account["status"] = "⚠️ 无回复"
