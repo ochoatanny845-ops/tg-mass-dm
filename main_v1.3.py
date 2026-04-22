@@ -352,18 +352,23 @@ class TGMassDM:
         left = ttk.Frame(paned)
         paned.add(left, weight=3)  # 左侧占更多空间
 
-        # 选择账号提示
-        account_frame = ttk.LabelFrame(left, text="📱 选择账号", padding="10")
-        account_frame.pack(fill=tk.X, pady=(0, 10))
+        # 顶部横向布局：选择账号 + 发送类型
+        top_frame = ttk.Frame(left)
+        top_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(account_frame, text="使用「账号管理」中已选的账号").pack(anchor=tk.W)
+        # 选择账号（左侧）
+        account_frame = ttk.LabelFrame(top_frame, text="📱 选择账号", padding="10")
+        account_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+
+        ttk.Label(account_frame, text="使用「账号管理」中已选的账号",
+                 font=("微软雅黑", 9)).pack(anchor=tk.W)
         self.selected_count_label = ttk.Label(account_frame, text="✓ 已选择 0 个账号",
                                               foreground="green", font=("微软雅黑", 10, "bold"))
-        self.selected_count_label.pack(anchor=tk.W, pady=5)
+        self.selected_count_label.pack(anchor=tk.W, pady=(3, 0))
 
-        # 发送类型
-        type_frame = ttk.LabelFrame(left, text="📝 发送类型", padding="10")
-        type_frame.pack(fill=tk.X, pady=(0, 10))
+        # 发送类型（右侧）
+        type_frame = ttk.LabelFrame(top_frame, text="📝 发送类型", padding="10")
+        type_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
         self.send_type = tk.StringVar(value="text")
         ttk.Radiobutton(type_frame, text="📝 文本消息", variable=self.send_type,
