@@ -45,7 +45,7 @@ class TGMassDM:
         self.is_running = False
 
         # 检测配置（问题 4：并发优化）
-        self.check_concurrent = tk.IntVar(value=5)  # 并发数量
+        self.check_concurrent = tk.IntVar(value=30)  # 并发数量（默认 30）
         self.check_batch_delay = tk.IntVar(value=2)  # 批次间隔(秒)
         self.check_timeout = tk.IntVar(value=30)  # 超时时间(秒)
 
