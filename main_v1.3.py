@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.5.3"
+VERSION = "v1.5.4"
 
 import os
 import sys
