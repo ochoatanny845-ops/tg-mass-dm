@@ -1450,6 +1450,17 @@ class TGMassDM:
             except Exception as e:
                 error_type = type(e).__name__
                 error_str = str(e).lower()
+                
+                # AuthKeyDuplicatedError - 重复登录
+                if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
+                    account["status"] = "⚠️ 重复登录"
+                    account["username"] = "-"
+                    account["phone"] = "-"
+                    account["first_name"] = "-"
+                    self.log(f"  ⚠️ 重复登录（同一账号在其他地方使用中）")
+                    await client.disconnect()
+                    self.root.after(0, self.refresh_account_tree)
+                    return
 
                 if "authkey" in error_str or "unauthorized" in error_str or "banned" in error_str:
                     account["status"] = "🚫 封禁"
@@ -1550,8 +1561,14 @@ class TGMassDM:
                     self.log(f"  ⚠️ 检测到已拉黑 SpamBot，正在自动取消拉黑...")
                     
                     try:
-                        # 取消拉黑 @spambot
-                        await client.unblock_user("@spambot")
+                        # 取消拉黑 @spambot（使用正确的API）
+                        from telethon.tl.functions.contacts import UnblockRequest
+                        from telethon.tl.types import InputUser
+                        
+                        # 先获取 SpamBot 的信息
+                        spambot = await client.get_entity("@spambot")
+                        await client(UnblockRequest(id=spambot.id, access_hash=spambot.access_hash))
+                        
                         self.log(f"  ✅ 已取消拉黑 SpamBot")
                         await asyncio.sleep(1)
                         
