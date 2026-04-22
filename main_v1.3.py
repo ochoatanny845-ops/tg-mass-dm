@@ -948,8 +948,8 @@ class TGMassDM:
                     # 优先级判断（多语言关键词，不翻译）
                     # 1. 地理受限
                     if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
-                        account["status"] = "✅ 正常（地理受限）"
-                        self.log(f"  ✅ 正常（地理受限）: {account['username']}")
+                        account["status"] = "✅ 无限制（地理受限）"
+                        self.log(f"  ✅ 无限制（地理受限）: {account['username']}")
                     
                     # 2. 冻结（包含所有冻结场景）
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
@@ -986,10 +986,10 @@ class TGMassDM:
                             account["status"] = "⚠️ 临时垃圾邮件"
                             self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
                     
-                    # 5. 正常
+                    # 5. 无限制
                     elif any(keyword in response for keyword in NORMAL_KEYWORDS):
-                        account["status"] = "✅ 正常"
-                        self.log(f"  ✅ 正常: {account['username']}")
+                        account["status"] = "✅ 无限制"
+                        self.log(f"  ✅ 无限制: {account['username']}")
                     
                     # 6. 未知
                     else:
@@ -1045,6 +1045,27 @@ class TGMassDM:
                 await asyncio.sleep(batch_delay)
         
         self.log("✅ 账号检测完成")
+        
+        # 统计各状态数量
+        normal_count = sum(1 for acc in self.accounts if "✅ 无限制" in acc["status"])
+        limited_count = sum(1 for acc in self.accounts if "⚠️ 永久双向限制" in acc["status"])
+        frozen_count = sum(1 for acc in self.accounts if "🚫 冻结" in acc["status"])
+        banned_count = sum(1 for acc in self.accounts if "🚫 封禁" in acc["status"])
+        temp_limited_count = sum(1 for acc in self.accounts if "⚠️ 临时限制" in acc["status"])
+        other_count = total - normal_count - limited_count - frozen_count - banned_count - temp_limited_count
+        
+        self.log("=" * 50)
+        self.log("📊 检测结果统计：")
+        self.log(f"  ✅ 无限制: {normal_count} 个")
+        self.log(f"  ⚠️ 永久双向限制: {limited_count} 个")
+        self.log(f"  🚫 冻结: {frozen_count} 个")
+        self.log(f"  🚫 封禁: {banned_count} 个")
+        self.log(f"  ⚠️ 临时限制: {temp_limited_count} 个")
+        if other_count > 0:
+            self.log(f"  ⚠️ 其他: {other_count} 个")
+        self.log(f"  📝 总计: {total} 个")
+        self.log("=" * 50)
+        
         self.root.after(0, self.update_account_stats)
 
     def delete_invalid(self):
