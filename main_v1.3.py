@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.10.0"
+VERSION = "v1.11.0"
 
 import os
 import sys
@@ -54,6 +54,9 @@ class TGMassDM:
         # 配置文件路径
         self.config_file = "config.json"
         self.accounts_dir = "accounts"
+        self.targets_file = "targets.json"  # 目标用户列表
+        self.forward_posts_file = "forward_posts.json"  # 转发链接列表
+        self.message_text_file = "message_text.json"  # 文本消息内容
 
         # 创建账号文件夹
         if not os.path.exists(self.accounts_dir):
@@ -64,6 +67,9 @@ class TGMassDM:
         # 加载配置和账号
         self.load_config()
         self.load_accounts()
+        self.load_targets()  # 加载目标用户
+        self.load_forward_posts()  # 加载转发链接
+        self.load_message_text()  # 加载文本消息
 
     def setup_ui(self):
         """设置界面"""
@@ -296,9 +302,9 @@ class TGMassDM:
         tab1 = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab1, text="📂 账号管理")
 
-        # 按钮组
+        # 第一行按钮组
         btn_frame = ttk.Frame(tab1)
-        btn_frame.pack(fill=tk.X, pady=(0, 10))
+        btn_frame.pack(fill=tk.X, pady=(0, 5))
 
         ttk.Button(btn_frame, text="📁 导入 Session 文件夹", width=20,
                   command=self.import_sessions).pack(side=tk.LEFT, padx=5)
@@ -316,9 +322,45 @@ class TGMassDM:
         export_btn = ttk.Button(btn_frame, text="📤 导出", width=12,
                                command=lambda: self.show_export_menu(export_btn))
         export_btn.pack(side=tk.LEFT, padx=2)
+
+        # 第二行：范围选择
+        range_frame = ttk.Frame(tab1)
+        range_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # 选择按钮（Menubutton）
+        self.select_menubutton = ttk.Menubutton(range_frame, text="🎯 选择 ▼", width=12)
+        self.select_menubutton.pack(side=tk.LEFT, padx=5)
         
-        ttk.Button(btn_frame, text="🔄 刷新", width=10,
-                  command=self.refresh_accounts).pack(side=tk.LEFT, padx=2)
+        # 创建菜单
+        select_menu = tk.Menu(self.select_menubutton, tearoff=0, font=("Microsoft YaHei UI", 10))
+        self.select_menubutton.config(menu=select_menu)
+        
+        # 范围选择
+        select_menu.add_command(label="📍 选中序号范围", command=self.select_by_range)
+        select_menu.add_separator()
+        
+        # 状态筛选
+        select_menu.add_command(label="✅ 选中无限制", command=lambda: self.select_by_status("free"))
+        select_menu.add_command(label="🚫 选中冻结", command=lambda: self.select_by_status("frozen"))
+        select_menu.add_command(label="⚠️ 选中永久双向限制", command=lambda: self.select_by_status("permanent"))
+        select_menu.add_command(label="⚠️ 选中临时限制", command=lambda: self.select_by_status("temporary"))
+        select_menu.add_command(label="🚫 选中封禁", command=lambda: self.select_by_status("banned"))
+        select_menu.add_command(label="📝 选中未检测", command=lambda: self.select_by_status("unchecked"))
+        select_menu.add_command(label="❓ 选中未知/检测失败", command=lambda: self.select_by_status("unknown"))
+
+        # 范围输入框
+        ttk.Label(range_frame, text="从").pack(side=tk.LEFT, padx=(10, 2))
+        self.range_from = tk.IntVar(value=1)
+        ttk.Spinbox(range_frame, from_=1, to=10000, textvariable=self.range_from,
+                   width=8).pack(side=tk.LEFT, padx=2)
+        
+        ttk.Label(range_frame, text="到").pack(side=tk.LEFT, padx=2)
+        self.range_to = tk.IntVar(value=50)
+        ttk.Spinbox(range_frame, from_=1, to=10000, textvariable=self.range_to,
+                   width=8).pack(side=tk.LEFT, padx=2)
+        
+        ttk.Button(range_frame, text="🔄 刷新", width=10,
+                  command=self.refresh_accounts).pack(side=tk.LEFT, padx=(20, 2))
 
         # 账号列表
         tree_frame = ttk.Frame(tab1)
@@ -441,6 +483,9 @@ class TGMassDM:
                                                       font=("微软雅黑", 10), wrap=tk.WORD)
         self.message_text.pack(fill=tk.BOTH, expand=True)
         self.message_text.insert("1.0", "你好 {firstname}!\n\n这是一条测试消息。\n\n支持变量:\n• {username} - 用户名\n• {firstname} - 名字")
+        
+        # 绑定内容变化事件
+        self.message_text.bind("<<Modified>>", self.on_message_text_change)
 
         # 转发贴子框(默认隐藏)
         self.forward_msg_frame = ttk.LabelFrame(left, text="🔗 转发贴子", padding="10")
@@ -454,10 +499,13 @@ class TGMassDM:
                                                            font=("微软雅黑", 9), wrap=tk.WORD)
         self.forward_urls_text.pack(fill=tk.BOTH, expand=True, pady=5)
         self.forward_urls_text.insert("1.0", "https://t.me/channel_name/123\nhttps://t.me/channel_name/456\nhttps://t.me/channel_name/789")
+        
+        # 绑定内容变化事件
+        self.forward_urls_text.bind("<<Modified>>", self.on_forward_urls_change)
 
         self.hide_source = tk.BooleanVar(value=False)  # 默认不隐藏
         ttk.Checkbutton(self.forward_msg_frame, text="隐藏来源",
-                       variable=self.hide_source).pack(anchor=tk.W, pady=5)
+                       variable=self.hide_source, command=self.save_forward_posts).pack(anchor=tk.W, pady=5)
 
         self.forward_count_label = ttk.Label(self.forward_msg_frame, text="共 3 条贴子",
                                             font=("微软雅黑", 9))
@@ -487,6 +535,9 @@ class TGMassDM:
                                                      font=("微软雅黑", 10), wrap=tk.WORD)
         self.target_text.pack(fill=tk.BOTH, expand=True)
         self.target_text.insert("1.0", "@username1\n@username2\n@username3")
+        
+        # 绑定内容变化事件
+        self.target_text.bind("<<Modified>>", self.on_target_text_change)
 
         self.target_count_label = ttk.Label(target_frame, text="共 3 个目标用户",
                                             font=("微软雅黑", 9))
@@ -717,6 +768,34 @@ class TGMassDM:
             # 显示转发框,隐藏文本框
             self.text_msg_frame.pack_forget()
             self.forward_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_frame)
+
+    def on_target_text_change(self, event=None):
+        """目标用户内容变化"""
+        if self.target_text.edit_modified():
+            # 保存到文件
+            self.save_targets()
+            # 更新统计
+            self.update_target_count()
+            # 重置修改标志
+            self.target_text.edit_modified(False)
+    
+    def on_forward_urls_change(self, event=None):
+        """转发链接内容变化"""
+        if self.forward_urls_text.edit_modified():
+            # 保存到文件
+            self.save_forward_posts()
+            # 更新统计
+            self.update_forward_count()
+            # 重置修改标志
+            self.forward_urls_text.edit_modified(False)
+    
+    def on_message_text_change(self, event=None):
+        """文本消息内容变化"""
+        if self.message_text.edit_modified():
+            # 保存到文件
+            self.save_message_text()
+            # 重置修改标志
+            self.message_text.edit_modified(False)
 
     # ========== 配置管理 ==========
 
@@ -1105,6 +1184,103 @@ class TGMassDM:
             self.account_tree.item(item, values=tuple(values))
 
         self.log("❌ 已清空所有选择")
+        self.update_account_stats()
+        self.update_selected_count()
+    
+    def select_by_range(self):
+        """按序号范围选择账号"""
+        try:
+            start = self.range_from.get()
+            end = self.range_to.get()
+            
+            if start < 1 or end < 1:
+                messagebox.showwarning("范围错误", "序号必须大于0")
+                return
+            
+            if start > end:
+                messagebox.showwarning("范围错误", "起始序号不能大于结束序号")
+                return
+            
+            if end > len(self.accounts):
+                messagebox.showwarning("范围错误", f"结束序号超出范围（最大{len(self.accounts)}）")
+                return
+            
+            # 清空所有选择
+            for account in self.accounts:
+                account["selected"] = False
+            
+            # 选中范围内的账号
+            count = 0
+            for i in range(start - 1, end):  # 序号从1开始，索引从0开始
+                if i < len(self.accounts):
+                    self.accounts[i]["selected"] = True
+                    count += 1
+            
+            # 刷新界面
+            self.refresh_account_tree()
+            self.log(f"✅ 已选中序号 {start}-{end} 的账号，共 {count} 个")
+            self.update_account_stats()
+            self.update_selected_count()
+            
+        except Exception as e:
+            messagebox.showerror("错误", f"选择失败: {e}")
+    
+    def select_by_status(self, status_filter):
+        """按状态筛选账号"""
+        status_map = {
+            "free": ["✅ 无限制", "free", ""],
+            "frozen": ["🚫 冻结", "frozen"],
+            "permanent": ["⚠️ 永久双向限制", "permanent"],
+            "temporary": ["⚠️ 临时限制", "temporary"],
+            "banned": ["🚫 封禁", "banned"],
+            "unchecked": ["", None, "未检测"],
+            "unknown": ["⚠️ 检测失败", "⚠️ 重复登录", "⚠️ 登录失败", "⚠️ 其他错误"]
+        }
+        
+        if status_filter not in status_map:
+            return
+        
+        allowed_statuses = status_map[status_filter]
+        
+        # 清空所有选择
+        for account in self.accounts:
+            account["selected"] = False
+        
+        # 选中匹配状态的账号
+        count = 0
+        for account in self.accounts:
+            acc_status = account.get("status", "")
+            
+            # 处理未检测状态
+            if status_filter == "unchecked":
+                if not acc_status or acc_status in allowed_statuses:
+                    account["selected"] = True
+                    count += 1
+            # 处理未知/失败状态
+            elif status_filter == "unknown":
+                if any(status_text in str(acc_status) for status_text in allowed_statuses):
+                    account["selected"] = True
+                    count += 1
+            # 处理其他状态
+            else:
+                if acc_status in allowed_statuses:
+                    account["selected"] = True
+                    count += 1
+        
+        # 刷新界面
+        self.refresh_account_tree()
+        
+        status_names = {
+            "free": "无限制",
+            "frozen": "冻结",
+            "permanent": "永久双向限制",
+            "temporary": "临时限制",
+            "banned": "封禁",
+            "unchecked": "未检测",
+            "unknown": "未知/检测失败"
+        }
+        
+        self.log(f"✅ 已选中状态为「{status_names[status_filter]}」的账号，共 {count} 个")
         self.update_account_stats()
         self.update_selected_count()
     
@@ -2236,7 +2412,9 @@ class TGMassDM:
         self.target_text.delete("1.0", tk.END)
         self.target_text.insert("1.0", "\n".join(lines))
 
-        self.target_count_label.config(text=f"共 {len(lines)} 个目标用户")
+        # 自动保存和更新统计
+        self.save_targets()
+        self.update_target_count()
         self.log(f"📥 已导入 {len(selected_users)} 个用户")
 
     def import_from_file(self):
@@ -2266,7 +2444,9 @@ class TGMassDM:
             self.target_text.delete("1.0", tk.END)
             self.target_text.insert("1.0", "\n".join(lines))
 
-            self.target_count_label.config(text=f"共 {len(lines)} 个目标用户")
+            # 自动保存和更新统计
+            self.save_targets()
+            self.update_target_count()
             self.log(f"📄 从文件导入 {len(users)} 个用户")
 
         except Exception as e:
@@ -2275,7 +2455,8 @@ class TGMassDM:
     def clear_targets(self):
         """清空目标列表"""
         self.target_text.delete("1.0", tk.END)
-        self.target_count_label.config(text="共 0 个目标用户")
+        self.save_targets()  # 保存空列表
+        self.update_target_count()
         self.log("🗑️ 已清空目标用户列表")
 
     # ========== 采集用户功能 ==========
@@ -2945,6 +3126,136 @@ class TGMassDM:
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
+
+    # ========== 持久化存储 ==========
+
+    def load_targets(self):
+        """加载目标用户列表"""
+        try:
+            if not os.path.exists(self.targets_file):
+                return
+            
+            with open(self.targets_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            targets = data.get("targets", [])
+            # 只加载待发送的用户
+            pending_targets = [t["username"] for t in targets if t.get("status") == "pending"]
+            
+            if pending_targets:
+                self.target_text.delete("1.0", tk.END)
+                self.target_text.insert("1.0", "\n".join(pending_targets))
+                self.update_target_count()
+                self.log(f"✅ 自动加载 {len(pending_targets)} 个目标用户")
+        except Exception as e:
+            self.log(f"⚠️ 加载目标用户失败: {e}")
+    
+    def save_targets(self):
+        """保存目标用户列表"""
+        try:
+            text = self.target_text.get("1.0", tk.END)
+            lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
+            
+            targets = []
+            for username in lines:
+                targets.append({
+                    "username": username,
+                    "status": "pending",
+                    "added_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
+            
+            data = {"targets": targets}
+            
+            with open(self.targets_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.log(f"⚠️ 保存目标用户失败: {e}")
+    
+    def update_target_count(self):
+        """更新目标用户数量"""
+        text = self.target_text.get("1.0", tk.END)
+        lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
+        count = len(lines)
+        self.target_count_label.config(text=f"共 {count} 个目标用户")
+    
+    def load_forward_posts(self):
+        """加载转发链接列表"""
+        try:
+            if not os.path.exists(self.forward_posts_file):
+                return
+            
+            with open(self.forward_posts_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            urls = data.get("urls", [])
+            hide_source = data.get("hide_source", False)
+            
+            if urls:
+                self.forward_urls_text.delete("1.0", tk.END)
+                self.forward_urls_text.insert("1.0", "\n".join(urls))
+                self.update_forward_count()
+            
+            self.hide_source.set(hide_source)
+            
+            if urls:
+                self.log(f"✅ 自动加载 {len(urls)} 条转发链接")
+        except Exception as e:
+            self.log(f"⚠️ 加载转发链接失败: {e}")
+    
+    def save_forward_posts(self):
+        """保存转发链接列表"""
+        try:
+            text = self.forward_urls_text.get("1.0", tk.END)
+            lines = [line.strip() for line in text.strip().split('\n') 
+                    if line.strip() and line.strip().startswith('http')]
+            
+            data = {
+                "urls": lines,
+                "hide_source": self.hide_source.get()
+            }
+            
+            with open(self.forward_posts_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.log(f"⚠️ 保存转发链接失败: {e}")
+    
+    def update_forward_count(self):
+        """更新转发贴子数量"""
+        text = self.forward_urls_text.get("1.0", tk.END)
+        lines = [line.strip() for line in text.strip().split('\n') 
+                if line.strip() and line.strip().startswith('http')]
+        count = len(lines)
+        self.forward_count_label.config(text=f"共 {count} 条贴子")
+    
+    def load_message_text(self):
+        """加载文本消息内容"""
+        try:
+            if not os.path.exists(self.message_text_file):
+                return
+            
+            with open(self.message_text_file, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            text = data.get("text", "")
+            
+            if text:
+                self.message_text.delete("1.0", tk.END)
+                self.message_text.insert("1.0", text)
+                self.log(f"✅ 自动加载文本消息")
+        except Exception as e:
+            self.log(f"⚠️ 加载文本消息失败: {e}")
+    
+    def save_message_text(self):
+        """保存文本消息内容"""
+        try:
+            text = self.message_text.get("1.0", tk.END).strip()
+            
+            data = {"text": text}
+            
+            with open(self.message_text_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.log(f"⚠️ 保存文本消息失败: {e}")
 
 
 def main():
