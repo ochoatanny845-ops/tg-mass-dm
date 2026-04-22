@@ -91,6 +91,12 @@ class TGMassDM:
         # 设置标签字体
         style = ttk.Style()
         style.configure('TNotebook.Tab', font=('微软雅黑', 12, 'bold'), padding=[20, 10])
+        
+        # 设置 Menubutton 样式，让它看起来像普通按钮
+        style.configure('TMenubutton', 
+                       relief='raised',
+                       borderwidth=2,
+                       padding=6)
 
         # 创建三个功能标签页
         self.setup_tab_accounts()
