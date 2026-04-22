@@ -160,6 +160,8 @@ class TGMassDM:
                   command=self.check_accounts).pack(side=tk.LEFT, padx=5)
         ttk.Button(btn_frame, text="🗑️ 删除失效", width=12,
                   command=self.delete_invalid).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame, text="🔄 刷新", width=10,
+                  command=self.refresh_accounts).pack(side=tk.LEFT, padx=2)
         
         # 账号列表
         tree_frame = ttk.Frame(tab1)
@@ -622,6 +624,25 @@ class TGMassDM:
             self.log(f"📂 自动加载 {len(session_files)} 个账号")
         except Exception as e:
             self.log(f"⚠️ 加载账号失败: {str(e)}")
+    
+    def refresh_accounts(self):
+        """刷新账号列表（重新扫描 accounts 文件夹）"""
+        try:
+            self.log("🔄 刷新账号列表...")
+            
+            # 清空现有账号
+            self.accounts.clear()
+            
+            # 重新加载
+            self.load_accounts()
+            
+            # 刷新显示
+            self.refresh_account_tree()
+            self.update_account_stats()
+            
+            self.log(f"✅ 刷新完成，当前 {len(self.accounts)} 个账号")
+        except Exception as e:
+            self.log(f"❌ 刷新失败: {str(e)}")
     
     # ========== 账号管理功能 ==========
     
