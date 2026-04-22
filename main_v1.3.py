@@ -738,7 +738,26 @@ class TGMassDM:
         loop.run_until_complete(self.check_accounts_async())
     
     async def check_accounts_async(self):
-        """异步检测账号（使用 SpamBot）"""
+        """异步检测账号（使用 SpamBot 精准检测）"""
+        # SpamBot 关键词库（参考专业检测脚本）
+        NORMAL_KEYWORDS = [
+            "good news", "no limits", "free as a bird", "no restrictions",
+            "all good", "account is free", "working fine", "not limited",
+            "you're free", "не ограничен", "все хорошо", "没有限制"
+        ]
+        
+        FROZEN_KEYWORDS = [
+            "account is now limited", "limited until", "temporarily limited",
+            "too many undelivered", "temporarily restricted",
+            "ограничен до", "временно ограничен", "暂时冻结"
+        ]
+        
+        BANNED_KEYWORDS = [
+            "permanently banned", "permanently restricted", "permanently blocked",
+            "account has been banned", "account banned", "blocked permanently",
+            "навсегда заблокирован", "永久封禁", "双向冻结"
+        ]
+        
         for i, account in enumerate(self.accounts):
             self.log(f"[{i+1}/{len(self.accounts)}] 检测: {Path(account['path']).stem}")
             
@@ -778,23 +797,27 @@ class TGMassDM:
                     messages = await client.get_messages("@spambot", limit=1)
                     
                     if messages and len(messages) > 0:
-                        response = messages[0].message or ""
+                        response = (messages[0].message or "").lower()
                         
-                        # 解析状态
-                        if "Good news" in response or "no limits" in response:
+                        # 使用关键词库精准判断
+                        is_normal = any(keyword.lower() in response for keyword in NORMAL_KEYWORDS)
+                        is_frozen = any(keyword.lower() in response for keyword in FROZEN_KEYWORDS)
+                        is_banned = any(keyword.lower() in response for keyword in BANNED_KEYWORDS)
+                        
+                        if is_banned:
+                            account["status"] = "🚫 永久封禁"
+                            self.log(f"  🚫 永久封禁: {account['username']}")
+                        elif is_frozen:
+                            account["status"] = "⚠️ 临时冻结"
+                            self.log(f"  ⚠️ 临时冻结: {account['username']}")
+                        elif is_normal:
                             account["status"] = "✅ 正常"
                             self.log(f"  ✅ 正常: {account['username']}")
-                        elif "Too many" in response or "Limited" in response or "undelivered" in response:
-                            account["status"] = "⚠️ 冻结"
-                            self.log(f"  ⚠️ 冻结: {account['username']}")
-                        elif "banned" in response.lower() or "双向" in response:
-                            account["status"] = "🚫 双向冻结"
-                            self.log(f"  🚫 双向冻结: {account['username']}")
                         else:
-                            # 默认显示未知状态
+                            # 未匹配到关键词，显示原始回复供分析
                             account["status"] = "⚠️ 未知状态"
                             self.log(f"  ⚠️ 未知状态: {account['username']}")
-                            self.log(f"     SpamBot 回复: {response[:100]}")
+                            self.log(f"     SpamBot 回复: {response[:200]}")
                     else:
                         account["status"] = "⚠️ 无回复"
                         self.log(f"  ⚠️ SpamBot 无回复")
