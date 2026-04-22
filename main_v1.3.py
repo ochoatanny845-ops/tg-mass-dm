@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.12.0"
+VERSION = "v1.13.0"
 
 import os
 import sys
@@ -2743,6 +2743,29 @@ class TGMassDM:
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
 
+    async def countdown_wait(self, wait_time, account_name):
+        """倒计时等待（显示剩余时间）"""
+        try:
+            for remaining in range(wait_time, 0, -1):
+                if not self.is_running:
+                    self.log(f"  ⏸️ [{account_name}] 等待被中断")
+                    break
+                
+                # 每10秒显示一次，或最后5秒每秒显示
+                if remaining % 10 == 0 or remaining <= 5:
+                    minutes = remaining // 60
+                    seconds = remaining % 60
+                    if minutes > 0:
+                        time_str = f"{minutes}分{seconds}秒"
+                    else:
+                        time_str = f"{seconds}秒"
+                    
+                    self.log(f"  ⏳ [{account_name}] 剩余等待时间: {time_str}")
+                
+                await asyncio.sleep(1)
+        except Exception as e:
+            self.log(f"  ⚠️ [{account_name}] 倒计时错误: {e}")
+
     async def check_spambot_status(self, client, account_name):
         """检查 SpamBot 状态"""
         try:
@@ -2950,10 +2973,10 @@ class TGMassDM:
                         self.log(f"  🔄 [{account_name}] 触发限制,切换下一个账号")
                         break  # 切换账号
                     else:
-                        # 等待后重试当前用户
-                        self.log(f"  ⏳ [{account_name}] 等待 {wait_time} 秒后重试...")
-                        await asyncio.sleep(wait_time)
-                        # 不增加计数,下次循环会重试这个用户
+                        # 倒计时等待后重试
+                        self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
+                        await self.countdown_wait(wait_time, account_name)
+                        self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
                         continue
 
                 except errors.UserPrivacyRestrictedError as e:
@@ -3023,7 +3046,6 @@ class TGMassDM:
                         self.log(f"  ⚠️ [{account_name}] 触发请求限制: @{username}")
                         self.log(f"      错误: {str(e)}")
                         self.log(f"      建议: 发送间隔太短，请在配置中增加「发送间隔」（当前{self.interval_min.get()}-{self.interval_max.get()}秒）")
-                        self.log(f"      自动等待: {wait_time} 秒")
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
@@ -3032,9 +3054,10 @@ class TGMassDM:
                             self.log(f"  🔄 [{account_name}] 触发限制,切换下一个账号")
                             break  # 切换账号
                         else:
-                            # 自动等待后重试
-                            self.log(f"  ⏳ [{account_name}] 等待 {wait_time} 秒后自动重试...")
-                            await asyncio.sleep(wait_time)
+                            # 倒计时等待后重试
+                            self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
+                            await self.countdown_wait(wait_time, account_name)
+                            self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
                             continue
 
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
