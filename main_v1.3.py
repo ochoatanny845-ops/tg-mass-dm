@@ -885,7 +885,15 @@ class TGMassDM:
         self.log(f"[{index+1}/{total}] 检测: {Path(account['path']).stem}")
 
         try:
-            client = TelegramClient(account["path"], self.api_id, self.api_hash)
+            # 调试: 检查 path 类型
+            path = account["path"]
+            if not isinstance(path, str):
+                self.log(f"  ❌ 路径类型错误: {type(path)}, 值: {path}")
+                account["status"] = "⚠️ 路径错误"
+                self.root.after(0, self.refresh_account_tree)
+                return
+            
+            client = TelegramClient(path, self.api_id, self.api_hash)
             await client.connect()
 
             # 1. 尝试登录
