@@ -761,15 +761,23 @@ class TGMassDM:
                     else:
                         account["2fa"] = ""
                     
-                    # 提取状态
+                    # 提取状态（只有未检测时才使用JSON状态）
                     spamblock = json_data.get('spamblock') or ''
                     spamblock = str(spamblock).lower()
-                    if spamblock == 'free':
-                        account["status"] = "✅ 无限制（来自JSON）"
-                    elif spamblock == 'permanent':
-                        account["status"] = "⚠️ 永久双向限制（来自JSON）"
-                    elif spamblock:
-                        account["status"] = f"⚠️ {spamblock}（来自JSON）"
+                    
+                    # 检查是否已检测过（有last_login或status不是"未检测"）
+                    # 如果已检测，不覆盖状态
+                    if account.get("status") == "未检测":
+                        if spamblock == 'free':
+                            account["status"] = "✅ 无限制"
+                        elif spamblock == 'permanent':
+                            account["status"] = "⚠️ 永久双向限制"
+                        elif spamblock == 'temporary':
+                            account["status"] = "⚠️ 临时限制"
+                        elif spamblock == 'frozen':
+                            account["status"] = "🚫 冻结"
+                        elif spamblock == 'banned':
+                            account["status"] = "🚫 封禁"
                 
                 self.accounts.append(account)
 
@@ -900,15 +908,21 @@ class TGMassDM:
                     else:
                         account["2fa"] = ""
                     
-                    # 提取状态
+                    # 提取状态（只有未检测时才使用JSON状态）
                     spamblock = json_data.get('spamblock') or ''
                     spamblock = str(spamblock).lower()
+                    
+                    # 导入时默认为"未检测"，使用JSON状态
                     if spamblock == 'free':
-                        account["status"] = "✅ 无限制（来自JSON）"
+                        account["status"] = "✅ 无限制"
                     elif spamblock == 'permanent':
-                        account["status"] = "⚠️ 永久双向限制（来自JSON）"
-                    elif spamblock:
-                        account["status"] = f"⚠️ {spamblock}（来自JSON）"
+                        account["status"] = "⚠️ 永久双向限制"
+                    elif spamblock == 'temporary':
+                        account["status"] = "⚠️ 临时限制"
+                    elif spamblock == 'frozen':
+                        account["status"] = "🚫 冻结"
+                    elif spamblock == 'banned':
+                        account["status"] = "🚫 封禁"
                     
                     self.log(f"    📋 已读取 JSON 信息: {account['username']} ({account['phone']})")
                 
@@ -1606,7 +1620,7 @@ class TGMassDM:
 
             account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
             
-            # 更新 JSON 文件（保存最新的姓名）
+            # 更新 JSON 文件（保存最新信息）
             try:
                 session_path = Path(account["path"])
                 json_file = session_path.parent / f"{session_path.stem}.json"
@@ -1630,6 +1644,21 @@ class TGMassDM:
                     # 更新手机号
                     if account["phone"] and account["phone"] != "-":
                         json_data["phone"] = account["phone"]
+                    
+                    # 更新状态（映射到 spamblock 字段）
+                    status = account.get("status", "")
+                    if "无限制" in status:
+                        json_data["spamblock"] = "free"
+                    elif "永久" in status or "双向限制" in status:
+                        json_data["spamblock"] = "permanent"
+                    elif "临时" in status:
+                        json_data["spamblock"] = "temporary"
+                    elif "冻结" in status:
+                        json_data["spamblock"] = "frozen"
+                    elif "封禁" in status:
+                        json_data["spamblock"] = "banned"
+                    else:
+                        json_data["spamblock"] = None
                     
                     # 保存
                     with open(json_file, 'w', encoding='utf-8') as f:
