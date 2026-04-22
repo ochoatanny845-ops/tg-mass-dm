@@ -834,162 +834,193 @@ class TGMassDM:
 
     async def check_single_account(self, account, index, total):
         """检测单个账号（并发调用）"""
-        # SpamBot 关键词库
-        GEO_RESTRICTED_KEYWORDS = ["phone numbers may trigger", "some phone numbers may trigger", "certain phone numbers"]
-        NORMAL_KEYWORDS = ["good news", "no limits", "free as a bird", "no restrictions", "all good", "account is free", "working fine", "not limited", "you're free", "free from any restrictions"]
-        FROZEN_KEYWORDS = ["frozen", "заморожен", "account is frozen"]
-        PERMANENT_BAN_KEYWORDS = ["permanently banned", "permanently restricted", "permanently blocked", "blocked for violations", "terms of service", "user reports confirmed", "account was blocked", "some actions can trigger", "limited by mistake", "your account was limited"]
-        TEMP_LIMITED_KEYWORDS = ["account is now limited", "limited until", "automatically released on"]
+        # SpamBot 关键词库（优先级：地理受限 > 正常 > 冻结 > 临时限制）
+        
+        # 1. 地理受限（优先级最高）
+        GEO_RESTRICTED_KEYWORDS = [
+            "phone numbers may trigger",
+            "some phone numbers may trigger",
+            "certain phone numbers",
+        ]
+        
+        # 2. 正常状态
+        NORMAL_KEYWORDS = [
+            "good news", "no limits", "free as a bird", "no restrictions",
+            "all good", "account is free", "working fine", "not limited",
+            "you're free", "free from any restrictions",
+        ]
+        
+        # 3. 冻结状态
+        FROZEN_KEYWORDS = [
+            "frozen",
+            "заморожен",
+            "account is frozen",
+        ]
+        
+        # 4. 永久冻结/封禁
+        PERMANENT_BAN_KEYWORDS = [
+            "permanently banned", "permanently restricted", "permanently blocked",
+            "blocked for violations",
+            "terms of service",
+            "user reports confirmed",
+            "account was blocked",
+            "some actions can trigger",
+            "limited by mistake",
+            "your account was limited",
+        ]
+        
+        # 5. 临时限制
+        TEMP_LIMITED_KEYWORDS = [
+            "account is now limited",
+            "limited until",
+            "automatically released on",
+        ]
 
-        self.log(f"[{index+1}/{total}] 检测: {Path(account['path']).stem}")
+        for i, account in enumerate(self.accounts):
+            self.log(f"[{i+1}/{len(self.accounts)}] 检测: {Path(account['path']).stem}")
 
-        try:
-            client = TelegramClient(account["path"], self.api_id, self.api_hash)
-            await client.connect()
-
-            # 1. 尝试登录
             try:
-                me = await client.get_me()
-                if not me:
-                    account["status"] = "❌ 登录失败"
-                    account["username"] = "-"
-                    account["phone"] = "-"
-                    self.log(f"  ❌ 登录失败(死号)")
+                client = TelegramClient(account["path"], self.api_id, self.api_hash)
+                await client.connect()
+
+                # 1. 尝试登录
+                try:
+                    me = await client.get_me()
+                    if not me:
+                        account["status"] = "❌ 登录失败"
+                        account["username"] = "-"
+                        account["phone"] = "-"
+                        self.log(f"  ❌ 登录失败(死号)")
+                        await client.disconnect()
+                        self.root.after(0, self.refresh_account_tree)
+                        continue
+
+                    account["username"] = f"@{me.username}" if me.username else "-"
+                    account["phone"] = me.phone or "-"
+
+                except Exception as e:
+                    error_type = type(e).__name__
+                    error_str = str(e).lower()
+
+                    # 区分封禁和网络错误
+                    if "authkey" in error_str or "unauthorized" in error_str or "banned" in error_str:
+                        account["status"] = "❌ 封禁"
+                        account["username"] = "-"
+                        account["phone"] = "-"
+                        self.log(f"  ❌ 封禁(死号): {error_type}")
+                    elif "timeout" in error_str or "connection" in error_str or "network" in error_str:
+                        account["status"] = "⚠️ 连接错误"
+                        account["username"] = "-"
+                        account["phone"] = "-"
+                        self.log(f"  ⚠️ 连接错误: {error_type}")
+                    else:
+                        account["status"] = "❌ 无法登录"
+                        account["username"] = "-"
+                        account["phone"] = "-"
+                        self.log(f"  ❌ 无法登录: {error_type}")
+
                     await client.disconnect()
                     self.root.after(0, self.refresh_account_tree)
-                    return
+                    continue
 
-                account["username"] = f"@{me.username}" if me.username else "-"
-                account["phone"] = me.phone or "-"
+                # 2. 向 @spambot 发送消息检测状态
+                try:
+                    await client.send_message("@spambot", "/start")
+                    await asyncio.sleep(2)
 
-            except Exception as e:
-                error_type = type(e).__name__
-                error_str = str(e).lower()
+                    messages = await client.get_messages("@spambot", limit=1)
 
-                if "authkey" in error_str or "unauthorized" in error_str or "banned" in error_str:
-                    account["status"] = "❌ 封禁"
-                    account["username"] = "-"
-                    account["phone"] = "-"
-                    self.log(f"  ❌ 封禁(死号): {error_type}")
-                elif "timeout" in error_str or "connection" in error_str or "network" in error_str:
-                    account["status"] = "⚠️ 连接错误"
-                    account["username"] = "-"
-                    account["phone"] = "-"
-                    self.log(f"  ⚠️ 连接错误: {error_type}")
-                else:
-                    account["status"] = "❌ 无法登录"
-                    account["username"] = "-"
-                    account["phone"] = "-"
-                    self.log(f"  ❌ 无法登录: {error_type}")
-
-                await client.disconnect()
-                self.root.after(0, self.refresh_account_tree)
-                return
-
-            # 2. 向 @spambot 发送消息检测状态
-            try:
-                await client.send_message("@spambot", "/start")
-                await asyncio.sleep(2)
-
-                messages = await client.get_messages("@spambot", limit=1)
-
-                if messages and len(messages) > 0:
-                    response_original = (messages[0].message or "").strip()
-                    
-                    is_english = all(ord(c) < 128 for c in response_original.replace(' ', '')[:50])
-                    
-                    if not is_english:
-                        self.log(f"  🌍 检测到非英文回复，翻译中...")
-                        response = self.translate_to_english(response_original).lower()
-                        self.log(f"     翻译: {response[:60]}...")
-                    else:
-                        response = response_original.lower()
-                    
-                    # 优先级判断
-                    if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
-                        account["status"] = "✅ 正常（地理受限）"
-                        self.log(f"  ✅ 正常（地理受限）: {account['username']}")
-                    elif any(keyword in response for keyword in FROZEN_KEYWORDS):
-                        appeal_time = self.parse_limitation_time(response_original)
-                        if appeal_time:
-                            time_str = appeal_time.strftime("%Y-%m-%d")
-                            account["status"] = f"🚫 冻结（申诉至 {time_str}）"
-                            self.log(f"  🚫 冻结: {account['username']}, 申诉至: {time_str}")
+                    if messages and len(messages) > 0:
+                        response_original = (messages[0].message or "").strip()
+                        
+                        # 检测是否英文
+                        is_english = all(ord(c) < 128 for c in response_original.replace(' ', '')[:50])
+                        
+                        if not is_english:
+                            # 翻译成英文
+                            self.log(f"  🌍 检测到非英文回复，翻译中...")
+                            response = self.translate_to_english(response_original).lower()
+                            self.log(f"     原始: {response_original[:60]}...")
+                            self.log(f"     翻译: {response[:60]}...")
                         else:
-                            account["status"] = "🚫 冻结"
-                            self.log(f"  🚫 冻结: {account['username']}")
-                    elif any(keyword in response for keyword in PERMANENT_BAN_KEYWORDS):
-                        account["status"] = "🚫 永久冻结"
-                        self.log(f"  🚫 永久冻结: {account['username']}")
-                    elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
-                        release_time = self.parse_limitation_time(response_original)
-                        if release_time:
-                            from datetime import datetime
-                            now = datetime.utcnow()
-                            remaining = release_time - now
-                            if remaining.total_seconds() > 0:
-                                days = remaining.days
-                                hours = remaining.seconds // 3600
-                                account["status"] = f"⚠️ 临时限制（剩余 {days}天{hours}时）"
-                                self.log(f"  ⚠️ 临时限制: {account['username']}, 剩余: {days}天{hours}时")
+                            response = response_original.lower()
+                        
+                        # 优先级判断
+                        # 1. 地理受限（最高优先级）
+                        if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
+                            account["status"] = "✅ 正常（地理受限）"
+                            self.log(f"  ✅ 正常（地理受限）: {account['username']}")
+                        
+                        # 2. 冻结（检测申诉期限）
+                        elif any(keyword in response for keyword in FROZEN_KEYWORDS):
+                            appeal_time = self.parse_limitation_time(response_original)
+                            if appeal_time:
+                                time_str = appeal_time.strftime("%Y-%m-%d")
+                                account["status"] = f"🚫 冻结（申诉至 {time_str}）"
+                                self.log(f"  🚫 冻结: {account['username']}")
+                                self.log(f"     申诉期限: {time_str}")
                             else:
-                                account["status"] = "⚠️ 临时限制（已过期）"
-                                self.log(f"  ⚠️ 临时限制（已过期）: {account['username']}")
+                                account["status"] = "🚫 冻结"
+                                self.log(f"  🚫 冻结: {account['username']}")
+                        
+                        # 3. 永久封禁
+                        elif any(keyword in response for keyword in PERMANENT_BAN_KEYWORDS):
+                            account["status"] = "🚫 永久冻结"
+                            self.log(f"  🚫 永久冻结: {account['username']}")
+                        
+                        # 4. 临时限制（检测到期时间）
+                        elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
+                            release_time = self.parse_limitation_time(response_original)
+                            if release_time:
+                                from datetime import datetime
+                                now = datetime.utcnow()
+                                remaining = release_time - now
+                                if remaining.total_seconds() > 0:
+                                    days = remaining.days
+                                    hours = remaining.seconds // 3600
+                                    account["status"] = f"⚠️ 临时限制（剩余 {days}天{hours}时）"
+                                    self.log(f"  ⚠️ 临时限制: {account['username']}")
+                                    self.log(f"     到期: {release_time.strftime('%Y-%m-%d %H:%M UTC')}")
+                                    self.log(f"     剩余: {days}天 {hours}小时")
+                                else:
+                                    account["status"] = "⚠️ 临时限制（已过期）"
+                                    self.log(f"  ⚠️ 临时限制（已过期）: {account['username']}")
+                            else:
+                                account["status"] = "⚠️ 临时垃圾邮件"
+                                self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
+                        
+                        # 5. 正常
+                        elif any(keyword in response for keyword in NORMAL_KEYWORDS):
+                            account["status"] = "✅ 正常"
+                            self.log(f"  ✅ 正常: {account['username']}")
+                        
+                        # 6. 未知
                         else:
-                            account["status"] = "⚠️ 临时垃圾邮件"
-                            self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
-                    elif any(keyword in response for keyword in NORMAL_KEYWORDS):
-                        account["status"] = "✅ 正常"
-                        self.log(f"  ✅ 正常: {account['username']}")
+                            account["status"] = "⚠️ 未知状态"
+                            self.log(f"  ⚠️ 未知状态: {account['username']}")
+                            self.log(f"     SpamBot 回复: {response[:200]}")
+                        
+                        self.root.after(0, self.refresh_account_tree)
                     else:
-                        account["status"] = "⚠️ 未知状态"
-                        self.log(f"  ⚠️ 未知状态: {account['username']}")
-                        self.log(f"     SpamBot 回复: {response[:100]}")
-                    
+                        account["status"] = "⚠️ 无回复"
+                        self.log(f"  ⚠️ SpamBot 无回复")
+                        self.root.after(0, self.refresh_account_tree)
+
+                except Exception as e:
+                    account["status"] = f"⚠️ 检测失败"
+                    self.log(f"  ⚠️ SpamBot 检测失败: {type(e).__name__}")
                     self.root.after(0, self.refresh_account_tree)
-                else:
-                    account["status"] = "⚠️ 无回复"
-                    self.log(f"  ⚠️ SpamBot 无回复")
-                    self.root.after(0, self.refresh_account_tree)
+
+                account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                await client.disconnect()
 
             except Exception as e:
-                account["status"] = f"⚠️ 检测失败"
-                self.log(f"  ⚠️ SpamBot 检测失败: {type(e).__name__}")
+                account["status"] = f"❌ {type(e).__name__}"
+                self.log(f"  ❌ {type(e).__name__}")
                 self.root.after(0, self.refresh_account_tree)
 
-            account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            await client.disconnect()
+            await asyncio.sleep(1)  # 每个账号间隔1秒
 
-        except Exception as e:
-            account["status"] = f"❌ {type(e).__name__}"
-            self.log(f"  ❌ {type(e).__name__}")
-            self.root.after(0, self.refresh_account_tree)
-
-    async def check_accounts_async(self):
-        """并发批量检测账号"""
-        concurrent = self.check_concurrent.get()  # 并发数量
-        batch_delay = self.check_batch_delay.get()  # 批次间隔
-        total = len(self.accounts)
-        
-        self.log(f"📊 并发配置: 每批 {concurrent} 个账号，批次间隔 {batch_delay} 秒")
-        
-        # 分批处理
-        for i in range(0, total, concurrent):
-            batch = self.accounts[i:i+concurrent]
-            batch_num = i // concurrent + 1
-            total_batches = (total + concurrent - 1) // concurrent
-            
-            self.log(f"🔄 批次 {batch_num}/{total_batches}: 检测 {len(batch)} 个账号...")
-            
-            # 并发检测一批
-            tasks = [self.check_single_account(acc, i+j, total) for j, acc in enumerate(batch)]
-            await asyncio.gather(*tasks)
-            
-            # 批次间隔
-            if i + concurrent < total:
-                self.log(f"⏳ 等待 {batch_delay} 秒后继续下一批...")
-                await asyncio.sleep(batch_delay)
-        
         self.log("✅ 账号检测完成")
         self.root.after(0, self.update_account_stats)
 
