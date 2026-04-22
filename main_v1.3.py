@@ -834,12 +834,50 @@ class TGMassDM:
 
     async def check_single_account(self, account, index, total):
         """检测单个账号（并发调用）"""
-        # SpamBot 关键词库
-        GEO_RESTRICTED_KEYWORDS = ["phone numbers may trigger", "some phone numbers may trigger", "certain phone numbers"]
-        NORMAL_KEYWORDS = ["good news", "no limits", "free as a bird", "no restrictions", "all good", "account is free", "working fine", "not limited", "you're free", "free from any restrictions"]
-        FROZEN_KEYWORDS = ["frozen", "заморожен", "account is frozen"]
-        PERMANENT_BAN_KEYWORDS = ["permanently banned", "permanently restricted", "permanently blocked", "blocked for violations", "terms of service", "user reports confirmed", "account was blocked", "some actions can trigger", "limited by mistake", "your account was limited"]
-        TEMP_LIMITED_KEYWORDS = ["account is now limited", "limited until", "automatically released on"]
+        # SpamBot 关键词库（基于真实回复）
+        
+        # 1. 正常状态
+        NORMAL_KEYWORDS = [
+            "good news",
+            "no limits",
+            "free as a bird",
+            "no restrictions",
+            "all good",
+            "свободен от каких-либо ограничений",  # 俄语：自由无限制
+            "nenhum limite",  # 葡萄牙语：无限制
+        ]
+        
+        # 2. 地理受限（优先级高，需要与永久冻结区分）
+        GEO_RESTRICTED_KEYWORDS = [
+            "phone numbers may trigger",
+            "some phone numbers may trigger",
+        ]
+        
+        # 3. 永久冻结/封禁
+        PERMANENT_BAN_KEYWORDS = [
+            # 违规封禁
+            "blocked for violations",
+            "terms of service",
+            "user reports confirmed",
+            
+            # 行为触发（永久双向冻结）
+            "some actions can trigger",
+            "limited by mistake",
+            "your account was limited",
+        ]
+        
+        # 4. 冻结（有可能有申诉期限）
+        FROZEN_KEYWORDS = [
+            "frozen",
+            "заморожен",  # 俄语：冻结
+        ]
+        
+        # 5. 临时限制（有到期时间）
+        TEMP_LIMITED_KEYWORDS = [
+            "limited until",
+            "automatically released on",
+            "account is now limited",
+        ]
 
         self.log(f"[{index+1}/{total}] 检测: {Path(account['path']).stem}")
 
@@ -905,10 +943,18 @@ class TGMassDM:
                     else:
                         response = response_original.lower()
                     
-                    # 优先级判断
+                    # 优先级判断（按照真实场景）
+                    # 1. 地理受限（最高优先级，需要与永久冻结区分）
                     if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
                         account["status"] = "✅ 正常（地理受限）"
                         self.log(f"  ✅ 正常（地理受限）: {account['username']}")
+                    
+                    # 2. 永久封禁/冻结（行为触发、违规）
+                    elif any(keyword in response for keyword in PERMANENT_BAN_KEYWORDS):
+                        account["status"] = "🚫 永久冻结"
+                        self.log(f"  🚫 永久冻结: {account['username']}")
+                    
+                    # 3. 冻结（可能有申诉期限）
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
                         appeal_time = self.parse_limitation_time(response_original)
                         if appeal_time:
@@ -918,9 +964,8 @@ class TGMassDM:
                         else:
                             account["status"] = "🚫 冻结"
                             self.log(f"  🚫 冻结: {account['username']}")
-                    elif any(keyword in response for keyword in PERMANENT_BAN_KEYWORDS):
-                        account["status"] = "🚫 永久冻结"
-                        self.log(f"  🚫 永久冻结: {account['username']}")
+                    
+                    # 4. 临时限制（有到期时间）
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
                         release_time = self.parse_limitation_time(response_original)
                         if release_time:
@@ -938,9 +983,13 @@ class TGMassDM:
                         else:
                             account["status"] = "⚠️ 临时垃圾邮件"
                             self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
+                    
+                    # 5. 正常
                     elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                         account["status"] = "✅ 正常"
                         self.log(f"  ✅ 正常: {account['username']}")
+                    
+                    # 6. 未知
                     else:
                         account["status"] = "⚠️ 未知状态"
                         self.log(f"  ⚠️ 未知状态: {account['username']}")
