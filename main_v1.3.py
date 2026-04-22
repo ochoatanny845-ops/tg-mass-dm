@@ -190,14 +190,22 @@ class TGMassDM:
         self.forward_msg_frame = ttk.LabelFrame(left, text="🔗 转发贴子", padding="10")
         # 不 pack，等切换时显示
         
-        ttk.Label(self.forward_msg_frame, text="贴子链接 (格式: https://t.me/channel/12345):").pack(anchor=tk.W)
-        self.forward_url = ttk.Entry(self.forward_msg_frame, font=("微软雅黑", 10))
-        self.forward_url.pack(fill=tk.X, pady=5)
-        self.forward_url.insert(0, "https://t.me/")
+        ttk.Label(self.forward_msg_frame, text="贴子链接 (每行一条，自动随机选择):").pack(anchor=tk.W)
+        ttk.Label(self.forward_msg_frame, text="格式: https://t.me/channel/12345", 
+                 font=("微软雅黑", 8), foreground="gray").pack(anchor=tk.W)
+        
+        self.forward_urls_text = scrolledtext.ScrolledText(self.forward_msg_frame, height=6, 
+                                                           font=("微软雅黑", 9), wrap=tk.WORD)
+        self.forward_urls_text.pack(fill=tk.BOTH, expand=True, pady=5)
+        self.forward_urls_text.insert("1.0", "https://t.me/channel_name/123\nhttps://t.me/channel_name/456\nhttps://t.me/channel_name/789")
         
         self.hide_source = tk.BooleanVar(value=True)
         ttk.Checkbutton(self.forward_msg_frame, text="隐藏来源（推荐）", 
                        variable=self.hide_source).pack(anchor=tk.W, pady=5)
+        
+        self.forward_count_label = ttk.Label(self.forward_msg_frame, text="共 3 条贴子", 
+                                            font=("微软雅黑", 9))
+        self.forward_count_label.pack(anchor=tk.W)
         
         # 保存左侧容器引用（用于切换）
         self.messaging_left = left
@@ -1002,48 +1010,65 @@ class TGMassDM:
                     
                     # 根据发送类型执行不同操作
                     if self.send_type.get() == "forward":
-                        # 转发贴子模式
-                        forward_url = self.forward_url.get().strip() if hasattr(self, 'forward_url') else ""
+                        # 转发贴子模式 - 从多条链接中随机选择
+                        forward_urls_text = self.forward_urls_text.get("1.0", tk.END).strip()
+                        forward_urls = [line.strip() for line in forward_urls_text.split("\n") 
+                                       if line.strip() and line.strip().startswith("http")]
                         
-                        if forward_url:
-                            # 解析转发链接
-                            if "t.me/" in forward_url:
-                                try:
-                                    # 提取频道/群组和消息ID
-                                    parts = forward_url.split("/")
-                                    if len(parts) >= 2:
-                                        channel_username = parts[-2]
-                                        message_id = int(parts[-1])
+                        if not forward_urls:
+                            self.log(f"  ⚠️ [{account_name}] 未设置转发链接，跳过: @{username}")
+                            continue
+                        
+                        # 随机选择一条链接
+                        forward_url = random.choice(forward_urls)
+                        
+                        # 解析转发链接
+                        if "t.me/" in forward_url:
+                            try:
+                                # 提取频道/群组和消息ID
+                                parts = forward_url.split("/")
+                                if len(parts) >= 2:
+                                    channel_username = parts[-2]
+                                    message_id = int(parts[-1])
+                                    
+                                    # 获取原始消息
+                                    channel = await client.get_entity(channel_username)
+                                    message_obj = await client.get_messages(channel, ids=message_id)
+                                    
+                                    if message_obj:
+                                        # 转发消息（隐藏来源根据设置）
+                                        hide_sender = self.hide_source.get()
+                                        sent_msg = await client.send_message(
+                                            username, 
+                                            message_obj,
+                                            silent=True
+                                        )
                                         
-                                        # 获取原始消息
-                                        channel = await client.get_entity(channel_username)
-                                        message_obj = await client.get_messages(channel, ids=message_id)
+                                        # 验证发送成功
+                                        if not sent_msg or not sent_msg.id:
+                                            raise Exception("发送失败，未收到消息ID")
                                         
-                                        if message_obj:
-                                            # 转发消息（隐藏来源根据设置）
-                                            hide_sender = self.hide_source.get() if hasattr(self, 'hide_source') else True
-                                            await client.send_message(
-                                                username, 
-                                                message_obj,
-                                                silent=True
-                                            )
-                                            self.log(f"  ✅ [{account_name}] 转发成功: @{username}")
-                                        else:
-                                            raise Exception("无法获取原始消息")
+                                        self.log(f"  ✅ [{account_name}] 转发成功: @{username} (msg_id: {sent_msg.id})")
                                     else:
-                                        raise Exception("链接格式错误")
-                                except ValueError:
-                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 链接格式错误: {forward_url}")
-                                    async with self.send_lock:
-                                        self.total_failed += 1
-                                    continue
-                            else:
-                                self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 无效链接: {forward_url}")
+                                        raise Exception("无法获取原始消息")
+                                else:
+                                    raise Exception("链接格式错误")
+                            except ValueError:
+                                self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
+                                self.log(f"      链接格式错误: {forward_url}")
+                                async with self.send_lock:
+                                    self.total_failed += 1
+                                continue
+                            except Exception as e:
+                                self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
+                                self.log(f"      错误: {str(e)}")
                                 async with self.send_lock:
                                     self.total_failed += 1
                                 continue
                         else:
-                            self.log(f"  ⚠️ [{account_name}] 未设置转发链接，跳过: @{username}")
+                            self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 无效链接: {forward_url}")
+                            async with self.send_lock:
+                                self.total_failed += 1
                             continue
                     else:
                         # 文本消息模式
