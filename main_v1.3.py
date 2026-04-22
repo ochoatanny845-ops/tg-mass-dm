@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.14.0"
+VERSION = "v1.15.0"
 
 import os
 import sys
@@ -127,6 +127,11 @@ class TGMassDM:
         self.stop_btn = ttk.Button(control_frame, text="⏸️ 停止", width=15,
                                    command=self.stop_task, state=tk.DISABLED)
         self.stop_btn.pack(side=tk.LEFT, padx=5)
+        
+        # 私信进度显示（只在私信广告页面显示）
+        self.progress_label = ttk.Label(control_frame, text="",
+                                       font=("微软雅黑", 10), foreground="blue")
+        self.progress_label.pack(side=tk.LEFT, padx=20)
 
         # 日志框架
         log_frame = ttk.LabelFrame(log_container, text="📝 运行日志", padding="10")
@@ -2387,6 +2392,19 @@ class TGMassDM:
         
         # 更新表头显示 选中/总数
         self.account_tree.heading("选择", text=f"{selected}/{total}")
+    
+    def update_progress(self):
+        """更新私信进度显示"""
+        total = getattr(self, 'total_sent', 0) + getattr(self, 'total_failed', 0)
+        success = getattr(self, 'total_sent', 0)
+        failed = getattr(self, 'total_failed', 0)
+        
+        # 只在私信任务运行时显示
+        if getattr(self, 'is_running', False):
+            text = f"📊 总计: {total} 条 | ✅ 成功: {success} | ❌ 失败: {failed}"
+            self.progress_label.config(text=text)
+        else:
+            self.progress_label.config(text="")
 
     # ========== 私信广告功能 ==========
 
@@ -2742,6 +2760,9 @@ class TGMassDM:
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
+        
+        # 清空进度显示
+        self.progress_label.config(text="")
 
     async def countdown_wait(self, wait_time, account_name):
         """倒计时等待（显示剩余时间）"""
@@ -2956,6 +2977,9 @@ class TGMassDM:
                         self.total_sent += 1
                         self.account_stats[account_name]["sent"] += 1  # 账号统计
                         current_total = self.total_sent
+                        
+                        # 更新进度显示
+                        self.root.after(0, self.update_progress)
 
                     self.log(f"  📊 [{account_name}] 总计: {current_total} 条")
 
@@ -2968,7 +2992,10 @@ class TGMassDM:
                     self.log(f"      详细: FloodWaitError - Telegram 要求等待 {e.seconds} 秒后再发送")
                     async with self.send_lock:
                         self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1  # 账号统计
+                        self.account_stats[account_name]["failed"] += 1
+                        
+                        # 更新进度显示
+                        self.root.after(0, self.update_progress)
 
                     if self.auto_switch.get():
                         self.log(f"  🔄 [{account_name}] 触发限制,切换下一个账号")
@@ -2986,6 +3013,9 @@ class TGMassDM:
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
+                        
+                        # 更新进度显示
+                        self.root.after(0, self.update_progress)
                     
                     # 检测是否是双向限制（连续多个用户失败）
                     account_failed_count += 1
@@ -3009,26 +3039,30 @@ class TGMassDM:
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
+                        self.root.after(0, self.update_progress)
 
                 except errors.PeerIdInvalidError as e:
                     self.log(f"  ❌ [{account_name}] 用户不存在或无效: @{username}")
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1  # 账号统计
+                        self.account_stats[account_name]["failed"] += 1
+                        self.root.after(0, self.update_progress)
 
                 except errors.ChatWriteForbiddenError as e:
                     self.log(f"  ❌ [{account_name}] 无权限发送消息: @{username}")
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1  # 账号统计
+                        self.account_stats[account_name]["failed"] += 1
+                        self.root.after(0, self.update_progress)
 
                 except errors.AuthKeyUnregisteredError as e:
                     self.log(f"  ❌ [{account_name}] 账号未授权(死号): {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1  # 账号统计
+                        self.account_stats[account_name]["failed"] += 1
+                        self.root.after(0, self.update_progress)
                     break  # 账号失效,切换账号
 
                 except Exception as e:
@@ -3050,6 +3084,7 @@ class TGMassDM:
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
+                            self.root.after(0, self.update_progress)
 
                         if self.auto_switch.get():
                             self.log(f"  🔄 [{account_name}] 触发限制,切换下一个账号")
@@ -3066,7 +3101,8 @@ class TGMassDM:
                     self.log(f"      错误详情: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1  # 账号统计
+                        self.account_stats[account_name]["failed"] += 1
+                        self.root.after(0, self.update_progress)
 
             # 从目标列表中删除发送成功的用户
             if success_targets:
