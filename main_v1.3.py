@@ -718,46 +718,60 @@ class TGMassDM:
                 # 尝试读取配套的 JSON 文件
                 # 123.session → 123.json（不是 123.session.json）
                 json_file = session_file.parent / f"{session_file.stem}.json"
+                json_data = None
+                
                 if json_file.exists():
                     try:
                         import json
                         with open(json_file, 'r', encoding='utf-8') as f:
                             json_data = json.load(f)
-                        
-                        # 提取用户名
-                        username = json_data.get('username')
-                        if username:
-                            account["username"] = f"@{username}"
-                        
-                        # 提取姓名
-                        first_name = json_data.get('first_name')
-                        if first_name:
-                            account["first_name"] = first_name
-                        
-                        # 提取手机号
-                        phone = json_data.get('phone')
-                        if phone:
-                            account["phone"] = phone
-                        
-                        # 提取代理信息
-                        proxy = json_data.get('proxy')
-                        if proxy:
-                            account["proxy"] = proxy
-                        
-                        # 提取 2FA 状态
-                        twofa = json_data.get('2fa')
-                        if twofa:
-                            account["2fa"] = twofa
-                        
-                        # 提取状态
-                        spamblock = json_data.get('spamblock', '').lower()
-                        if spamblock == 'free':
-                            account["status"] = "✅ 无限制（来自JSON）"
-                        elif spamblock:
-                            account["status"] = f"⚠️ {spamblock}（来自JSON）"
-                        
                     except Exception:
-                        pass  # JSON 读取失败，使用默认值
+                        pass  # JSON 读取失败
+                else:
+                    # 没有 JSON 文件，尝试自动生成
+                    json_data = self.generate_json_from_session(session_file)
+                
+                # 如果有 JSON 数据，提取信息
+                if json_data:
+                    # 提取手机号
+                    phone = json_data.get('phone')
+                    if phone:
+                        account["phone"] = str(phone)
+                    
+                    # 提取用户名
+                    username = json_data.get('username')
+                    if username:
+                        account["username"] = f"@{username}" if not username.startswith('@') else username
+                    
+                    # 提取姓名（first_name + last_name）
+                    first_name = json_data.get('first_name', '')
+                    last_name = json_data.get('last_name', '')
+                    if first_name:
+                        full_name = f"{first_name} {last_name}".strip() if last_name else first_name
+                        account["first_name"] = full_name
+                    
+                    # 提取代理信息
+                    proxy = json_data.get('proxy')
+                    if proxy:
+                        account["proxy"] = proxy
+                    
+                    # 提取 2FA 状态（注意字段名是 twoFA）
+                    twofa = json_data.get('twoFA') or json_data.get('2fa')
+                    if twofa:
+                        account["2fa"] = "yes"
+                    elif twofa is None:
+                        account["2fa"] = "-"
+                    else:
+                        account["2fa"] = "no"
+                    
+                    # 提取状态
+                    spamblock = json_data.get('spamblock', '').lower()
+                    if spamblock == 'free':
+                        account["status"] = "✅ 无限制（来自JSON）"
+                    elif spamblock == 'permanent':
+                        account["status"] = "⚠️ 永久双向限制（来自JSON）"
+                    elif spamblock:
+                        account["status"] = f"⚠️ {spamblock}（来自JSON）"
                 
                 self.accounts.append(account)
 
@@ -820,12 +834,24 @@ class TGMassDM:
                 # 同时复制 .json 文件(如果存在) - 账号信息文件
                 # 123.session → 123.json（不是 123.session.json）
                 json_file = session_file.parent / f"{session_file.stem}.json"
-                has_json = False
+                json_data = None
+                
                 if json_file.exists():
                     dest_json = Path(self.accounts_dir) / json_file.name
                     shutil.copy2(json_file, dest_json)
-                    has_json = True
                     self.log(f"    📄 已复制配套 JSON 文件")
+                    
+                    # 读取 JSON
+                    try:
+                        import json
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            json_data = json.load(f)
+                    except:
+                        pass
+                else:
+                    # 没有 JSON 文件，尝试自动生成
+                    self.log(f"    ⚠️ 未找到 JSON 文件，正在自动生成...")
+                    json_data = self.generate_json_from_session(dest_path)
 
                 # 创建账号记录
                 account = {
@@ -840,49 +866,49 @@ class TGMassDM:
                     "last_login": "-"
                 }
                 
-                # 如果有 JSON 文件，尝试读取账号信息
-                if has_json:
-                    try:
-                        import json
-                        with open(json_file, 'r', encoding='utf-8') as f:
-                            json_data = json.load(f)
-                        
-                        # 提取用户名
-                        username = json_data.get('username')
-                        if username:
-                            account["username"] = f"@{username}"
-                        
-                        # 提取姓名
-                        first_name = json_data.get('first_name')
-                        if first_name:
-                            account["first_name"] = first_name
-                        
-                        # 提取手机号
-                        phone = json_data.get('phone')
-                        if phone:
-                            account["phone"] = phone
-                        
-                        # 提取代理信息
-                        proxy = json_data.get('proxy')
-                        if proxy:
-                            account["proxy"] = proxy
-                        
-                        # 提取 2FA 状态
-                        twofa = json_data.get('2fa')
-                        if twofa:
-                            account["2fa"] = twofa
-                        
-                        # 提取状态（如果有）
-                        spamblock = json_data.get('spamblock', '').lower()
-                        if spamblock == 'free':
-                            account["status"] = "✅ 无限制（来自JSON）"
-                        elif spamblock:
-                            account["status"] = f"⚠️ {spamblock}（来自JSON）"
-                        
-                        self.log(f"    📋 已读取 JSON 信息: {account['username']} ({account['phone']})")
-                        
-                    except Exception as json_error:
-                        self.log(f"    ⚠️ 读取 JSON 失败: {str(json_error)}")
+                # 如果有 JSON 数据，提取信息
+                if json_data:
+                    # 提取手机号
+                    phone = json_data.get('phone')
+                    if phone:
+                        account["phone"] = str(phone)
+                    
+                    # 提取用户名
+                    username = json_data.get('username')
+                    if username:
+                        account["username"] = f"@{username}" if not username.startswith('@') else username
+                    
+                    # 提取姓名（first_name + last_name）
+                    first_name = json_data.get('first_name', '')
+                    last_name = json_data.get('last_name', '')
+                    if first_name:
+                        full_name = f"{first_name} {last_name}".strip() if last_name else first_name
+                        account["first_name"] = full_name
+                    
+                    # 提取代理信息
+                    proxy = json_data.get('proxy')
+                    if proxy:
+                        account["proxy"] = proxy
+                    
+                    # 提取 2FA 状态（注意字段名是 twoFA）
+                    twofa = json_data.get('twoFA') or json_data.get('2fa')
+                    if twofa:
+                        account["2fa"] = "yes"
+                    elif twofa is None:
+                        account["2fa"] = "-"
+                    else:
+                        account["2fa"] = "no"
+                    
+                    # 提取状态
+                    spamblock = json_data.get('spamblock', '').lower()
+                    if spamblock == 'free':
+                        account["status"] = "✅ 无限制（来自JSON）"
+                    elif spamblock == 'permanent':
+                        account["status"] = "⚠️ 永久双向限制（来自JSON）"
+                    elif spamblock:
+                        account["status"] = f"⚠️ {spamblock}（来自JSON）"
+                    
+                    self.log(f"    📋 已读取 JSON 信息: {account['username']} ({account['phone']})")
                 
                 self.accounts.append(account)
                 added += 1
@@ -972,6 +998,59 @@ class TGMassDM:
         menu.post(x, y)
 
     # ========== 辅助函数 ==========
+    
+    def generate_json_from_session(self, session_file):
+        """
+        从 session 文件生成基础 JSON 文件
+        返回: JSON 数据字典，失败返回 None
+        """
+        import sqlite3
+        
+        try:
+            conn = sqlite3.connect(session_file)
+            cursor = conn.cursor()
+            
+            # 尝试从 entities 表读取自己的信息
+            # entities 表可能包含用户自己的记录
+            cursor.execute("SELECT id, username, phone, name FROM entities ORDER BY id LIMIT 1")
+            row = cursor.fetchone()
+            
+            conn.close()
+            
+            if row:
+                entity_id, username, phone, name = row
+                
+                # 生成基础 JSON
+                json_data = {
+                    "app_id": self.api_id,
+                    "app_hash": self.api_hash,
+                    "id": entity_id if entity_id > 0 else None,
+                    "phone": str(phone) if phone else None,
+                    "username": username,
+                    "first_name": name if name else None,
+                    "last_name": None,
+                    "twoFA": None,
+                    "proxy": None,
+                    "spamblock": None,
+                    "session_file": session_file.stem,
+                    "session_created_date": None,
+                    "last_connect_date": None
+                }
+                
+                # 保存 JSON 文件
+                json_file = session_file.parent / f"{session_file.stem}.json"
+                import json
+                with open(json_file, 'w', encoding='utf-8') as f:
+                    json.dump(json_data, f, indent=2, ensure_ascii=False)
+                
+                self.log(f"    ✨ 已生成 JSON 文件")
+                return json_data
+            
+            return None
+            
+        except Exception as e:
+            self.log(f"    ⚠️ 生成 JSON 失败: {str(e)[:50]}")
+            return None
     
     def convert_session_file(self, session_file):
         """
