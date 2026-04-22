@@ -918,6 +918,123 @@ class TGMassDM:
 
     # ========== 辅助函数 ==========
     
+    def convert_session_file(self, session_file):
+        """
+        转换 session 文件（移除 tmp_auth_key 列）
+        返回: True=成功, False=失败
+        """
+        import sqlite3
+        import shutil
+        
+        try:
+            # 备份原文件
+            backup_file = str(session_file) + ".backup"
+            shutil.copy2(session_file, backup_file)
+            
+            temp_file = str(session_file) + ".converting"
+            
+            # 连接原数据库
+            conn_old = sqlite3.connect(session_file)
+            cursor_old = conn_old.cursor()
+            
+            # 创建新数据库
+            conn_new = sqlite3.connect(temp_file)
+            cursor_new = conn_new.cursor()
+            
+            # 1. 复制 version 表
+            cursor_old.execute("SELECT version FROM version")
+            version = cursor_old.fetchone()
+            if version:
+                cursor_new.execute("CREATE TABLE version (version INTEGER PRIMARY KEY)")
+                cursor_new.execute("INSERT INTO version VALUES (?)", version)
+            
+            # 2. 转换 sessions 表（6列 → 5列）
+            cursor_old.execute("SELECT dc_id, server_address, port, auth_key, takeout_id FROM sessions")
+            sessions_data = cursor_old.fetchall()
+            
+            cursor_new.execute("""
+                CREATE TABLE sessions (
+                    dc_id INTEGER PRIMARY KEY,
+                    server_address TEXT,
+                    port INTEGER,
+                    auth_key BLOB,
+                    takeout_id INTEGER
+                )
+            """)
+            
+            for row in sessions_data:
+                cursor_new.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?)", row)
+            
+            # 3. 复制 entities 表
+            cursor_old.execute("SELECT * FROM entities")
+            entities_data = cursor_old.fetchall()
+            
+            cursor_new.execute("""
+                CREATE TABLE entities (
+                    id INTEGER PRIMARY KEY,
+                    hash INTEGER NOT NULL,
+                    username TEXT,
+                    phone INTEGER,
+                    name TEXT,
+                    date INTEGER
+                )
+            """)
+            
+            for row in entities_data:
+                cursor_new.execute("INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?)", row)
+            
+            # 4. 复制 sent_files 表
+            cursor_new.execute("""
+                CREATE TABLE sent_files (
+                    md5_digest BLOB,
+                    file_size INTEGER,
+                    type INTEGER,
+                    id INTEGER,
+                    hash INTEGER,
+                    PRIMARY KEY (md5_digest, file_size, type)
+                )
+            """)
+            
+            cursor_old.execute("SELECT * FROM sent_files")
+            sent_files_data = cursor_old.fetchall()
+            
+            for row in sent_files_data:
+                cursor_new.execute("INSERT INTO sent_files VALUES (?, ?, ?, ?, ?)", row)
+            
+            # 5. 复制 update_state 表
+            cursor_old.execute("SELECT * FROM update_state")
+            update_state_data = cursor_old.fetchall()
+            
+            cursor_new.execute("""
+                CREATE TABLE update_state (
+                    id INTEGER PRIMARY KEY,
+                    pts INTEGER,
+                    qts INTEGER,
+                    date INTEGER,
+                    seq INTEGER
+                )
+            """)
+            
+            for row in update_state_data:
+                cursor_new.execute("INSERT INTO update_state VALUES (?, ?, ?, ?, ?)", row)
+            
+            # 提交并关闭
+            conn_new.commit()
+            conn_old.close()
+            conn_new.close()
+            
+            # 替换原文件
+            shutil.move(temp_file, session_file)
+            
+            return True
+            
+        except Exception as e:
+            self.log(f"  ❌ 转换失败: {str(e)[:100]}")
+            # 清理临时文件
+            if Path(temp_file).exists():
+                Path(temp_file).unlink()
+            return False
+    
     def translate_to_english(self, text):
         """将任意语言翻译成英文"""
         try:
@@ -1060,14 +1177,29 @@ class TGMassDM:
             try:
                 client = TelegramClient(path, self.api_id, self.api_hash)
             except ValueError as ve:
-                # Session 文件格式错误
-                account["status"] = "⚠️ Session格式错误"
-                account["username"] = "-"
-                account["phone"] = "-"
-                self.log(f"  ❌ Session 文件格式错误，可能是版本不兼容")
-                self.log(f"     ValueError: {str(ve)[:100]}")
-                self.root.after(0, self.refresh_account_tree)
-                return
+                # Session 文件格式错误，尝试自动转换
+                self.log(f"  ⚠️ 检测到格式错误，正在自动转换...")
+                
+                if self.convert_session_file(path):
+                    self.log(f"  ✅ 转换成功，重新创建客户端...")
+                    try:
+                        client = TelegramClient(path, self.api_id, self.api_hash)
+                        self.log(f"  ✅ 客户端创建成功（已转换）")
+                    except Exception as retry_error:
+                        account["status"] = "⚠️ 转换后仍失败"
+                        account["username"] = "-"
+                        account["phone"] = "-"
+                        self.log(f"  ❌ 转换后仍然失败: {type(retry_error).__name__}")
+                        self.root.after(0, self.refresh_account_tree)
+                        return
+                else:
+                    account["status"] = "⚠️ 转换失败"
+                    account["username"] = "-"
+                    account["phone"] = "-"
+                    self.log(f"  ❌ 自动转换失败")
+                    self.root.after(0, self.refresh_account_tree)
+                    return
+                    
             except Exception as ce:
                 # 其他创建错误
                 account["status"] = "⚠️ 客户端创建失败"
@@ -1077,7 +1209,8 @@ class TGMassDM:
                 self.root.after(0, self.refresh_account_tree)
                 return
             
-            self.log(f"  ✅ 客户端创建成功")
+            if 'client' not in locals():
+                self.log(f"  ✅ 客户端创建成功")
             
             try:
                 await client.connect()
