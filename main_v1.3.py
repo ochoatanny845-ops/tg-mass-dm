@@ -1203,6 +1203,9 @@ class TGMassDM:
         self.total_failed = 0
         self.send_lock = asyncio.Lock()
         
+        # 记录每个账号的发送统计
+        self.account_stats = {}  # {account_name: {"sent": 0, "failed": 0}}
+        
         thread_count = self.thread_count.get()
         
         for batch_start in range(0, len(selected_accounts), thread_count):
@@ -1225,10 +1228,23 @@ class TGMassDM:
                 self.log(f"⏱️ 批次完成，等待 {self.thread_interval.get()} 秒启动下一批...")
                 await asyncio.sleep(self.thread_interval.get())
         
+        # 显示总体统计
         self.log(f"\n" + "="*50)
         self.log(f"✅ 任务完成！")
-        self.log(f"📊 成功: {self.total_sent} 条")
-        self.log(f"❌ 失败: {self.total_failed} 条")
+        self.log(f"📊 总计成功: {self.total_sent} 条")
+        self.log(f"❌ 总计失败: {self.total_failed} 条")
+        self.log("="*50)
+        
+        # 显示每个账号的统计
+        if self.account_stats:
+            self.log(f"\n📈 各账号发送统计：")
+            for account_name, stats in sorted(self.account_stats.items()):
+                success = stats.get("sent", 0)
+                failed = stats.get("failed", 0)
+                total = success + failed
+                success_rate = (success / total * 100) if total > 0 else 0
+                self.log(f"  📱 {account_name}: ✅ {success} 条 | ❌ {failed} 条 | 成功率 {success_rate:.1f}%")
+        
         self.log("="*50)
         
         self.start_btn.config(state=tk.NORMAL)
@@ -1246,6 +1262,10 @@ class TGMassDM:
             me = await client.get_me()
             account_name = me.username or me.phone or str(me.id)
             self.log(f"  ✅ 已登录: @{account_name}")
+            
+            # 初始化账号统计
+            if account_name not in self.account_stats:
+                self.account_stats[account_name] = {"sent": 0, "failed": 0}
             
             account_sent = 0
             success_targets = []  # 记录发送成功的用户
@@ -1326,17 +1346,20 @@ class TGMassDM:
                                 self.log(f"      链接格式错误: {forward_url}")
                                 async with self.send_lock:
                                     self.total_failed += 1
+                                    self.account_stats[account_name]["failed"] += 1  # 账号统计
                                 continue
                             except Exception as e:
                                 self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                 self.log(f"      错误: {str(e)}")
                                 async with self.send_lock:
                                     self.total_failed += 1
+                                    self.account_stats[account_name]["failed"] += 1  # 账号统计
                                 continue
                         else:
                             self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 无效链接: {forward_url}")
                             async with self.send_lock:
                                 self.total_failed += 1
+                                self.account_stats[account_name]["failed"] += 1  # 账号统计
                             continue
                     else:
                         # 文本消息模式
@@ -1363,6 +1386,7 @@ class TGMassDM:
                     
                     async with self.send_lock:
                         self.total_sent += 1
+                        self.account_stats[account_name]["sent"] += 1  # 账号统计
                         current_total = self.total_sent
                     
                     self.log(f"  📊 [{account_name}] 总计: {current_total} 条")
@@ -1376,6 +1400,7 @@ class TGMassDM:
                     self.log(f"      详细: FloodWaitError - Telegram 要求等待 {e.seconds} 秒后再发送")
                     async with self.send_lock:
                         self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1  # 账号统计
                     
                     if self.auto_switch.get():
                         self.log(f"  🔄 [{account_name}] 触发限制，切换下一个账号")
@@ -1392,29 +1417,34 @@ class TGMassDM:
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1  # 账号统计
                         
                 except errors.UserIsBlockedError as e:
                     self.log(f"  ❌ [{account_name}] 已被用户拉黑: @{username}")
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1  # 账号统计
                         
                 except errors.PeerIdInvalidError as e:
                     self.log(f"  ❌ [{account_name}] 用户不存在或无效: @{username}")
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1  # 账号统计
                 
                 except errors.ChatWriteForbiddenError as e:
                     self.log(f"  ❌ [{account_name}] 无权限发送消息: @{username}")
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1  # 账号统计
                 
                 except errors.AuthKeyUnregisteredError as e:
                     self.log(f"  ❌ [{account_name}] 账号未授权（死号）: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1  # 账号统计
                     break  # 账号失效，切换账号
                         
                 except Exception as e:
@@ -1435,6 +1465,7 @@ class TGMassDM:
                         self.log(f"      自动等待: {wait_time} 秒")
                         async with self.send_lock:
                             self.total_failed += 1
+                            self.account_stats[account_name]["failed"] += 1  # 账号统计
                         
                         if self.auto_switch.get():
                             self.log(f"  🔄 [{account_name}] 触发限制，切换下一个账号")
@@ -1450,6 +1481,7 @@ class TGMassDM:
                     self.log(f"      错误详情: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1  # 账号统计
             
             # 从目标列表中删除发送成功的用户
             if success_targets:
