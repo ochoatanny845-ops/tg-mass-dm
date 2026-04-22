@@ -149,8 +149,16 @@ class TGMassDM:
         # 更新选中数量和表头
         self.update_selected_count()
         
-        # 延迟设置私信广告分割位置
-        self.root.after(200, self.set_messaging_sash_position)
+        # 绑定标签切换事件
+        self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
+
+    def on_tab_changed(self, event):
+        """标签页切换事件"""
+        current_tab = self.notebook.index(self.notebook.select())
+        
+        if current_tab == 1:  # 私信广告页面
+            # 延迟设置布局
+            self.root.after(100, self.set_messaging_sash_position)
 
     def set_initial_sash_position(self):
         """设置初始分割位置（延迟执行）- 仅影响主界面"""
@@ -183,14 +191,29 @@ class TGMassDM:
     def set_messaging_sash_position(self):
         """设置私信广告分割位置（独立布局）"""
         try:
+            # 强制更新窗口
+            self.root.update_idletasks()
             self.root.update()
+            
             window_width = self.root.winfo_width()
+            self.log(f"🔍 窗口宽度: {window_width}px")
             
-            # 左侧占70%，右侧占30%
-            split_position = int(window_width * 0.70)
-            
-            self.messaging_paned.sashpos(0, split_position)
-            self.log(f"✅ 私信广告布局已设置: 左{split_position}px")
+            if window_width > 100:  # 确保窗口已渲染
+                # 左侧占65%，右侧占35%
+                split_position = int(window_width * 0.65)
+                
+                self.messaging_paned.sashpos(0, split_position)
+                
+                # 验证分割位置
+                actual_pos = self.messaging_paned.sashpos(0)
+                self.log(f"✅ 私信广告布局: 左{split_position}px (实际{actual_pos}px)")
+                
+                # 如果位置不对，重试
+                if abs(actual_pos - split_position) > 10:
+                    self.root.after(300, lambda: self.messaging_paned.sashpos(0, split_position))
+            else:
+                self.log(f"⚠️ 窗口宽度异常，延迟重试...")
+                self.root.after(500, self.set_messaging_sash_position)
         except Exception as e:
             self.log(f"❌ 设置私信广告布局失败: {e}")
 
