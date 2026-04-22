@@ -388,7 +388,7 @@ class TGMassDM:
         ttk.Label(self.forward_msg_frame, text="格式: https://t.me/channel/12345",
                  font=("微软雅黑", 8), foreground="gray").pack(anchor=tk.W)
 
-        self.forward_urls_text = scrolledtext.ScrolledText(self.forward_msg_frame, height=6,
+        self.forward_urls_text = scrolledtext.ScrolledText(self.forward_msg_frame, height=10,
                                                            font=("微软雅黑", 9), wrap=tk.WORD)
         self.forward_urls_text.pack(fill=tk.BOTH, expand=True, pady=5)
         self.forward_urls_text.insert("1.0", "https://t.me/channel_name/123\nhttps://t.me/channel_name/456\nhttps://t.me/channel_name/789")
