@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.21.0"
+VERSION = "v1.22.0"
 
 import os
 import sys
@@ -3025,7 +3025,6 @@ class TGMassDM:
                 except errors.FloodWaitError as e:
                     wait_time = min(e.seconds, 300)  # 最多等待 5 分钟
                     self.log(f"  ⚠️ [{account_name}] 触发频率限制: @{username} - 需等待 {wait_time} 秒")
-                    self.log(f"      详细: FloodWaitError - Telegram 要求等待 {e.seconds} 秒后再发送")
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3113,7 +3112,6 @@ class TGMassDM:
 
                         self.log(f"  ⚠️ [{account_name}] 触发请求限制: @{username}")
                         self.log(f"      错误: {str(e)}")
-                        self.log(f"      建议: 发送间隔太短，请在配置中增加「发送间隔」（当前{self.interval_min.get()}-{self.interval_max.get()}秒）")
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
