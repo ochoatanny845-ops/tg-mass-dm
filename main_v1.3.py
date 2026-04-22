@@ -999,6 +999,9 @@ class TGMassDM:
         except Exception as e:
             account["status"] = "⚠️ 检测失败"
             self.log(f"  ⚠️ 检测失败: {type(e).__name__}")
+            self.log(f"     错误: {str(e)[:100]}")
+            import traceback
+            self.log(f"     追踪: {traceback.format_exc()[:200]}")
             self.root.after(0, self.refresh_account_tree)
 
     async def check_accounts_async(self):
