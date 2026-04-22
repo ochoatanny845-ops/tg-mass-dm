@@ -433,32 +433,24 @@ class TGMassDM:
         ttk.Radiobutton(type_frame, text="🔗 转发贴子", variable=self.send_type,
                        value="forward", command=self.on_send_type_change).pack(anchor=tk.W, pady=2)
 
-        # 内容区横向布局：文本消息/转发贴子 + 目标用户
-        content_frame = ttk.Frame(left)
-        content_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-
-        # 左侧：文本消息/转发贴子
-        left_content = ttk.Frame(content_frame)
-        left_content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
-
         # 文本消息框
-        self.text_msg_frame = ttk.LabelFrame(left_content, text="✉️ 文本消息", padding="10")
-        self.text_msg_frame.pack(fill=tk.BOTH, expand=True)
+        self.text_msg_frame = ttk.LabelFrame(left, text="✉️ 文本消息", padding="10")
+        self.text_msg_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.message_text = scrolledtext.ScrolledText(self.text_msg_frame, height=10,
+        self.message_text = scrolledtext.ScrolledText(self.text_msg_frame, height=6,
                                                       font=("微软雅黑", 10), wrap=tk.WORD)
         self.message_text.pack(fill=tk.BOTH, expand=True)
         self.message_text.insert("1.0", "你好 {firstname}!\n\n这是一条测试消息。\n\n支持变量:\n• {username} - 用户名\n• {firstname} - 名字")
 
         # 转发贴子框(默认隐藏)
-        self.forward_msg_frame = ttk.LabelFrame(left_content, text="🔗 转发贴子", padding="10")
+        self.forward_msg_frame = ttk.LabelFrame(left, text="🔗 转发贴子", padding="10")
         # 不 pack,等切换时显示
 
         ttk.Label(self.forward_msg_frame, text="贴子链接 (每行一条,自动随机选择):").pack(anchor=tk.W)
         ttk.Label(self.forward_msg_frame, text="格式: https://t.me/channel/12345",
                  font=("微软雅黑", 8), foreground="gray").pack(anchor=tk.W)
 
-        self.forward_urls_text = scrolledtext.ScrolledText(self.forward_msg_frame, height=10,
+        self.forward_urls_text = scrolledtext.ScrolledText(self.forward_msg_frame, height=8,
                                                            font=("微软雅黑", 9), wrap=tk.WORD)
         self.forward_urls_text.pack(fill=tk.BOTH, expand=True, pady=5)
         self.forward_urls_text.insert("1.0", "https://t.me/channel_name/123\nhttps://t.me/channel_name/456\nhttps://t.me/channel_name/789")
@@ -471,16 +463,12 @@ class TGMassDM:
                                             font=("微软雅黑", 9))
         self.forward_count_label.pack(anchor=tk.W)
 
-        # 保存容器引用(用于切换)
-        self.messaging_left_content = left_content
-
-        # 右侧：目标用户
-        right_content = ttk.Frame(content_frame)
-        right_content.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        # 保存左侧容器引用(用于切换)
+        self.messaging_left = left
 
         # 目标用户
-        target_frame = ttk.LabelFrame(right_content, text="👥 目标用户", padding="10")
-        target_frame.pack(fill=tk.BOTH, expand=True)
+        target_frame = ttk.LabelFrame(left, text="👥 目标用户", padding="10")
+        target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # 保存目标框引用
         self.target_frame = target_frame
@@ -495,7 +483,7 @@ class TGMassDM:
         ttk.Button(target_btn_frame, text="🗑️ 清空列表", width=12,
                   command=self.clear_targets).pack(side=tk.LEFT, padx=2)
 
-        self.target_text = scrolledtext.ScrolledText(target_frame, height=10,
+        self.target_text = scrolledtext.ScrolledText(target_frame, height=8,
                                                      font=("微软雅黑", 10), wrap=tk.WORD)
         self.target_text.pack(fill=tk.BOTH, expand=True)
         self.target_text.insert("1.0", "@username1\n@username2\n@username3")
@@ -724,11 +712,11 @@ class TGMassDM:
         if self.send_type.get() == "text":
             # 显示文本框,隐藏转发框
             self.forward_msg_frame.pack_forget()
-            self.text_msg_frame.pack(fill=tk.BOTH, expand=True)
+            self.text_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_frame)
         else:
             # 显示转发框,隐藏文本框
             self.text_msg_frame.pack_forget()
-            self.forward_msg_frame.pack(fill=tk.BOTH, expand=True)
+            self.forward_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_frame)
 
     # ========== 配置管理 ==========
 
