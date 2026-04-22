@@ -380,9 +380,34 @@ class TGMassDM:
         paned = ttk.PanedWindow(tab2, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
-        # ========== 左侧:消息设置 ==========
-        left = ttk.Frame(paned)
-        paned.add(left, weight=3)  # 左侧占更多空间
+        # ========== 左侧:消息设置（可滚动） ==========
+        left_container = ttk.Frame(paned)
+        paned.add(left_container, weight=3)  # 左侧占更多空间
+
+        # 创建 Canvas 和滚动条
+        left_canvas = tk.Canvas(left_container, highlightthickness=0)
+        left_scrollbar = ttk.Scrollbar(left_container, orient=tk.VERTICAL, command=left_canvas.yview)
+        left_scrollable_frame = ttk.Frame(left_canvas)
+
+        left_scrollable_frame.bind(
+            "<Configure>",
+            lambda e: left_canvas.configure(scrollregion=left_canvas.bbox("all"))
+        )
+
+        left_canvas.create_window((0, 0), window=left_scrollable_frame, anchor="nw")
+        left_canvas.configure(yscrollcommand=left_scrollbar.set)
+
+        left_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        left_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # 鼠标滚轮支持
+        def on_mousewheel(event):
+            left_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        
+        left_canvas.bind_all("<MouseWheel>", on_mousewheel)
+
+        # 使用 left_scrollable_frame 作为实际的左侧容器
+        left = left_scrollable_frame
 
         # 顶部横向布局：选择账号 + 发送类型
         top_frame = ttk.Frame(left)
@@ -410,9 +435,9 @@ class TGMassDM:
 
         # 文本消息框
         self.text_msg_frame = ttk.LabelFrame(left, text="✉️ 文本消息", padding="10")
-        self.text_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.text_msg_frame.pack(fill=tk.X, pady=(0, 10))
 
-        self.message_text = scrolledtext.ScrolledText(self.text_msg_frame, height=8,
+        self.message_text = scrolledtext.ScrolledText(self.text_msg_frame, height=6,
                                                       font=("微软雅黑", 10), wrap=tk.WORD)
         self.message_text.pack(fill=tk.BOTH, expand=True)
         self.message_text.insert("1.0", "你好 {firstname}!\n\n这是一条测试消息。\n\n支持变量:\n• {username} - 用户名\n• {firstname} - 名字")
@@ -425,7 +450,7 @@ class TGMassDM:
         ttk.Label(self.forward_msg_frame, text="格式: https://t.me/channel/12345",
                  font=("微软雅黑", 8), foreground="gray").pack(anchor=tk.W)
 
-        self.forward_urls_text = scrolledtext.ScrolledText(self.forward_msg_frame, height=10,
+        self.forward_urls_text = scrolledtext.ScrolledText(self.forward_msg_frame, height=8,
                                                            font=("微软雅黑", 9), wrap=tk.WORD)
         self.forward_urls_text.pack(fill=tk.BOTH, expand=True, pady=5)
         self.forward_urls_text.insert("1.0", "https://t.me/channel_name/123\nhttps://t.me/channel_name/456\nhttps://t.me/channel_name/789")
@@ -443,7 +468,7 @@ class TGMassDM:
 
         # 目标用户
         target_frame = ttk.LabelFrame(left, text="👥 目标用户", padding="10")
-        target_frame.pack(fill=tk.BOTH, expand=True)
+        target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # 保存目标框引用
         self.target_frame = target_frame
@@ -458,7 +483,7 @@ class TGMassDM:
         ttk.Button(target_btn_frame, text="🗑️ 清空列表", width=12,
                   command=self.clear_targets).pack(side=tk.LEFT, padx=2)
 
-        self.target_text = scrolledtext.ScrolledText(target_frame, height=6,
+        self.target_text = scrolledtext.ScrolledText(target_frame, height=8,
                                                      font=("微软雅黑", 10), wrap=tk.WORD)
         self.target_text.pack(fill=tk.BOTH, expand=True)
         self.target_text.insert("1.0", "@username1\n@username2\n@username3")
