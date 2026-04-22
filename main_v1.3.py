@@ -107,6 +107,19 @@ class TGMassDM:
         log_container = ttk.Frame(main_paned)
         main_paned.add(log_container, weight=1)
 
+        # 控制按钮
+        control_frame = ttk.Frame(log_container, padding="5")
+        control_frame.pack(fill=tk.X)
+
+        # 开始按钮（点击弹出菜单）
+        self.start_btn = ttk.Button(control_frame, text="🚀 开始", width=15,
+                                    command=lambda: self.show_main_start_menu(self.start_btn))
+        self.start_btn.pack(side=tk.LEFT, padx=5)
+
+        self.stop_btn = ttk.Button(control_frame, text="⏸️ 停止", width=15,
+                                   command=self.stop_task, state=tk.DISABLED)
+        self.stop_btn.pack(side=tk.LEFT, padx=5)
+
         # 日志框架
         log_frame = ttk.LabelFrame(log_container, text="📝 运行日志", padding="10")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
@@ -220,11 +233,6 @@ class TGMassDM:
                   command=self.select_all).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame, text="❌ 清空", width=8,
                   command=self.deselect_all).pack(side=tk.LEFT, padx=2)
-        
-        # 开始按钮（点击弹出菜单）
-        start_btn = ttk.Button(btn_frame, text="🚀 开始", width=12,
-                              command=lambda: self.show_start_menu(start_btn))
-        start_btn.pack(side=tk.LEFT, padx=5)
         
         # 删除按钮（点击弹出菜单）
         delete_btn = ttk.Button(btn_frame, text="🗑️ 删除", width=12,
@@ -984,8 +992,20 @@ class TGMassDM:
         self.update_account_stats()
         self.update_selected_count()
     
+    def show_main_start_menu(self, button):
+        """显示主界面开始菜单"""
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="检查账号限制", command=self.check_accounts)
+        menu.add_separator()
+        menu.add_command(label="新功能待开发", state=tk.DISABLED)
+        
+        # 在按钮下方显示菜单
+        x = button.winfo_rootx()
+        y = button.winfo_rooty() + button.winfo_height()
+        menu.post(x, y)
+    
     def show_start_menu(self, button):
-        """显示开始菜单"""
+        """显示开始菜单（账号管理页面）"""
         menu = tk.Menu(self.root, tearoff=0)
         menu.add_command(label="检查账号限制", command=self.check_accounts)
         menu.add_separator()
