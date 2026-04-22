@@ -853,26 +853,27 @@ class TGMassDM:
             "some phone numbers may trigger",
         ]
         
-        # 3. 永久冻结/封禁
-        PERMANENT_BAN_KEYWORDS = [
-            # 违规封禁
+        # 3. 永久封禁（最严重）
+        PERMANENT_BLOCKED_KEYWORDS = [
             "blocked for violations",
             "terms of service",
             "user reports confirmed",
-            
-            # 行为触发（永久双向冻结）
-            "some actions can trigger",
-            "limited by mistake",
-            "your account was limited",
         ]
         
-        # 4. 冻结（有可能有申诉期限）
+        # 4. 永久双向限制（行为触发）
+        PERMANENT_LIMITED_KEYWORDS = [
+            "some actions can trigger",
+            "your account was limited",
+            "while the account is limited",
+        ]
+        
+        # 5. 冻结（有可能有申诉期限）
         FROZEN_KEYWORDS = [
             "frozen",
             "заморожен",  # 俄语：冻结
         ]
         
-        # 5. 临时限制（有到期时间）
+        # 6. 临时限制（有到期时间）
         TEMP_LIMITED_KEYWORDS = [
             "limited until",
             "automatically released on",
@@ -949,12 +950,18 @@ class TGMassDM:
                         account["status"] = "✅ 正常（地理受限）"
                         self.log(f"  ✅ 正常（地理受限）: {account['username']}")
                     
-                    # 2. 永久封禁/冻结（行为触发、违规）
-                    elif any(keyword in response for keyword in PERMANENT_BAN_KEYWORDS):
-                        account["status"] = "🚫 永久冻结"
-                        self.log(f"  🚫 永久冻结: {account['username']}")
+                    # 2. 永久封禁（最严重）
+                    elif any(keyword in response for keyword in PERMANENT_BLOCKED_KEYWORDS):
+                        account["status"] = "🚫 永久封禁"
+                        self.log(f"  🚫 永久封禁: {account['username']}")
                     
-                    # 3. 冻结（可能有申诉期限）
+                    # 3. 永久双向限制（行为触发）
+                    elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
+                        account["status"] = "⚠️ 永久双向限制"
+                        self.log(f"  ⚠️ 永久双向限制: {account['username']}")
+                        self.log(f"     说明: 不能给陌生人发消息，但可以回复")
+                    
+                    # 4. 冻结（可能有申诉期限）
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
                         appeal_time = self.parse_limitation_time(response_original)
                         if appeal_time:
@@ -965,7 +972,7 @@ class TGMassDM:
                             account["status"] = "🚫 冻结"
                             self.log(f"  🚫 冻结: {account['username']}")
                     
-                    # 4. 临时限制（有到期时间）
+                    # 5. 临时限制（有到期时间）
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
                         release_time = self.parse_limitation_time(response_original)
                         if release_time:
@@ -984,12 +991,12 @@ class TGMassDM:
                             account["status"] = "⚠️ 临时垃圾邮件"
                             self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
                     
-                    # 5. 正常
+                    # 6. 正常
                     elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                         account["status"] = "✅ 正常"
                         self.log(f"  ✅ 正常: {account['username']}")
                     
-                    # 6. 未知
+                    # 7. 未知
                     else:
                         account["status"] = "⚠️ 未知状态"
                         self.log(f"  ⚠️ 未知状态: {account['username']}")
