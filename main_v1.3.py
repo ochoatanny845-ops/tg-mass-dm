@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.25.0"
+VERSION = "v1.26.0"
 
 import os
 import sys
@@ -2977,11 +2977,21 @@ class TGMassDM:
                                     self.account_stats[account_name]["failed"] += 1  # 账号统计
                                 continue
                             except Exception as e:
-                                self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
-                                self.log(f"      错误: {str(e)}")
+                                error_str = str(e).lower()
+                                
+                                # 简化错误显示
+                                if "constructor" in error_str or "tlobject" in error_str:
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 链接无效或消息已删除")
+                                elif "too many requests" in error_str:
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 请求限制")
+                                else:
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
+                                    self.log(f"      {str(e)[:100]}")  # 只显示前100字符
+                                
                                 async with self.send_lock:
                                     self.total_failed += 1
-                                    self.account_stats[account_name]["failed"] += 1  # 账号统计
+                                    self.account_stats[account_name]["failed"] += 1
+                                    self.root.after(0, self.update_progress)
                                 continue
                         else:
                             self.log(f"  ❌ [{account_name}] 转发失败: @{username} - 无效链接: {forward_url}")
