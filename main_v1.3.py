@@ -967,8 +967,26 @@ class TGMassDM:
             
             self.log(f"  ✅ 开始创建客户端...")
             
-            # 创建 TelegramClient
-            client = TelegramClient(path, self.api_id, self.api_hash)
+            # 创建 TelegramClient（可能失败）
+            try:
+                client = TelegramClient(path, self.api_id, self.api_hash)
+            except ValueError as ve:
+                # Session 文件格式错误
+                account["status"] = "⚠️ Session格式错误"
+                account["username"] = "-"
+                account["phone"] = "-"
+                self.log(f"  ❌ Session 文件格式错误，可能是版本不兼容")
+                self.log(f"     ValueError: {str(ve)[:100]}")
+                self.root.after(0, self.refresh_account_tree)
+                return
+            except Exception as ce:
+                # 其他创建错误
+                account["status"] = "⚠️ 客户端创建失败"
+                account["username"] = "-"
+                account["phone"] = "-"
+                self.log(f"  ❌ 客户端创建失败: {type(ce).__name__}")
+                self.root.after(0, self.refresh_account_tree)
+                return
             
             self.log(f"  ✅ 客户端创建成功")
             
