@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.11.0"
+VERSION = "v1.12.0"
 
 import os
 import sys
@@ -2697,6 +2697,13 @@ class TGMassDM:
             if not self.is_running:
                 self.log("⏸️ 任务已停止")
                 break
+            
+            # 修复2: 检查是否还有可用账号
+            available_accounts = [acc for acc in selected_accounts if acc.get("selected", False)]
+            if not available_accounts:
+                self.log("⚠️ 所有选中的账号都已不可用，自动停止任务")
+                self.is_running = False
+                break
 
             batch = selected_accounts[batch_start:batch_start + thread_count]
 
@@ -2736,6 +2743,46 @@ class TGMassDM:
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
 
+    async def check_spambot_status(self, client, account_name):
+        """检查 SpamBot 状态"""
+        try:
+            self.log(f"  🤖 [{account_name}] 正在检查 SpamBot 状态...")
+            
+            # 发送 /start 给 @SpamBot
+            await client.send_message("SpamBot", "/start")
+            
+            # 等待回复
+            await asyncio.sleep(3)
+            
+            # 获取最近的消息
+            messages = await client.get_messages("SpamBot", limit=1)
+            
+            if messages and len(messages) > 0:
+                reply_text = messages[0].text or messages[0].message or ""
+                
+                # 检测限制关键词
+                restriction_keywords = [
+                    "限制", "restriction", "spam", "flood", "banned", "限流",
+                    "temporarily", "暂时", "永久", "permanent"
+                ]
+                
+                has_restriction = any(keyword in reply_text.lower() for keyword in restriction_keywords)
+                
+                if has_restriction:
+                    self.log(f"  ⚠️ [{account_name}] SpamBot 检测到限制:")
+                    self.log(f"      {reply_text[:100]}")
+                    return True  # 有限制
+                else:
+                    self.log(f"  ✅ [{account_name}] SpamBot 无限制，可以继续发送")
+                    return False  # 无限制
+            else:
+                self.log(f"  ⚠️ [{account_name}] SpamBot 未回复")
+                return True  # 安全起见，认为有限制
+                
+        except Exception as e:
+            self.log(f"  ⚠️ [{account_name}] 检查 SpamBot 失败: {e}")
+            return True  # 出错时安全起见，认为有限制
+
     async def send_with_account(self, account, index, total):
         """使用单个账号发送"""
         self.log(f"\n[{index}/{total}] 📱 启动账号: {Path(account['path']).stem}")
@@ -2745,6 +2792,15 @@ class TGMassDM:
             await client.connect()
 
             me = await client.get_me()
+            
+            # 修复1: 检查 me 是否为 None
+            if not me:
+                self.log(f"  ❌ 登录失败: 账号无效或已失效")
+                account["status"] = "⚠️ 登录失败"
+                account["selected"] = False  # 取消选择
+                await client.disconnect()
+                return
+            
             account_name = me.username or me.phone or str(me.id)
             self.log(f"  ✅ 已登录: @{account_name}")
 
@@ -2753,7 +2809,9 @@ class TGMassDM:
                 self.account_stats[account_name] = {"sent": 0, "failed": 0}
 
             account_sent = 0
+            account_failed_count = 0  # 记录连续失败次数
             success_targets = []  # 记录发送成功的用户
+            has_spam_restriction = False  # 是否有垃圾邮件限制
 
             for target in self.targets[:]:  # 复制列表避免修改时出错
                 if not self.is_running:
@@ -2868,6 +2926,7 @@ class TGMassDM:
 
                     account_sent += 1
                     success_targets.append(target)  # 记录成功
+                    account_failed_count = 0  # 重置失败计数（发送成功）
 
                     async with self.send_lock:
                         self.total_sent += 1
@@ -2902,14 +2961,30 @@ class TGMassDM:
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1  # 账号统计
+                        self.account_stats[account_name]["failed"] += 1
+                    
+                    # 检测是否是双向限制（连续多个用户失败）
+                    account_failed_count += 1
+                    if account_failed_count >= 3:
+                        self.log(f"  ⚠️ [{account_name}] 连续失败3次，可能遇到双向限制")
+                        # 检查 SpamBot
+                        has_restriction = await self.check_spambot_status(client, account_name)
+                        if has_restriction:
+                            self.log(f"  🚫 [{account_name}] SpamBot 检测到限制，停止该账号")
+                            account["status"] = "⚠️ 双向限制"
+                            account["selected"] = False
+                            has_spam_restriction = True
+                            break
+                        else:
+                            self.log(f"  ✅ [{account_name}] SpamBot 无限制，继续发送")
+                            account_failed_count = 0  # 重置失败计数
 
                 except errors.UserIsBlockedError as e:
                     self.log(f"  ❌ [{account_name}] 已被用户拉黑: @{username}")
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1  # 账号统计
+                        self.account_stats[account_name]["failed"] += 1
 
                 except errors.PeerIdInvalidError as e:
                     self.log(f"  ❌ [{account_name}] 用户不存在或无效: @{username}")
@@ -2941,16 +3016,17 @@ class TGMassDM:
                         import re
                         wait_match = re.search(r'(\d+)\s*second', error_str)
                         if wait_match:
-                            wait_time = min(int(wait_match.group(1)), 300)  # 最多等待 5 分钟
+                            wait_time = min(int(wait_match.group(1)), 600)  # 最多等待 10 分钟
                         else:
-                            wait_time = 60  # 默认等待 60 秒
+                            wait_time = 120  # 默认等待 120 秒（2分钟）
 
                         self.log(f"  ⚠️ [{account_name}] 触发请求限制: @{username}")
                         self.log(f"      错误: {str(e)}")
+                        self.log(f"      建议: 发送间隔太短，请在配置中增加「发送间隔」（当前{self.interval_min.get()}-{self.interval_max.get()}秒）")
                         self.log(f"      自动等待: {wait_time} 秒")
                         async with self.send_lock:
                             self.total_failed += 1
-                            self.account_stats[account_name]["failed"] += 1  # 账号统计
+                            self.account_stats[account_name]["failed"] += 1
 
                         if self.auto_switch.get():
                             self.log(f"  🔄 [{account_name}] 触发限制,切换下一个账号")
