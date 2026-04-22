@@ -688,6 +688,37 @@ class TGMassDM:
                     "phone": "-",
                     "last_login": "-"
                 }
+                
+                # 尝试读取配套的 JSON 文件
+                json_file = Path(str(session_file) + '.json')
+                if json_file.exists():
+                    try:
+                        import json
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            json_data = json.load(f)
+                        
+                        # 提取用户名
+                        username = json_data.get('username')
+                        if username:
+                            account["username"] = f"@{username}"
+                        elif json_data.get('first_name'):
+                            account["username"] = json_data.get('first_name', '-')
+                        
+                        # 提取手机号
+                        phone = json_data.get('phone')
+                        if phone:
+                            account["phone"] = phone
+                        
+                        # 提取状态
+                        spamblock = json_data.get('spamblock', '').lower()
+                        if spamblock == 'free':
+                            account["status"] = "✅ 无限制（来自JSON）"
+                        elif spamblock:
+                            account["status"] = f"⚠️ {spamblock}（来自JSON）"
+                        
+                    except Exception:
+                        pass  # JSON 读取失败，使用默认值
+                
                 self.accounts.append(account)
 
             self.log(f"📂 自动加载 {len(session_files)} 个账号")
@@ -749,11 +780,14 @@ class TGMassDM:
                 # 同时复制 .json 文件(如果存在) - 账号信息文件
                 # 注意：文件名是 123.session.json，不是 123.json
                 json_file = Path(str(session_file) + '.json')
+                has_json = False
                 if json_file.exists():
                     dest_json = Path(self.accounts_dir) / json_file.name
                     shutil.copy2(json_file, dest_json)
+                    has_json = True
                     self.log(f"    📄 已复制配套 JSON 文件")
 
+                # 创建账号记录
                 account = {
                     "path": str(dest_path),
                     "selected": True,
@@ -762,6 +796,39 @@ class TGMassDM:
                     "phone": "-",
                     "last_login": "-"
                 }
+                
+                # 如果有 JSON 文件，尝试读取账号信息
+                if has_json:
+                    try:
+                        import json
+                        with open(json_file, 'r', encoding='utf-8') as f:
+                            json_data = json.load(f)
+                        
+                        # 提取用户名
+                        username = json_data.get('username')
+                        if username:
+                            account["username"] = f"@{username}"
+                        elif json_data.get('first_name'):
+                            # 没有 username，用 first_name
+                            account["username"] = json_data.get('first_name', '-')
+                        
+                        # 提取手机号
+                        phone = json_data.get('phone')
+                        if phone:
+                            account["phone"] = phone
+                        
+                        # 提取状态（如果有）
+                        spamblock = json_data.get('spamblock', '').lower()
+                        if spamblock == 'free':
+                            account["status"] = "✅ 无限制（来自JSON）"
+                        elif spamblock:
+                            account["status"] = f"⚠️ {spamblock}（来自JSON）"
+                        
+                        self.log(f"    📋 已读取 JSON 信息: {account['username']} ({account['phone']})")
+                        
+                    except Exception as json_error:
+                        self.log(f"    ⚠️ 读取 JSON 失败: {str(json_error)}")
+                
                 self.accounts.append(account)
                 added += 1
 
