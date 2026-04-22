@@ -1577,6 +1577,19 @@ class TGMassDM:
 
             except Exception as e:
                 error_type = type(e).__name__
+                error_str = str(e).lower()
+                
+                # AuthKeyDuplicatedError - 重复登录，直接标记并返回
+                if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
+                    account["status"] = "⚠️ 重复登录"
+                    self.log(f"  ⚠️ 重复登录（同一账号在其他地方使用中）")
+                    self.root.after(0, self.refresh_account_tree)
+                    # 不再尝试取消拉黑，直接断开连接并返回
+                    try:
+                        await client.disconnect()
+                    except:
+                        pass
+                    return
                 
                 # YouBlockedUserError - 拉黑了 SpamBot，尝试自动取消拉黑
                 if "youblocked" in error_type.lower():
