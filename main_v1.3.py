@@ -1368,7 +1368,7 @@ class TGMassDM:
             # 获取并规范化路径
             path = str(Path(account["path"]).resolve())
             
-            self.log(f"  🔍 规范化路径: {path}")
+            # self.log(f"  🔍 规范化路径: {path}")  # 调试日志已隐藏
             
             # 检查文件是否存在
             if not Path(path).exists():
@@ -1379,7 +1379,7 @@ class TGMassDM:
             
             # 检查文件大小
             file_size = Path(path).stat().st_size
-            self.log(f"  📏 文件大小: {file_size} bytes")
+            # self.log(f"  📏 文件大小: {file_size} bytes")  # 调试日志已隐藏
             
             if file_size < 1000:
                 self.log(f"  ❌ 文件太小，可能损坏")
@@ -1387,7 +1387,7 @@ class TGMassDM:
                 self.root.after(0, self.refresh_account_tree)
                 return
             
-            self.log(f"  ✅ 开始创建客户端...")
+            # self.log(f"  ✅ 开始创建客户端...")  # 调试日志已隐藏
             
             # 创建 TelegramClient（可能失败）
             try:
@@ -1400,7 +1400,7 @@ class TGMassDM:
                     self.log(f"  ✅ 转换成功，重新创建客户端...")
                     try:
                         client = TelegramClient(path, self.api_id, self.api_hash)
-                        self.log(f"  ✅ 客户端创建成功（已转换）")
+                        # self.log(f"  ✅ 客户端创建成功（已转换）")  # 调试日志已隐藏
                     except Exception as retry_error:
                         account["status"] = "⚠️ 转换后仍失败"
                         account["username"] = "-"
@@ -1425,8 +1425,8 @@ class TGMassDM:
                 self.root.after(0, self.refresh_account_tree)
                 return
             
-            if 'client' not in locals():
-                self.log(f"  ✅ 客户端创建成功")
+            # if 'client' not in locals():
+            #     self.log(f"  ✅ 客户端创建成功")  # 调试日志已隐藏
             
             try:
                 await client.connect()
@@ -1439,7 +1439,7 @@ class TGMassDM:
                     account["status"] = "⚠️ 重复登录"
                     account["username"] = "-"
                     account["phone"] = "-"
-                    self.log(f"  ⚠️ 重复登录（同一账号在其他地方使用中）")
+                    self.log(f"  ⚠️ 重复登录")
                     self.root.after(0, self.refresh_account_tree)
                     return
                 else:
@@ -1523,7 +1523,7 @@ class TGMassDM:
                     # 1. 地理受限
                     if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
                         account["status"] = "✅ 无限制（地理受限）"
-                        self.log(f"  ✅ 无限制（地理受限）: {account['username']}")
+                        self.log(f"  ✅ 无限制（地理受限）")
                     
                     # 2. 冻结（包含所有冻结场景）
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
@@ -1531,16 +1531,15 @@ class TGMassDM:
                         if appeal_time:
                             time_str = appeal_time.strftime("%Y-%m-%d")
                             account["status"] = f"🚫 冻结（申诉至 {time_str}）"
-                            self.log(f"  🚫 冻结: {account['username']}, 申诉至: {time_str}")
+                            self.log(f"  🚫 冻结（申诉至 {time_str}）")
                         else:
                             account["status"] = "🚫 冻结"
-                            self.log(f"  🚫 冻结: {account['username']}")
+                            self.log(f"  🚫 冻结")
                     
                     # 3. 永久双向限制
                     elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
                         account["status"] = "⚠️ 永久双向限制"
-                        self.log(f"  ⚠️ 永久双向限制: {account['username']}")
-                        self.log(f"     说明: 不能给陌生人发消息，但可以回复")
+                        self.log(f"  ⚠️ 永久双向限制")
                     
                     # 4. 临时限制（有到期时间）
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
@@ -1552,24 +1551,24 @@ class TGMassDM:
                                 days = remaining.days
                                 hours = remaining.seconds // 3600
                                 account["status"] = f"⚠️ 临时限制（剩余 {days}天{hours}时）"
-                                self.log(f"  ⚠️ 临时限制: {account['username']}, 剩余: {days}天{hours}时")
+                                self.log(f"  ⚠️ 临时限制（剩余 {days}天{hours}时）")
                             else:
                                 account["status"] = "⚠️ 临时限制（已过期）"
-                                self.log(f"  ⚠️ 临时限制（已过期）: {account['username']}")
+                                self.log(f"  ⚠️ 临时限制（已过期）")
                         else:
                             account["status"] = "⚠️ 临时垃圾邮件"
-                            self.log(f"  ⚠️ 临时垃圾邮件: {account['username']}")
+                            self.log(f"  ⚠️ 临时垃圾邮件")
                     
                     # 5. 无限制
                     elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                         account["status"] = "✅ 无限制"
-                        self.log(f"  ✅ 无限制: {account['username']}")
+                        self.log(f"  ✅ 无限制")
                     
                     # 6. 未知
                     else:
                         account["status"] = "⚠️ 未知状态"
-                        self.log(f"  ⚠️ 未知状态: {account['username']}")
-                        self.log(f"     SpamBot 回复: {response[:100]}")
+                        self.log(f"  ⚠️ 未知状态")
+                        # self.log(f"     SpamBot 回复: {response[:100]}")  # 调试日志已隐藏
                     
                     self.root.after(0, self.refresh_account_tree)
                 else:
@@ -1595,7 +1594,7 @@ class TGMassDM:
                 
                 # YouBlockedUserError - 拉黑了 SpamBot，尝试自动取消拉黑
                 if "youblocked" in error_type.lower():
-                    self.log(f"  ⚠️ 检测到已拉黑 SpamBot，正在自动取消拉黑...")
+                    self.log(f"  ⚠️ 已拉黑 SpamBot，自动取消拉黑中...")
                     
                     try:
                         # 取消拉黑 @spambot（使用正确的API）
@@ -1611,11 +1610,11 @@ class TGMassDM:
                         # 调用取消拉黑API
                         await client(UnblockRequest(id=input_user))
                         
-                        self.log(f"  ✅ 已取消拉黑 SpamBot")
+                        # self.log(f"  ✅ 已取消拉黑 SpamBot")  # 调试日志已隐藏
                         await asyncio.sleep(1)
                         
                         # 重试检测
-                        self.log(f"  🔄 重新检测...")
+                        # self.log(f"  🔄 重新检测...")  # 调试日志已隐藏
                         await client.send_message("@spambot", "/start")
                         await asyncio.sleep(2)
                         
@@ -1627,34 +1626,34 @@ class TGMassDM:
                             # 重新判断状态（使用相同的逻辑）
                             if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
                                 account["status"] = "✅ 无限制（地理受限）"
-                                self.log(f"  ✅ 无限制（地理受限）: {account['username']}")
+                                self.log(f"  ✅ 无限制（地理受限）")
                             elif any(keyword in response for keyword in FROZEN_KEYWORDS):
                                 account["status"] = "🚫 冻结"
-                                self.log(f"  🚫 冻结: {account['username']}")
+                                self.log(f"  🚫 冻结")
                             elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
                                 account["status"] = "⚠️ 永久双向限制"
-                                self.log(f"  ⚠️ 永久双向限制: {account['username']}")
+                                self.log(f"  ⚠️ 永久双向限制")
                             elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
                                 account["status"] = "⚠️ 临时限制"
-                                self.log(f"  ⚠️ 临时限制: {account['username']}")
+                                self.log(f"  ⚠️ 临时限制")
                             elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                                 account["status"] = "✅ 无限制"
-                                self.log(f"  ✅ 无限制: {account['username']}")
+                                self.log(f"  ✅ 无限制")
                             else:
                                 account["status"] = "⚠️ 未知状态"
-                                self.log(f"  ⚠️ 未知状态: {account['username']}")
+                                self.log(f"  ⚠️ 未知状态")
                         else:
                             account["status"] = "⚠️ 无回复"
-                            self.log(f"  ⚠️ SpamBot 无回复")
+                            self.log(f"  ⚠️ 无回复")
                         
                     except Exception as retry_error:
                         account["status"] = "⚠️ 取消拉黑失败"
-                        self.log(f"  ❌ 取消拉黑失败: {type(retry_error).__name__}")
+                        self.log(f"  ❌ 取消拉黑失败")
                 
                 # 其他错误
                 else:
                     account["status"] = f"⚠️ 检测失败"
-                    self.log(f"  ⚠️ SpamBot 检测失败: {error_type}")
+                    self.log(f"  ⚠️ 检测失败")
                 
                 self.root.after(0, self.refresh_account_tree)
 
