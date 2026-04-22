@@ -21,8 +21,11 @@ wheels/
 *.egg
 
 # Telegram Session 文件
-*.session
-*.session-journal
+accounts/*.session
+accounts/*.session-journal
+
+# 配置文件
+config.json
 
 # 日志
 *.log
@@ -59,7 +62,6 @@ temp/
 *.tmp
 
 # 用户数据
-accounts/
 data/
 output/
 export/
