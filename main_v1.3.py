@@ -1362,10 +1362,11 @@ class TGMassDM:
             "ограничен до", "до",
         ]
 
-        # self.log(f"[{index+1}/{total}] 检测: {Path(account['path']).stem}")  # 旧格式
-        
-        # 新格式：只显示手机号（不显示序号）
+        # 提取手机号用于日志
         phone_number = Path(account['path']).stem
+        
+        # 格式：[序号/总数] 手机号 - 状态
+        log_prefix = f"[{index+1}/{total}]"
 
         try:
             # 获取并规范化路径
@@ -1375,7 +1376,7 @@ class TGMassDM:
             
             # 检查文件是否存在
             if not Path(path).exists():
-                self.log(f"{phone_number} - ❌ 文件不存在")
+                self.log(f"{log_prefix} {phone_number} - ❌ 文件不存在")
                 account["status"] = "⚠️ 文件不存在"
                 self.root.after(0, self.refresh_account_tree)
                 return
@@ -1385,7 +1386,7 @@ class TGMassDM:
             # self.log(f"  📏 文件大小: {file_size} bytes")  # 调试日志已隐藏
             
             if file_size < 1000:
-                self.log(f"{phone_number} - ❌ 文件损坏")
+                self.log(f"{log_prefix} {phone_number} - ❌ 文件损坏")
                 account["status"] = "⚠️ 文件损坏"
                 self.root.after(0, self.refresh_account_tree)
                 return
@@ -1408,14 +1409,14 @@ class TGMassDM:
                         account["status"] = "⚠️ 转换后仍失败"
                         account["username"] = "-"
                         account["phone"] = "-"
-                        self.log(f"{phone_number} - ❌ 转换失败")
+                        self.log(f"{log_prefix} {phone_number} - ❌ 转换失败")
                         self.root.after(0, self.refresh_account_tree)
                         return
                 else:
                     account["status"] = "⚠️ 转换失败"
                     account["username"] = "-"
                     account["phone"] = "-"
-                    self.log(f"{phone_number} - ❌ 转换失败")
+                    self.log(f"{log_prefix} {phone_number} - ❌ 转换失败")
                     self.root.after(0, self.refresh_account_tree)
                     return
                     
@@ -1424,7 +1425,7 @@ class TGMassDM:
                 account["status"] = "⚠️ 客户端创建失败"
                 account["username"] = "-"
                 account["phone"] = "-"
-                self.log(f"{phone_number} - ❌ 创建失败")
+                self.log(f"{log_prefix} {phone_number} - ❌ 创建失败")
                 self.root.after(0, self.refresh_account_tree)
                 return
             
@@ -1442,7 +1443,7 @@ class TGMassDM:
                     account["status"] = "⚠️ 重复登录"
                     account["username"] = "-"
                     account["phone"] = "-"
-                    self.log(f"{phone_number} - ⚠️ 重复登录")
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 重复登录")
                     self.root.after(0, self.refresh_account_tree)
                     return
                 else:
@@ -1456,7 +1457,7 @@ class TGMassDM:
                     account["username"] = "-"
                     account["phone"] = "-"
                     account["first_name"] = "-"
-                    self.log(f"{phone_number} - 🚫 封禁")
+                    self.log(f"{log_prefix} {phone_number} - 🚫 封禁")
                     await client.disconnect()
                     self.root.after(0, self.refresh_account_tree)
                     return
@@ -1494,19 +1495,19 @@ class TGMassDM:
                     account["username"] = "-"
                     account["phone"] = "-"
                     account["first_name"] = "-"
-                    self.log(f"{phone_number} - 🚫 封禁")
+                    self.log(f"{log_prefix} {phone_number} - 🚫 封禁")
                 elif "timeout" in error_str or "connection" in error_str or "network" in error_str:
                     account["status"] = "⚠️ 连接错误"
                     account["username"] = "-"
                     account["phone"] = "-"
                     account["first_name"] = "-"
-                    self.log(f"{phone_number} - ⚠️ 连接错误")
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 连接错误")
                 else:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
                     account["phone"] = "-"
                     account["first_name"] = "-"
-                    self.log(f"{phone_number} - 🚫 封禁")
+                    self.log(f"{log_prefix} {phone_number} - 🚫 封禁")
 
                 await client.disconnect()
                 self.root.after(0, self.refresh_account_tree)
@@ -1526,7 +1527,7 @@ class TGMassDM:
                     # 1. 地理受限
                     if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
                         account["status"] = "✅ 无限制（地理受限）"
-                        self.log(f"{phone_number} - ✅ 无限制（地理受限）")
+                        self.log(f"{log_prefix} {phone_number} - ✅ 无限制（地理受限）")
                     
                     # 2. 冻结（包含所有冻结场景）
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
@@ -1534,15 +1535,15 @@ class TGMassDM:
                         if appeal_time:
                             time_str = appeal_time.strftime("%Y-%m-%d")
                             account["status"] = f"🚫 冻结（申诉至 {time_str}）"
-                            self.log(f"{phone_number} - 🚫 冻结（申诉至 {time_str}）")
+                            self.log(f"{log_prefix} {phone_number} - 🚫 冻结（申诉至 {time_str}）")
                         else:
                             account["status"] = "🚫 冻结"
-                            self.log(f"{phone_number} - 🚫 冻结")
+                            self.log(f"{log_prefix} {phone_number} - 🚫 冻结")
                     
                     # 3. 永久双向限制
                     elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
                         account["status"] = "⚠️ 永久双向限制"
-                        self.log(f"{phone_number} - ⚠️ 永久双向限制")
+                        self.log(f"{log_prefix} {phone_number} - ⚠️ 永久双向限制")
                     
                     # 4. 临时限制（有到期时间）
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
@@ -1554,29 +1555,29 @@ class TGMassDM:
                                 days = remaining.days
                                 hours = remaining.seconds // 3600
                                 account["status"] = f"⚠️ 临时限制（剩余 {days}天{hours}时）"
-                                self.log(f"{phone_number} - ⚠️ 临时限制（剩余 {days}天{hours}时）")
+                                self.log(f"{log_prefix} {phone_number} - ⚠️ 临时限制（剩余 {days}天{hours}时）")
                             else:
                                 account["status"] = "⚠️ 临时限制（已过期）"
-                                self.log(f"{phone_number} - ⚠️ 临时限制（已过期）")
+                                self.log(f"{log_prefix} {phone_number} - ⚠️ 临时限制（已过期）")
                         else:
                             account["status"] = "⚠️ 临时垃圾邮件"
-                            self.log(f"{phone_number} - ⚠️ 临时垃圾邮件")
+                            self.log(f"{log_prefix} {phone_number} - ⚠️ 临时垃圾邮件")
                     
                     # 5. 无限制
                     elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                         account["status"] = "✅ 无限制"
-                        self.log(f"{phone_number} - ✅ 无限制")
+                        self.log(f"{log_prefix} {phone_number} - ✅ 无限制")
                     
                     # 6. 未知
                     else:
                         account["status"] = "⚠️ 未知状态"
-                        self.log(f"{phone_number} - ⚠️ 未知状态")
+                        self.log(f"{log_prefix} {phone_number} - ⚠️ 未知状态")
                         # self.log(f"     SpamBot 回复: {response[:100]}")  # 调试日志已隐藏
                     
                     self.root.after(0, self.refresh_account_tree)
                 else:
                     account["status"] = "⚠️ 无回复"
-                    self.log(f"{phone_number} - ⚠️ 无回复")
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 无回复")
                     self.root.after(0, self.refresh_account_tree)
 
             except Exception as e:
@@ -1586,7 +1587,7 @@ class TGMassDM:
                 # AuthKeyDuplicatedError - 重复登录，直接标记并返回
                 if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
                     account["status"] = "⚠️ 重复登录"
-                    self.log(f"{phone_number} - ⚠️ 重复登录")
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 重复登录")
                     self.root.after(0, self.refresh_account_tree)
                     # 不再尝试取消拉黑，直接断开连接并返回
                     try:
@@ -1629,34 +1630,34 @@ class TGMassDM:
                             # 重新判断状态（使用相同的逻辑）
                             if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
                                 account["status"] = "✅ 无限制（地理受限）"
-                                self.log(f"{phone_number} - ✅ 无限制（地理受限）")
+                                self.log(f"{log_prefix} {phone_number} - ✅ 无限制（地理受限）")
                             elif any(keyword in response for keyword in FROZEN_KEYWORDS):
                                 account["status"] = "🚫 冻结"
-                                self.log(f"{phone_number} - 🚫 冻结")
+                                self.log(f"{log_prefix} {phone_number} - 🚫 冻结")
                             elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
                                 account["status"] = "⚠️ 永久双向限制"
-                                self.log(f"{phone_number} - ⚠️ 永久双向限制")
+                                self.log(f"{log_prefix} {phone_number} - ⚠️ 永久双向限制")
                             elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
                                 account["status"] = "⚠️ 临时限制"
-                                self.log(f"{phone_number} - ⚠️ 临时限制")
+                                self.log(f"{log_prefix} {phone_number} - ⚠️ 临时限制")
                             elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                                 account["status"] = "✅ 无限制"
-                                self.log(f"{phone_number} - ✅ 无限制")
+                                self.log(f"{log_prefix} {phone_number} - ✅ 无限制")
                             else:
                                 account["status"] = "⚠️ 未知状态"
-                                self.log(f"{phone_number} - ⚠️ 未知状态")
+                                self.log(f"{log_prefix} {phone_number} - ⚠️ 未知状态")
                         else:
                             account["status"] = "⚠️ 无回复"
-                            self.log(f"{phone_number} - ⚠️ 无回复")
+                            self.log(f"{log_prefix} {phone_number} - ⚠️ 无回复")
                         
                     except Exception as retry_error:
                         account["status"] = "⚠️ 取消拉黑失败"
-                        self.log(f"{phone_number} - ❌ 取消拉黑失败")
+                        self.log(f"{log_prefix} {phone_number} - ❌ 取消拉黑失败")
                 
                 # 其他错误
                 else:
                     account["status"] = f"⚠️ 检测失败"
-                    self.log(f"{phone_number} - ⚠️ 检测失败")
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 检测失败")
                 
                 self.root.after(0, self.refresh_account_tree)
 
