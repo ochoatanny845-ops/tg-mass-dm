@@ -799,7 +799,9 @@ class TGMassDM:
                         account["username"] = "-"
                         account["phone"] = "-"
                         self.log(f"  ❌ 登录失败(死号)")
+                        self.log(f"     [DEBUG] 更新状态为: {account['status']}")
                         await client.disconnect()
+                        self.root.after(0, self.refresh_account_tree)
                         continue
 
                     account["username"] = f"@{me.username}" if me.username else "-"
