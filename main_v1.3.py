@@ -33,6 +33,7 @@ class TGMassDM:
         self.root = root
         self.root.title(f"TG 批量私信系统 {VERSION}")
         self.root.geometry("1200x800")
+        self.root.minsize(900, 600)  # 设置最小窗口尺寸
 
         # Telegram API 配置
         self.api_id = 2040
@@ -212,7 +213,7 @@ class TGMassDM:
             self.log(f"❌ 设置布局失败: {e}")
 
     def set_messaging_sash_position(self):
-        """设置私信广告分割位置（自适应布局）"""
+        """设置私信广告分割位置（自适应布局，确保右侧最小宽度）"""
         try:
             # 强制更新窗口
             self.root.update_idletasks()
@@ -221,6 +222,9 @@ class TGMassDM:
             window_width = self.root.winfo_width()
             
             if window_width > 100:  # 确保窗口已渲染
+                # 右侧最小宽度：400px（确保配置项显示完整）
+                min_right_width = 400
+                
                 # 根据窗口宽度智能调整比例
                 if window_width >= 1400:
                     # 大屏幕：左65% 右35%
@@ -229,14 +233,16 @@ class TGMassDM:
                     # 中等屏幕：左60% 右40%
                     ratio = 0.60
                 else:
-                    # 小屏幕：左55% 右45%
-                    ratio = 0.55
+                    # 小屏幕：保证右侧至少400px
+                    ratio = min(0.55, (window_width - min_right_width) / window_width)
                 
                 split_position = int(window_width * ratio)
-                self.messaging_paned.sashpos(0, split_position)
                 
-                # 不在日志中显示（避免缩放时刷屏）
-                # self.log(f"✅ 私信广告布局: {window_width}px, 左{int(ratio*100)}% 右{int((1-ratio)*100)}%")
+                # 确保右侧至少有最小宽度
+                if window_width - split_position < min_right_width:
+                    split_position = window_width - min_right_width
+                
+                self.messaging_paned.sashpos(0, split_position)
             else:
                 # 窗口未渲染，延迟重试
                 self.root.after(500, self.set_messaging_sash_position)
