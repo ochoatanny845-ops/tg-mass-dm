@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.23.0"
+VERSION = "v1.24.0"
 
 import os
 import sys
@@ -3023,21 +3023,14 @@ class TGMassDM:
                     await asyncio.sleep(interval)
 
                 except errors.FloodWaitError as e:
-                    wait_time = min(e.seconds, 300)  # 最多等待 5 分钟
-                    self.log(f"  ⚠️ [{account_name}] 触发频率限制: @{username} - 需等待 {wait_time} 秒")
+                    self.log(f"  ❌ [{account_name}] 触发频率限制: @{username} - 跳过")
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
                         
                         # 更新进度显示
                         self.root.after(0, self.update_progress)
-                    
-                    # 无论是否自动切换，都先等待（避免刷屏）
-                    self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
-                    await self.countdown_wait(wait_time, account_name)
-                    self.log(f"  ✅ [{account_name}] 等待完成，继续发送下一个用户")
-                    # 等待后跳过当前失败的用户，继续发送下一个
-                    # 不用 continue（会重试同一个用户），直接进入下一次循环
+                    # 直接跳过，不等待
 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
@@ -3102,27 +3095,13 @@ class TGMassDM:
 
                     # 检测 "Too many requests" 错误
                     if "too many requests" in error_str or "flood" in error_str:
-                        # 尝试从错误信息中提取等待时间
-                        import re
-                        wait_match = re.search(r'(\d+)\s*second', error_str)
-                        if wait_match:
-                            wait_time = min(int(wait_match.group(1)), 600)  # 最多等待 10 分钟
-                        else:
-                            wait_time = 120  # 默认等待 120 秒（2分钟）
-
-                        self.log(f"  ⚠️ [{account_name}] 触发请求限制: @{username}")
-                        self.log(f"      错误: {str(e)}")
+                        self.log(f"  ❌ [{account_name}] 触发请求限制: @{username} - 跳过")
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        
-                        # 无论是否自动切换，都先等待（避免刷屏）
-                        self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
-                        await self.countdown_wait(wait_time, account_name)
-                        self.log(f"  ✅ [{account_name}] 等待完成，继续发送下一个用户")
-                        # 等待后跳过当前失败的用户，继续发送下一个
-                        # 不用 continue（会重试同一个用户），直接进入下一次循环
+                        # 直接跳过，不等待
+                        continue  # 跳过后续处理，继续下一个用户
 
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
                     self.log(f"      错误类型: {type(e).__name__}")
