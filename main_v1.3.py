@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.22.0"
+VERSION = "v1.23.0"
 
 import os
 import sys
@@ -3035,9 +3035,9 @@ class TGMassDM:
                     # 无论是否自动切换，都先等待（避免刷屏）
                     self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
                     await self.countdown_wait(wait_time, account_name)
-                    self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
-                    # 等待后继续重试当前用户
-                    continue
+                    self.log(f"  ✅ [{account_name}] 等待完成，继续发送下一个用户")
+                    # 等待后跳过当前失败的用户，继续发送下一个
+                    # 不用 continue（会重试同一个用户），直接进入下一次循环
 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
@@ -3120,9 +3120,9 @@ class TGMassDM:
                         # 无论是否自动切换，都先等待（避免刷屏）
                         self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
                         await self.countdown_wait(wait_time, account_name)
-                        self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
-                        # 等待后继续重试当前用户
-                        continue
+                        self.log(f"  ✅ [{account_name}] 等待完成，继续发送下一个用户")
+                        # 等待后跳过当前失败的用户，继续发送下一个
+                        # 不用 continue（会重试同一个用户），直接进入下一次循环
 
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
                     self.log(f"      错误类型: {type(e).__name__}")
