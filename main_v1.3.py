@@ -885,10 +885,10 @@ class TGMassDM:
             try:
                 me = await client.get_me()
                 if not me:
-                    account["status"] = "❌ 登录失败"
+                    account["status"] = "🚫 封禁"
                     account["username"] = "-"
                     account["phone"] = "-"
-                    self.log(f"  ❌ 登录失败(死号)")
+                    self.log(f"  🚫 封禁")
                     await client.disconnect()
                     self.root.after(0, self.refresh_account_tree)
                     return
@@ -901,20 +901,20 @@ class TGMassDM:
                 error_str = str(e).lower()
 
                 if "authkey" in error_str or "unauthorized" in error_str or "banned" in error_str:
-                    account["status"] = "❌ 封禁"
+                    account["status"] = "🚫 封禁"
                     account["username"] = "-"
                     account["phone"] = "-"
-                    self.log(f"  ❌ 封禁(死号): {error_type}")
+                    self.log(f"  🚫 封禁")
                 elif "timeout" in error_str or "connection" in error_str or "network" in error_str:
                     account["status"] = "⚠️ 连接错误"
                     account["username"] = "-"
                     account["phone"] = "-"
-                    self.log(f"  ⚠️ 连接错误: {error_type}")
+                    self.log(f"  ⚠️ 连接错误")
                 else:
-                    account["status"] = "❌ 无法登录"
+                    account["status"] = "🚫 封禁"
                     account["username"] = "-"
                     account["phone"] = "-"
-                    self.log(f"  ❌ 无法登录: {error_type}")
+                    self.log(f"  🚫 封禁")
 
                 await client.disconnect()
                 self.root.after(0, self.refresh_account_tree)
@@ -998,9 +998,8 @@ class TGMassDM:
             await client.disconnect()
 
         except Exception as e:
-            account["status"] = f"❌ {type(e).__name__}"
-            self.log(f"  ❌ {type(e).__name__}")
-            self.log(f"     错误详情: {str(e)}")
+            account["status"] = "⚠️ 检测失败"
+            self.log(f"  ⚠️ 检测失败: {type(e).__name__}")
             self.root.after(0, self.refresh_account_tree)
 
     async def check_accounts_async(self):
