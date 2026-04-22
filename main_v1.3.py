@@ -201,7 +201,7 @@ class TGMassDM:
                 proxy_display = "直连"
             
             # 2FA 状态（直接显示值）
-            twofa_display = acc.get("2fa", "-")
+            twofa_display = acc.get("2fa", "")
             
             self.account_tree.insert("", tk.END, values=(
                 check,
@@ -705,7 +705,7 @@ class TGMassDM:
                     "phone": "-",
                     "first_name": "-",
                     "proxy": "直连",
-                    "2fa": "-",
+                    "2fa": "",
                     "last_login": "-"
                 }
                 
@@ -759,7 +759,7 @@ class TGMassDM:
                     elif passwordfa:
                         account["2fa"] = str(passwordfa)
                     else:
-                        account["2fa"] = "-"
+                        account["2fa"] = ""
                     
                     # 提取状态
                     spamblock = json_data.get('spamblock', '').lower()
@@ -850,7 +850,7 @@ class TGMassDM:
                     self.log(f"    ⚠️ 未找到 JSON 文件，正在自动生成...")
                     json_data = self.generate_json_from_session(dest_path)
 
-                # 创建账号记录
+                # 创建账号记录（import_sessions）
                 account = {
                     "path": str(dest_path),
                     "selected": True,
@@ -859,7 +859,7 @@ class TGMassDM:
                     "phone": "-",
                     "first_name": "-",
                     "proxy": "直连",
-                    "2fa": "-",
+                    "2fa": "",
                     "last_login": "-"
                 }
                 
@@ -897,7 +897,7 @@ class TGMassDM:
                     elif passwordfa:
                         account["2fa"] = str(passwordfa)
                     else:
-                        account["2fa"] = "-"
+                        account["2fa"] = ""
                     
                     # 提取状态
                     spamblock = json_data.get('spamblock', '').lower()
