@@ -755,7 +755,8 @@ class TGMassDM:
                     shutil.copy2(journal_file, dest_journal)
                 
                 # 同时复制 .json 文件(如果存在) - 账号信息文件
-                json_file = session_file.with_suffix('.session.json')
+                # 注意：文件名是 123.session.json，不是 123.json
+                json_file = Path(str(session_file) + '.json')
                 if json_file.exists():
                     dest_json = Path(self.accounts_dir) / json_file.name
                     shutil.copy2(json_file, dest_json)
@@ -1247,7 +1248,8 @@ class TGMassDM:
                 os.remove(journal_path)
             
             # 删除 json 文件(如果存在)
-            json_path = session_path.with_suffix('.session.json')
+            # 注意：文件名是 123.session.json，不是 123.json
+            json_path = Path(str(session_path) + '.json')
             if json_path.exists():
                 os.remove(json_path)
             
@@ -1315,7 +1317,8 @@ class TGMassDM:
                     shutil.copy2(journal_path, dest_journal)
                 
                 # 复制 json 文件(如果存在)
-                json_path = session_path.with_suffix('.session.json')
+                # 注意：文件名是 123.session.json，不是 123.json
+                json_path = Path(str(session_path) + '.json')
                 if json_path.exists():
                     dest_json = export_path / json_path.name
                     shutil.copy2(json_path, dest_json)
