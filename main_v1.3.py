@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.15.0"
+VERSION = "v1.16.0"
 
 import os
 import sys
@@ -1784,7 +1784,8 @@ class TGMassDM:
                 if not me:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
-                    account["phone"] = "-"
+                    # 保留原始手机号，不要设置为 "-"
+                    # account["phone"] = "-"
                     account["first_name"] = "-"
                     self.log(f"{log_prefix} {phone_number} - 🚫 封禁")
                     await client.disconnect()
@@ -1812,7 +1813,8 @@ class TGMassDM:
                 if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
                     account["status"] = "⚠️ 重复登录"
                     account["username"] = "-"
-                    account["phone"] = "-"
+                    # 保留原始手机号
+                    # account["phone"] = "-"
                     account["first_name"] = "-"
                     self.log(f"  ⚠️ 重复登录（同一账号在其他地方使用中）")
                     await client.disconnect()
@@ -1822,19 +1824,22 @@ class TGMassDM:
                 if "authkey" in error_str or "unauthorized" in error_str or "banned" in error_str:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
-                    account["phone"] = "-"
+                    # 保留原始手机号
+                    # account["phone"] = "-"
                     account["first_name"] = "-"
                     self.log(f"{log_prefix} {phone_number} - 🚫 封禁")
                 elif "timeout" in error_str or "connection" in error_str or "network" in error_str:
                     account["status"] = "⚠️ 连接错误"
                     account["username"] = "-"
-                    account["phone"] = "-"
+                    # 保留原始手机号
+                    # account["phone"] = "-"
                     account["first_name"] = "-"
                     self.log(f"{log_prefix} {phone_number} - ⚠️ 连接错误")
                 else:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
-                    account["phone"] = "-"
+                    # 保留原始手机号
+                    # account["phone"] = "-"
                     account["first_name"] = "-"
                     self.log(f"{log_prefix} {phone_number} - 🚫 封禁")
 
@@ -2996,16 +3001,18 @@ class TGMassDM:
                         
                         # 更新进度显示
                         self.root.after(0, self.update_progress)
-
+                    
+                    # 无论是否自动切换，都先等待（避免刷屏）
+                    self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
+                    await self.countdown_wait(wait_time, account_name)
+                    self.log(f"  ✅ [{account_name}] 等待完成")
+                    
                     if self.auto_switch.get():
-                        self.log(f"  🔄 [{account_name}] 触发限制,切换下一个账号")
-                        break  # 切换账号
+                        self.log(f"  🔄 [{account_name}] 等待后切换账号")
+                        break  # 等待后切换账号
                     else:
-                        # 倒计时等待后重试
-                        self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
-                        await self.countdown_wait(wait_time, account_name)
-                        self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
-                        continue
+                        self.log(f"  🔄 [{account_name}] 继续发送")
+                        continue  # 继续重试
 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
@@ -3085,16 +3092,18 @@ class TGMassDM:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-
+                        
+                        # 无论是否自动切换，都先等待（避免刷屏）
+                        self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
+                        await self.countdown_wait(wait_time, account_name)
+                        self.log(f"  ✅ [{account_name}] 等待完成")
+                        
                         if self.auto_switch.get():
-                            self.log(f"  🔄 [{account_name}] 触发限制,切换下一个账号")
-                            break  # 切换账号
+                            self.log(f"  🔄 [{account_name}] 等待后切换账号")
+                            break  # 等待后切换账号
                         else:
-                            # 倒计时等待后重试
-                            self.log(f"  ⏳ [{account_name}] 开始等待 {wait_time} 秒...")
-                            await self.countdown_wait(wait_time, account_name)
-                            self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
-                            continue
+                            self.log(f"  🔄 [{account_name}] 继续发送")
+                            continue  # 继续重试
 
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
                     self.log(f"      错误类型: {type(e).__name__}")
