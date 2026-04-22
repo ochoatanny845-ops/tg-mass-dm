@@ -199,8 +199,8 @@ class TGMassDM:
         self.forward_urls_text.pack(fill=tk.BOTH, expand=True, pady=5)
         self.forward_urls_text.insert("1.0", "https://t.me/channel_name/123\nhttps://t.me/channel_name/456\nhttps://t.me/channel_name/789")
         
-        self.hide_source = tk.BooleanVar(value=True)
-        ttk.Checkbutton(self.forward_msg_frame, text="隐藏来源（推荐）", 
+        self.hide_source = tk.BooleanVar(value=False)  # 默认不隐藏
+        ttk.Checkbutton(self.forward_msg_frame, text="隐藏来源", 
                        variable=self.hide_source).pack(anchor=tk.W, pady=5)
         
         self.forward_count_label = ttk.Label(self.forward_msg_frame, text="共 3 条贴子", 
@@ -1036,19 +1036,28 @@ class TGMassDM:
                                     message_obj = await client.get_messages(channel, ids=message_id)
                                     
                                     if message_obj:
-                                        # 转发消息（隐藏来源根据设置）
-                                        hide_sender = self.hide_source.get()
-                                        sent_msg = await client.send_message(
-                                            username, 
-                                            message_obj,
-                                            silent=True
-                                        )
+                                        # 根据勾选状态决定转发方式
+                                        if self.hide_source.get():
+                                            # 隐藏来源：重新发送消息内容
+                                            sent_msg = await client.send_message(
+                                                username, 
+                                                message_obj.text or message_obj.message,
+                                                file=message_obj.media if message_obj.media else None,
+                                                silent=True
+                                            )
+                                        else:
+                                            # 不隐藏来源：直接转发
+                                            sent_msg = await client.forward_messages(
+                                                username,
+                                                message_obj
+                                            )
                                         
                                         # 验证发送成功
                                         if not sent_msg or not sent_msg.id:
                                             raise Exception("发送失败，未收到消息ID")
                                         
-                                        self.log(f"  ✅ [{account_name}] 转发成功: @{username} (msg_id: {sent_msg.id})")
+                                        hide_text = "(隐藏来源)" if self.hide_source.get() else "(显示来源)"
+                                        self.log(f"  ✅ [{account_name}] 转发成功: @{username} {hide_text} (msg_id: {sent_msg.id})")
                                     else:
                                         raise Exception("无法获取原始消息")
                                 else:
