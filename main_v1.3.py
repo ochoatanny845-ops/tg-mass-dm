@@ -468,41 +468,49 @@ class TGMassDM:
         # 保存 paned 引用，稍后设置分割位置
         self.messaging_paned = paned
 
-        # 并发控制
-        concurrent_frame = ttk.LabelFrame(right, text="⚡ 并发控制", padding="10")
-        concurrent_frame.pack(fill=tk.X, pady=(0, 10))
+        # 第一行：并发控制 + 额度限制
+        row1_frame = ttk.Frame(right)
+        row1_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # 并发控制（左侧）
+        concurrent_frame = ttk.LabelFrame(row1_frame, text="⚡ 并发控制", padding="10")
+        concurrent_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
 
         ttk.Label(concurrent_frame, text="并行线程数:").grid(row=0, column=0, sticky=tk.W, pady=3)
         self.thread_count = tk.IntVar(value=2)
         ttk.Spinbox(concurrent_frame, from_=1, to=50, textvariable=self.thread_count,
-                   width=12).grid(row=0, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
+                   width=8).grid(row=0, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
 
         ttk.Label(concurrent_frame, text="启动间隔(秒):").grid(row=1, column=0, sticky=tk.W, pady=3)
         self.thread_interval = tk.IntVar(value=1)
         ttk.Spinbox(concurrent_frame, from_=0, to=60, textvariable=self.thread_interval,
-                   width=12).grid(row=1, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
+                   width=8).grid(row=1, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
 
         concurrent_frame.columnconfigure(1, weight=1)
 
-        # 额度限制
-        limit_frame = ttk.LabelFrame(right, text="📊 额度限制", padding="10")
-        limit_frame.pack(fill=tk.X, pady=(0, 10))
+        # 额度限制（右侧）
+        limit_frame = ttk.LabelFrame(row1_frame, text="📊 额度限制", padding="10")
+        limit_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
         ttk.Label(limit_frame, text="单账号上限:").grid(row=0, column=0, sticky=tk.W, pady=3)
         self.per_account_limit = tk.IntVar(value=50)
         ttk.Spinbox(limit_frame, from_=1, to=1000, textvariable=self.per_account_limit,
-                   width=12).grid(row=0, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
+                   width=8).grid(row=0, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
 
         ttk.Label(limit_frame, text="任务总上限:").grid(row=1, column=0, sticky=tk.W, pady=3)
         self.total_limit = tk.IntVar(value=1000)
         ttk.Spinbox(limit_frame, from_=1, to=100000, textvariable=self.total_limit,
-                   width=12).grid(row=1, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
+                   width=8).grid(row=1, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
 
         limit_frame.columnconfigure(1, weight=1)
 
-        # 发送间隔
-        interval_frame = ttk.LabelFrame(right, text="⏱️ 发送间隔", padding="10")
-        interval_frame.pack(fill=tk.X, pady=(0, 10))
+        # 第二行：发送间隔 + 其他选项
+        row2_frame = ttk.Frame(right)
+        row2_frame.pack(fill=tk.X, pady=(0, 10))
+
+        # 发送间隔（左侧）
+        interval_frame = ttk.LabelFrame(row2_frame, text="⏱️ 发送间隔", padding="10")
+        interval_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
 
         ttk.Label(interval_frame, text="间隔范围:").grid(row=0, column=0, sticky=tk.W, pady=3)
         range_frame = ttk.Frame(interval_frame)
@@ -519,9 +527,9 @@ class TGMassDM:
 
         interval_frame.columnconfigure(1, weight=1)
 
-        # 其他选项
-        option_frame = ttk.LabelFrame(right, text="🔧 其他选项", padding="10")
-        option_frame.pack(fill=tk.X)
+        # 其他选项（右侧）
+        option_frame = ttk.LabelFrame(row2_frame, text="🔧 其他选项", padding="10")
+        option_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
         self.auto_switch = tk.BooleanVar(value=True)
         ttk.Checkbutton(option_frame, text="遇到限制自动切换账号",
