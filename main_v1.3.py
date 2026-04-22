@@ -212,8 +212,31 @@ class TGMassDM:
                   command=self.deselect_all).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame, text="🔍 检测状态", width=12,
                   command=self.check_accounts).pack(side=tk.LEFT, padx=5)
-        ttk.Button(btn_frame, text="🗑️ 删除失效", width=12,
-                  command=self.delete_invalid).pack(side=tk.LEFT, padx=2)
+        
+        # 删除按钮（带下拉菜单）
+        delete_btn = ttk.Menubutton(btn_frame, text="🗑️ 删除", width=12)
+        delete_btn.pack(side=tk.LEFT, padx=2)
+        delete_menu = tk.Menu(delete_btn, tearoff=0)
+        delete_btn["menu"] = delete_menu
+        delete_menu.add_command(label="删除选择的账号", command=self.delete_selected)
+        delete_menu.add_command(label="删除全部账号", command=self.delete_all)
+        delete_menu.add_separator()
+        delete_menu.add_command(label="删除失效账号", command=self.delete_invalid)
+        delete_menu.add_command(label="删除冻结账号", command=self.delete_frozen)
+        delete_menu.add_command(label="删除封禁账号", command=self.delete_banned)
+        
+        # 导出按钮（带下拉菜单）
+        export_btn = ttk.Menubutton(btn_frame, text="📤 导出", width=12)
+        export_btn.pack(side=tk.LEFT, padx=2)
+        export_menu = tk.Menu(export_btn, tearoff=0)
+        export_btn["menu"] = export_menu
+        export_menu.add_command(label="导出选择的账号", command=self.export_selected)
+        export_menu.add_command(label="导出全部账号", command=self.export_all)
+        export_menu.add_separator()
+        export_menu.add_command(label="导出失效账号", command=self.export_invalid)
+        export_menu.add_command(label="导出冻结账号", command=self.export_frozen)
+        export_menu.add_command(label="导出封禁账号", command=self.export_banned)
+        
         ttk.Button(btn_frame, text="🔄 刷新", width=10,
                   command=self.refresh_accounts).pack(side=tk.LEFT, padx=2)
 
@@ -1123,43 +1146,188 @@ class TGMassDM:
 
     def delete_invalid(self):
         """删除失效账号(同步删除文件)"""
-        invalid_accounts = [acc for acc in self.accounts if "❌" in acc["status"]]
+        self._delete_by_status("失效", ["❌"])
 
-        if not invalid_accounts:
-            messagebox.showinfo("提示", "没有失效账号")
+    def delete_selected(self):
+        """删除选择的账号"""
+        selected_accounts = [acc for acc in self.accounts if acc["selected"]]
+        
+        if not selected_accounts:
+            messagebox.showinfo("提示", "没有选择任何账号")
             return
-
+        
         confirm = messagebox.askyesno("确认删除",
-            f"确定要删除 {len(invalid_accounts)} 个失效账号吗?\n"
+            f"确定要删除 {len(selected_accounts)} 个选择的账号吗?\n"
             f"(同时删除文件)")
         if not confirm:
             return
-
-        # 删除文件
+        
         deleted_count = 0
-        for acc in invalid_accounts:
-            try:
-                # 删除 session 文件
-                session_path = Path(acc["path"])
-                if session_path.exists():
-                    os.remove(session_path)
-                    self.log(f"  🗑️ 已删除: {session_path.name}")
-
-                # 删除 session-journal 文件(如果存在)
-                journal_path = session_path.with_suffix('.session-journal')
-                if journal_path.exists():
-                    os.remove(journal_path)
-
+        for acc in selected_accounts:
+            if self._delete_account_files(acc):
                 deleted_count += 1
-            except Exception as e:
-                self.log(f"  ⚠️ 删除失败: {session_path.name} - {str(e)}")
-
-        # 从列表中移除
-        self.accounts = [acc for acc in self.accounts if "❌" not in acc["status"]]
-
-        self.log(f"🗑️ 已删除 {deleted_count} 个失效账号(含文件)")
+        
+        self.accounts = [acc for acc in self.accounts if not acc["selected"]]
+        
+        self.log(f"🗑️ 已删除 {deleted_count} 个选择的账号(含文件)")
         self.refresh_account_tree()
         self.save_config()
+    
+    def delete_all(self):
+        """删除全部账号"""
+        if not self.accounts:
+            messagebox.showinfo("提示", "没有账号")
+            return
+        
+        confirm = messagebox.askyesno("⚠️ 危险操作",
+            f"确定要删除全部 {len(self.accounts)} 个账号吗?\n"
+            f"(同时删除文件)\n\n"
+            f"此操作不可恢复！")
+        if not confirm:
+            return
+        
+        deleted_count = 0
+        for acc in self.accounts:
+            if self._delete_account_files(acc):
+                deleted_count += 1
+        
+        self.accounts = []
+        
+        self.log(f"🗑️ 已删除全部 {deleted_count} 个账号(含文件)")
+        self.refresh_account_tree()
+        self.save_config()
+    
+    def delete_frozen(self):
+        """删除冻结账号"""
+        self._delete_by_status("冻结", ["🚫 冻结"])
+    
+    def delete_banned(self):
+        """删除封禁账号"""
+        self._delete_by_status("封禁", ["🚫 封禁"])
+    
+    def _delete_by_status(self, status_name, status_keywords):
+        """通用删除函数"""
+        target_accounts = [acc for acc in self.accounts 
+                          if any(keyword in acc["status"] for keyword in status_keywords)]
+        
+        if not target_accounts:
+            messagebox.showinfo("提示", f"没有{status_name}账号")
+            return
+        
+        confirm = messagebox.askyesno("确认删除",
+            f"确定要删除 {len(target_accounts)} 个{status_name}账号吗?\n"
+            f"(同时删除文件)")
+        if not confirm:
+            return
+        
+        deleted_count = 0
+        for acc in target_accounts:
+            if self._delete_account_files(acc):
+                deleted_count += 1
+        
+        self.accounts = [acc for acc in self.accounts 
+                        if not any(keyword in acc["status"] for keyword in status_keywords)]
+        
+        self.log(f"🗑️ 已删除 {deleted_count} 个{status_name}账号(含文件)")
+        self.refresh_account_tree()
+        self.save_config()
+    
+    def _delete_account_files(self, acc):
+        """删除账号文件"""
+        try:
+            session_path = Path(acc["path"])
+            
+            # 删除 session 文件
+            if session_path.exists():
+                os.remove(session_path)
+            
+            # 删除 session-journal 文件(如果存在)
+            journal_path = session_path.with_suffix('.session-journal')
+            if journal_path.exists():
+                os.remove(journal_path)
+            
+            # 删除 json 文件(如果存在)
+            json_path = session_path.with_suffix('.session.json')
+            if json_path.exists():
+                os.remove(json_path)
+            
+            self.log(f"  🗑️ 已删除: {session_path.name}")
+            return True
+        except Exception as e:
+            self.log(f"  ⚠️ 删除失败: {session_path.name} - {str(e)}")
+            return False
+    
+    # ========== 导出功能 ==========
+    
+    def export_selected(self):
+        """导出选择的账号"""
+        selected_accounts = [acc for acc in self.accounts if acc["selected"]]
+        self._export_accounts(selected_accounts, "选择的账号")
+    
+    def export_all(self):
+        """导出全部账号"""
+        self._export_accounts(self.accounts, "全部账号")
+    
+    def export_invalid(self):
+        """导出失效账号"""
+        invalid_accounts = [acc for acc in self.accounts if "❌" in acc["status"]]
+        self._export_accounts(invalid_accounts, "失效账号")
+    
+    def export_frozen(self):
+        """导出冻结账号"""
+        frozen_accounts = [acc for acc in self.accounts if "🚫 冻结" in acc["status"]]
+        self._export_accounts(frozen_accounts, "冻结账号")
+    
+    def export_banned(self):
+        """导出封禁账号"""
+        banned_accounts = [acc for acc in self.accounts if "🚫 封禁" in acc["status"]]
+        self._export_accounts(banned_accounts, "封禁账号")
+    
+    def _export_accounts(self, accounts, export_name):
+        """通用导出函数"""
+        if not accounts:
+            messagebox.showinfo("提示", f"没有{export_name}")
+            return
+        
+        # 选择导出文件夹
+        export_folder = filedialog.askdirectory(title=f"选择导出文件夹（{export_name}）")
+        if not export_folder:
+            return
+        
+        export_path = Path(export_folder)
+        exported_count = 0
+        
+        for acc in accounts:
+            try:
+                import shutil
+                session_path = Path(acc["path"])
+                
+                # 复制 session 文件
+                if session_path.exists():
+                    dest_session = export_path / session_path.name
+                    shutil.copy2(session_path, dest_session)
+                    exported_count += 1
+                
+                # 复制 session-journal 文件(如果存在)
+                journal_path = session_path.with_suffix('.session-journal')
+                if journal_path.exists():
+                    dest_journal = export_path / journal_path.name
+                    shutil.copy2(journal_path, dest_journal)
+                
+                # 复制 json 文件(如果存在)
+                json_path = session_path.with_suffix('.session.json')
+                if json_path.exists():
+                    dest_json = export_path / json_path.name
+                    shutil.copy2(json_path, dest_json)
+                    self.log(f"  📤 已导出: {session_path.name} (含JSON)")
+                else:
+                    self.log(f"  📤 已导出: {session_path.name}")
+                
+            except Exception as e:
+                self.log(f"  ⚠️ 导出失败: {session_path.name} - {str(e)}")
+        
+        self.log(f"📤 导出完成: {exported_count}/{len(accounts)} 个{export_name}")
+        messagebox.showinfo("导出完成", f"成功导出 {exported_count} 个账号到:\n{export_folder}")
 
     def update_account_stats(self):
         """更新账号统计"""
