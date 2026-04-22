@@ -53,14 +53,6 @@ class TGMassDM:
         ttk.Label(title_frame, text="📱 TG 批量私信系统 v1.3", 
                  font=("微软雅黑", 16, "bold")).pack(side=tk.LEFT, padx=10)
         
-        self.start_btn = ttk.Button(title_frame, text="🚀 开始", width=10,
-                                    command=self.start_task)
-        self.start_btn.pack(side=tk.RIGHT, padx=5)
-        
-        self.stop_btn = ttk.Button(title_frame, text="⏸️ 停止", width=10,
-                                   command=self.stop_task, state=tk.DISABLED)
-        self.stop_btn.pack(side=tk.RIGHT, padx=5)
-        
         # ========== 功能标签栏 ==========
         tab_frame = ttk.Frame(self.root)
         tab_frame.pack(fill=tk.BOTH, expand=True, padx=10)
@@ -72,6 +64,18 @@ class TGMassDM:
         self.setup_tab_accounts()
         self.setup_tab_messaging()
         self.setup_tab_scraper()
+        
+        # ========== 控制按钮（日志上方）==========
+        control_frame = ttk.Frame(self.root, padding="5")
+        control_frame.pack(fill=tk.X, padx=10)
+        
+        self.start_btn = ttk.Button(control_frame, text="🚀 开始", width=15,
+                                    command=self.start_task)
+        self.start_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.stop_btn = ttk.Button(control_frame, text="⏸️ 停止", width=15,
+                                   command=self.stop_task, state=tk.DISABLED)
+        self.stop_btn.pack(side=tk.LEFT, padx=5)
         
         # ========== 底部日志 ==========
         log_frame = ttk.LabelFrame(self.root, text="📝 运行日志", padding="10")
