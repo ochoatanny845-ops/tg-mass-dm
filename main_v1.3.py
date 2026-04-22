@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.13.0"
+VERSION = "v1.14.0"
 
 import os
 import sys
@@ -2824,8 +2824,9 @@ class TGMassDM:
                 await client.disconnect()
                 return
             
-            account_name = me.username or me.phone or str(me.id)
-            self.log(f"  ✅ 已登录: @{account_name}")
+            # 优先显示手机号，其次用户名，最后 ID
+            account_name = me.phone or me.username or str(me.id)
+            self.log(f"  ✅ 已登录: {account_name}")
 
             # 初始化账号统计
             if account_name not in self.account_stats:
