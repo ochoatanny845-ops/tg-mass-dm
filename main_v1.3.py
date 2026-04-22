@@ -41,7 +41,19 @@ class TGMassDM:
         self.collected_users = []  # 采集的用户
         self.is_running = False
         
+        # 配置文件路径
+        self.config_file = "config.json"
+        self.accounts_dir = "accounts"
+        
+        # 创建账号文件夹
+        if not os.path.exists(self.accounts_dir):
+            os.makedirs(self.accounts_dir)
+        
         self.setup_ui()
+        
+        # 加载配置和账号
+        self.load_config()
+        self.load_accounts()
     
     def setup_ui(self):
         """设置界面"""
@@ -93,6 +105,41 @@ class TGMassDM:
         self.log("✅ TG 批量私信系统 v1.3 已启动")
         self.log("📋 功能: 账号管理、私信广告、采集用户")
         self.log("💡 点击顶部标签切换功能")
+        
+        # 应用加载的配置
+        self.apply_loaded_config()
+        
+        # 显示自动加载的账号
+        self.refresh_account_tree()
+        
+        # 窗口关闭时保存配置
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+    
+    def on_closing(self):
+        """窗口关闭时保存配置"""
+        self.save_config()
+        self.root.destroy()
+    
+    def refresh_account_tree(self):
+        """刷新账号列表显示"""
+        # 清空树
+        for item in self.account_tree.get_children():
+            self.account_tree.delete(item)
+        
+        # 重新填充
+        for acc in self.accounts:
+            check = "✓" if acc["selected"] else ""
+            self.account_tree.insert("", tk.END, values=(
+                check,
+                Path(acc["path"]).name,
+                acc["username"],
+                acc["phone"],
+                acc["status"],
+                acc["last_login"]
+            ))
+        
+        self.update_account_stats()
+        self.update_selected_count()
     
     def setup_tab_accounts(self):
         """功能1: 账号管理"""
@@ -459,6 +506,123 @@ class TGMassDM:
             self.text_msg_frame.pack_forget()
             self.forward_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_frame)
     
+    # ========== 配置管理 ==========
+    
+    def save_config(self):
+        """保存配置"""
+        try:
+            config = {
+                "thread_count": self.thread_count.get(),
+                "thread_interval": self.thread_interval.get(),
+                "per_account_limit": self.per_account_limit.get(),
+                "total_limit": self.total_limit.get(),
+                "interval_min": self.interval_min.get(),
+                "interval_max": self.interval_max.get(),
+                "auto_switch": self.auto_switch.get(),
+                "auto_retry": self.auto_retry.get(),
+                "send_type": self.send_type.get(),
+                "hide_source": self.hide_source.get(),
+                "message_text": self.message_text.get("1.0", tk.END).strip(),
+                "forward_urls": self.forward_urls_text.get("1.0", tk.END).strip(),
+                "targets": self.target_text.get("1.0", tk.END).strip(),
+                "scrape_limit": self.scrape_limit.get(),
+                "filter_active": self.filter_active.get(),
+                "filter_bot": self.filter_bot.get(),
+                "filter_username": self.filter_username.get()
+            }
+            
+            with open(self.config_file, "w", encoding="utf-8") as f:
+                json.dump(config, f, ensure_ascii=False, indent=2)
+            
+            self.log("💾 配置已保存")
+        except Exception as e:
+            self.log(f"⚠️ 保存配置失败: {str(e)}")
+    
+    def load_config(self):
+        """加载配置"""
+        try:
+            if not os.path.exists(self.config_file):
+                self.log("📝 首次运行，使用默认配置")
+                return
+            
+            with open(self.config_file, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            
+            # 应用配置（在 UI 创建后）
+            self.loaded_config = config
+            self.log("✅ 配置已加载")
+        except Exception as e:
+            self.log(f"⚠️ 加载配置失败: {str(e)}")
+            self.loaded_config = None
+    
+    def apply_loaded_config(self):
+        """应用已加载的配置（在 UI 创建后调用）"""
+        if not hasattr(self, 'loaded_config') or not self.loaded_config:
+            return
+        
+        try:
+            config = self.loaded_config
+            
+            self.thread_count.set(config.get("thread_count", 2))
+            self.thread_interval.set(config.get("thread_interval", 1))
+            self.per_account_limit.set(config.get("per_account_limit", 50))
+            self.total_limit.set(config.get("total_limit", 1000))
+            self.interval_min.set(config.get("interval_min", 3))
+            self.interval_max.set(config.get("interval_max", 8))
+            self.auto_switch.set(config.get("auto_switch", True))
+            self.auto_retry.set(config.get("auto_retry", False))
+            self.send_type.set(config.get("send_type", "text"))
+            self.hide_source.set(config.get("hide_source", False))
+            
+            self.message_text.delete("1.0", tk.END)
+            self.message_text.insert("1.0", config.get("message_text", ""))
+            
+            self.forward_urls_text.delete("1.0", tk.END)
+            self.forward_urls_text.insert("1.0", config.get("forward_urls", ""))
+            
+            self.target_text.delete("1.0", tk.END)
+            self.target_text.insert("1.0", config.get("targets", ""))
+            
+            self.scrape_limit.set(config.get("scrape_limit", 500))
+            self.filter_active.set(config.get("filter_active", True))
+            self.filter_bot.set(config.get("filter_bot", True))
+            self.filter_username.set(config.get("filter_username", False))
+            
+            # 更新目标用户计数
+            targets = [line.strip() for line in config.get("targets", "").split("\n") if line.strip()]
+            self.target_count_label.config(text=f"共 {len(targets)} 个目标用户")
+            
+            self.log("✅ 配置已应用")
+        except Exception as e:
+            self.log(f"⚠️ 应用配置失败: {str(e)}")
+    
+    def load_accounts(self):
+        """自动加载账号文件夹中的账号"""
+        try:
+            if not os.path.exists(self.accounts_dir):
+                return
+            
+            session_files = list(Path(self.accounts_dir).glob("*.session"))
+            
+            if not session_files:
+                self.log("📁 账号文件夹为空")
+                return
+            
+            for session_file in session_files:
+                account = {
+                    "path": str(session_file),
+                    "selected": True,
+                    "status": "未检测",
+                    "username": "-",
+                    "phone": "-",
+                    "last_login": "-"
+                }
+                self.accounts.append(account)
+            
+            self.log(f"📂 自动加载 {len(session_files)} 个账号")
+        except Exception as e:
+            self.log(f"⚠️ 加载账号失败: {str(e)}")
+    
     # ========== 账号管理功能 ==========
     
     def import_sessions(self):
@@ -476,32 +640,41 @@ class TGMassDM:
         added = 0
         for session_file in session_files:
             # 检查是否已存在
-            if any(acc["path"] == str(session_file) for acc in self.accounts):
+            if any(Path(acc["path"]).name == session_file.name for acc in self.accounts):
+                self.log(f"  ⚠️ 跳过已存在: {session_file.name}")
                 continue
             
-            account = {
-                "path": str(session_file),
-                "selected": True,
-                "status": "未检测",
-                "username": "-",
-                "phone": "-",
-                "last_login": "-"
-            }
-            self.accounts.append(account)
-            
-            self.account_tree.insert("", tk.END, values=(
-                "✓",
-                session_file.name,
-                "-",
-                "-",
-                "未检测",
-                "-"
-            ))
-            added += 1
+            # 复制到 accounts 文件夹
+            try:
+                import shutil
+                dest_path = Path(self.accounts_dir) / session_file.name
+                shutil.copy2(session_file, dest_path)
+                
+                # 同时复制 .session-journal 文件（如果存在）
+                journal_file = session_file.with_suffix('.session-journal')
+                if journal_file.exists():
+                    dest_journal = Path(self.accounts_dir) / journal_file.name
+                    shutil.copy2(journal_file, dest_journal)
+                
+                account = {
+                    "path": str(dest_path),
+                    "selected": True,
+                    "status": "未检测",
+                    "username": "-",
+                    "phone": "-",
+                    "last_login": "-"
+                }
+                self.accounts.append(account)
+                added += 1
+                
+                self.log(f"  ✅ 已导入: {session_file.name}")
+                
+            except Exception as e:
+                self.log(f"  ❌ 复制失败: {session_file.name} - {str(e)}")
         
         self.log(f"✅ 新增 {added} 个账号，当前总数: {len(self.accounts)}")
-        self.update_account_stats()
-        self.update_selected_count()
+        self.refresh_account_tree()
+        self.save_config()
     
     def toggle_account(self, event):
         """双击切换账号选择"""
@@ -565,7 +738,7 @@ class TGMassDM:
         loop.run_until_complete(self.check_accounts_async())
     
     async def check_accounts_async(self):
-        """异步检测账号"""
+        """异步检测账号（使用 SpamBot）"""
         for i, account in enumerate(self.accounts):
             self.log(f"[{i+1}/{len(self.accounts)}] 检测: {Path(account['path']).stem}")
             
@@ -573,17 +746,64 @@ class TGMassDM:
                 client = TelegramClient(account["path"], self.api_id, self.api_hash)
                 await client.connect()
                 
-                me = await client.get_me()
-                if me:
+                # 1. 尝试登录
+                try:
+                    me = await client.get_me()
+                    if not me:
+                        account["status"] = "❌ 登录失败"
+                        account["username"] = "-"
+                        account["phone"] = "-"
+                        self.log(f"  ❌ 登录失败（死号）")
+                        await client.disconnect()
+                        continue
+                    
                     account["username"] = f"@{me.username}" if me.username else "-"
                     account["phone"] = me.phone or "-"
-                    account["status"] = "✅ 正常"
-                    account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    self.log(f"  ✅ {account['username']} ({account['phone']})")
-                else:
-                    account["status"] = "❌ 登录失败"
-                    self.log(f"  ❌ 登录失败")
+                    
+                except Exception as e:
+                    account["status"] = f"❌ 无法登录"
+                    account["username"] = "-"
+                    account["phone"] = "-"
+                    self.log(f"  ❌ 无法登录（死号）: {type(e).__name__}")
+                    await client.disconnect()
+                    continue
                 
+                # 2. 向 @spambot 发送消息检测状态
+                try:
+                    # 发送 /start 给 spambot
+                    await client.send_message("@spambot", "/start")
+                    await asyncio.sleep(2)  # 等待回复
+                    
+                    # 获取最新消息
+                    messages = await client.get_messages("@spambot", limit=1)
+                    
+                    if messages and len(messages) > 0:
+                        response = messages[0].message or ""
+                        
+                        # 解析状态
+                        if "Good news" in response or "no limits" in response:
+                            account["status"] = "✅ 正常"
+                            self.log(f"  ✅ 正常: {account['username']}")
+                        elif "Too many" in response or "Limited" in response or "undelivered" in response:
+                            account["status"] = "⚠️ 冻结"
+                            self.log(f"  ⚠️ 冻结: {account['username']}")
+                        elif "banned" in response.lower() or "双向" in response:
+                            account["status"] = "🚫 双向冻结"
+                            self.log(f"  🚫 双向冻结: {account['username']}")
+                        else:
+                            # 默认显示未知状态
+                            account["status"] = "⚠️ 未知状态"
+                            self.log(f"  ⚠️ 未知状态: {account['username']}")
+                            self.log(f"     SpamBot 回复: {response[:100]}")
+                    else:
+                        account["status"] = "⚠️ 无回复"
+                        self.log(f"  ⚠️ SpamBot 无回复")
+                    
+                except Exception as e:
+                    account["status"] = f"⚠️ 检测失败"
+                    self.log(f"  ⚠️ SpamBot 检测失败: {type(e).__name__}")
+                
+                account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 await client.disconnect()
                 
             except Exception as e:
@@ -602,44 +822,50 @@ class TGMassDM:
                 account["last_login"]
             ))
             
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1)  # 每个账号间隔1秒
         
         self.log("✅ 账号检测完成")
         self.update_account_stats()
     
     def delete_invalid(self):
-        """删除失效账号"""
-        invalid_count = sum(1 for acc in self.accounts if "❌" in acc["status"])
+        """删除失效账号（同步删除文件）"""
+        invalid_accounts = [acc for acc in self.accounts if "❌" in acc["status"]]
         
-        if invalid_count == 0:
+        if not invalid_accounts:
             messagebox.showinfo("提示", "没有失效账号")
             return
         
-        confirm = messagebox.askyesno("确认删除", f"确定要删除 {invalid_count} 个失效账号吗？")
+        confirm = messagebox.askyesno("确认删除", 
+            f"确定要删除 {len(invalid_accounts)} 个失效账号吗？\n"
+            f"（同时删除文件）")
         if not confirm:
             return
         
-        # 删除失效账号
+        # 删除文件
+        deleted_count = 0
+        for acc in invalid_accounts:
+            try:
+                # 删除 session 文件
+                session_path = Path(acc["path"])
+                if session_path.exists():
+                    os.remove(session_path)
+                    self.log(f"  🗑️ 已删除: {session_path.name}")
+                
+                # 删除 session-journal 文件（如果存在）
+                journal_path = session_path.with_suffix('.session-journal')
+                if journal_path.exists():
+                    os.remove(journal_path)
+                
+                deleted_count += 1
+            except Exception as e:
+                self.log(f"  ⚠️ 删除失败: {session_path.name} - {str(e)}")
+        
+        # 从列表中移除
         self.accounts = [acc for acc in self.accounts if "❌" not in acc["status"]]
         
-        # 重建列表
-        for item in self.account_tree.get_children():
-            self.account_tree.delete(item)
-        
-        for acc in self.accounts:
-            check = "✓" if acc["selected"] else ""
-            self.account_tree.insert("", tk.END, values=(
-                check,
-                Path(acc["path"]).name,
-                acc["username"],
-                acc["phone"],
-                acc["status"],
-                acc["last_login"]
-            ))
-        
-        self.log(f"🗑️ 已删除 {invalid_count} 个失效账号")
-        self.update_account_stats()
-        self.update_selected_count()
+        self.log(f"🗑️ 已删除 {deleted_count} 个失效账号（含文件）")
+        self.refresh_account_tree()
+        self.save_config()
     
     def update_account_stats(self):
         """更新账号统计"""
