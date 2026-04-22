@@ -912,15 +912,28 @@ class TGMassDM:
         self.log(f"[{index+1}/{total}] 检测: {Path(account['path']).stem}")
 
         try:
-            # 调试: 检查 path 类型
+            # 调试: 详细检查 path
             path = account["path"]
+            self.log(f"  🔍 path 类型: {type(path)}")
+            self.log(f"  🔍 path 值: {path}")
+            self.log(f"  🔍 path 长度: {len(str(path))}")
+            
             if not isinstance(path, str):
-                self.log(f"  ❌ 路径类型错误: {type(path)}, 值: {path}")
+                self.log(f"  ❌ 路径类型错误: 期望 str，实际 {type(path)}")
                 account["status"] = "⚠️ 路径错误"
                 self.root.after(0, self.refresh_account_tree)
                 return
             
+            # 检查 path 是否包含逗号或其他分隔符
+            if ',' in path or ';' in path or '|' in path:
+                self.log(f"  ❌ 路径包含非法字符")
+                account["status"] = "⚠️ 路径错误"
+                self.root.after(0, self.refresh_account_tree)
+                return
+            
+            self.log(f"  ✅ 路径检查通过，开始创建客户端...")
             client = TelegramClient(path, self.api_id, self.api_hash)
+            self.log(f"  ✅ 客户端创建成功")
             await client.connect()
 
             # 1. 尝试登录
