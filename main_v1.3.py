@@ -1012,6 +1012,7 @@ class TGMassDM:
         except Exception as e:
             account["status"] = f"❌ {type(e).__name__}"
             self.log(f"  ❌ {type(e).__name__}")
+            self.log(f"     错误详情: {str(e)}")
             self.root.after(0, self.refresh_account_tree)
 
     async def check_accounts_async(self):
