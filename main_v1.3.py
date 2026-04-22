@@ -730,6 +730,13 @@ class TGMassDM:
                 if journal_file.exists():
                     dest_journal = Path(self.accounts_dir) / journal_file.name
                     shutil.copy2(journal_file, dest_journal)
+                
+                # 同时复制 .json 文件(如果存在) - 账号信息文件
+                json_file = session_file.with_suffix('.session.json')
+                if json_file.exists():
+                    dest_json = Path(self.accounts_dir) / json_file.name
+                    shutil.copy2(json_file, dest_json)
+                    self.log(f"    📄 已复制配套 JSON 文件")
 
                 account = {
                     "path": str(dest_path),
