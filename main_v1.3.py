@@ -191,26 +191,26 @@ class TGMassDM:
             self.root.update()
             
             window_height = self.root.winfo_height()
-            self.log(f"🔍 窗口高度: {window_height}px")
+            # self.log(f"🔍 窗口高度: {window_height}px")  # 静默
             
             if window_height > 100:
                 split_position = int(window_height * 0.5)  # 50% 位置
-                self.log(f"🔧 设置分割位置: {split_position}px")
+                # self.log(f"🔧 设置分割位置: {split_position}px")  # 静默
                 
                 # 设置分割位置
                 self.main_paned.sashpos(0, split_position)
                 
                 # 验证是否设置成功
                 actual_pos = self.main_paned.sashpos(0)
-                self.log(f"✅ 实际分割位置: {actual_pos}px")
+                # self.log(f"✅ 实际分割位置: {actual_pos}px")  # 静默
                 
                 if actual_pos != split_position:
-                    self.log(f"⚠️ 位置不匹配，重试...")
+                    # self.log(f"⚠️ 位置不匹配，重试...")  # 静默
                     self.root.after(200, lambda: self.main_paned.sashpos(0, split_position))
-            else:
-                self.log(f"⚠️ 窗口高度异常: {window_height}px")
+            # else:
+                # self.log(f"⚠️ 窗口高度异常: {window_height}px")  # 静默
         except Exception as e:
-            self.log(f"❌ 设置布局失败: {e}")
+            pass  # 静默处理错误
 
     def set_messaging_sash_position(self):
         """设置私信广告分割位置（自适应布局，确保右侧最小宽度）"""
