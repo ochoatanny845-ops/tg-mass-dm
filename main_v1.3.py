@@ -43,6 +43,7 @@ class TGMassDM:
         self.targets = []   # 目标用户列表
         self.collected_users = []  # 采集的用户
         self.is_running = False
+        self.stop_flag = False  # 停止标志
 
         # 检测配置（问题 4：并发优化）
         self.check_concurrent = tk.IntVar(value=30)  # 并发数量（默认 30）
@@ -1341,19 +1342,37 @@ class TGMassDM:
         if not self.accounts:
             messagebox.showwarning("提示", "请先导入账号")
             return
+        
+        # 获取选中的账号
+        selected_accounts = [acc for acc in self.accounts if acc["selected"]]
+        if not selected_accounts:
+            messagebox.showwarning("提示", "请先选择要检测的账号")
+            return
 
+        # 重置停止标志
+        self.stop_flag = False
+        
         # 获取并发配置
         concurrent = self.check_concurrent.get()
-        self.log(f"🔍 开始检测账号状态... (并发: {concurrent})")
+        self.log(f"🔍 开始检测账号状态... (选中 {len(selected_accounts)} 个账号，并发: {concurrent})")
         
-        thread = threading.Thread(target=self.run_check_accounts)
+        # 启用停止按钮
+        self.stop_btn.config(state=tk.NORMAL)
+        self.start_btn.config(state=tk.DISABLED)
+        
+        thread = threading.Thread(target=self.run_check_accounts, args=(selected_accounts,))
         thread.start()
 
-    def run_check_accounts(self):
+    def run_check_accounts(self, accounts):
         """运行账号检测"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.check_accounts_async())
+        try:
+            loop.run_until_complete(self.check_accounts_async(accounts))
+        finally:
+            # 恢复按钮状态
+            self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
+            self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
 
     async def check_single_account(self, account, index, total):
         """检测单个账号（并发调用）"""
@@ -1766,17 +1785,22 @@ class TGMassDM:
             except:
                 pass  # 忽略断开连接时的错误
 
-    async def check_accounts_async(self):
+    async def check_accounts_async(self, accounts):
         """并发批量检测账号"""
         concurrent = self.check_concurrent.get()  # 并发数量
         batch_delay = self.check_batch_delay.get()  # 批次间隔
-        total = len(self.accounts)
+        total = len(accounts)
         
         self.log(f"📊 并发配置: 每批 {concurrent} 个账号，批次间隔 {batch_delay} 秒")
         
         # 分批处理
         for i in range(0, total, concurrent):
-            batch = self.accounts[i:i+concurrent]
+            # 检查是否停止
+            if self.stop_flag:
+                self.log("⏸️ 检测已停止")
+                break
+            
+            batch = accounts[i:i+concurrent]
             batch_num = i // concurrent + 1
             total_batches = (total + concurrent - 1) // concurrent
             
@@ -1791,11 +1815,12 @@ class TGMassDM:
                 self.log(f"⏳ 等待 {batch_delay} 秒后继续下一批...")
                 await asyncio.sleep(batch_delay)
         
-        self.log("✅ 账号检测完成")
+        if not self.stop_flag:
+            self.log("✅ 账号检测完成")
         
         # 统计各状态数量
-        normal_count = sum(1 for acc in self.accounts if "✅ 无限制" in acc["status"])
-        limited_count = sum(1 for acc in self.accounts if "⚠️ 永久双向限制" in acc["status"])
+        normal_count = sum(1 for acc in accounts if "✅ 无限制" in acc["status"])
+        limited_count = sum(1 for acc in accounts if "⚠️ 永久双向限制" in acc["status"])
         frozen_count = sum(1 for acc in self.accounts if "🚫 冻结" in acc["status"])
         banned_count = sum(1 for acc in self.accounts if "🚫 封禁" in acc["status"])
         temp_limited_count = sum(1 for acc in self.accounts if "⚠️ 临时限制" in acc["status"])
@@ -2322,6 +2347,7 @@ class TGMassDM:
     def stop_task(self):
         """停止任务"""
         self.is_running = False
+        self.stop_flag = True  # 同时设置停止标志
         self.log("⏸️ 正在停止...")
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
