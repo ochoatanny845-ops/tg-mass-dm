@@ -107,18 +107,6 @@ class TGMassDM:
         log_container = ttk.Frame(main_paned)
         main_paned.add(log_container, weight=1)
 
-        # 控制按钮
-        control_frame = ttk.Frame(log_container, padding="5")
-        control_frame.pack(fill=tk.X)
-
-        self.start_btn = ttk.Button(control_frame, text="🚀 开始", width=15,
-                                    command=self.start_task)
-        self.start_btn.pack(side=tk.LEFT, padx=5)
-
-        self.stop_btn = ttk.Button(control_frame, text="⏸️ 停止", width=15,
-                                   command=self.stop_task, state=tk.DISABLED)
-        self.stop_btn.pack(side=tk.LEFT, padx=5)
-
         # 日志框架
         log_frame = ttk.LabelFrame(log_container, text="📝 运行日志", padding="10")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=(5, 0))
