@@ -195,15 +195,6 @@ class TGMassDM:
             # 提取姓名（first_name）
             first_name = acc.get("first_name", "-")
             
-            # 代理状态（仅显示配置，不表示已连接）
-            proxy_status = acc.get("proxy", "")
-            if proxy_status and proxy_status != "直连" and str(proxy_status).lower() not in ["false", "null", "none", ""]:
-                # 有代理配置
-                proxy_display = "有代理配置"
-            else:
-                # 无代理配置
-                proxy_display = "直连"
-            
             # 2FA 状态（直接显示值）
             twofa_display = acc.get("2fa", "")
             
@@ -213,7 +204,6 @@ class TGMassDM:
                 acc["username"],
                 first_name,
                 acc["status"],
-                proxy_display,
                 twofa_display
             ))
 
@@ -254,7 +244,7 @@ class TGMassDM:
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
         self.account_tree = ttk.Treeview(tree_frame,
-                                         columns=("选择", "手机号", "用户名", "姓名", "状态", "代理", "2FA"),
+                                         columns=("选择", "手机号", "用户名", "姓名", "状态", "2FA"),
                                          show="headings", height=25)
         
         # 设置字体（放大复选框）
@@ -267,7 +257,6 @@ class TGMassDM:
         self.account_tree.heading("用户名", text="用户名")
         self.account_tree.heading("姓名", text="姓名")
         self.account_tree.heading("状态", text="状态")
-        self.account_tree.heading("代理", text="代理")
         self.account_tree.heading("2FA", text="2FA")
 
         self.account_tree.column("选择", width=50, anchor=tk.CENTER)
@@ -275,7 +264,6 @@ class TGMassDM:
         self.account_tree.column("用户名", width=120)
         self.account_tree.column("姓名", width=100)
         self.account_tree.column("状态", width=150)
-        self.account_tree.column("代理", width=100)
         self.account_tree.column("2FA", width=60, anchor=tk.CENTER)
 
         self.account_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
