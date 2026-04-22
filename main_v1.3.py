@@ -716,7 +716,8 @@ class TGMassDM:
                 }
                 
                 # 尝试读取配套的 JSON 文件
-                json_file = Path(str(session_file) + '.json')
+                # 123.session → 123.json（不是 123.session.json）
+                json_file = session_file.parent / f"{session_file.stem}.json"
                 if json_file.exists():
                     try:
                         import json
@@ -817,8 +818,8 @@ class TGMassDM:
                     shutil.copy2(journal_file, dest_journal)
                 
                 # 同时复制 .json 文件(如果存在) - 账号信息文件
-                # 注意：文件名是 123.session.json，不是 123.json
-                json_file = Path(str(session_file) + '.json')
+                # 123.session → 123.json（不是 123.session.json）
+                json_file = session_file.parent / f"{session_file.stem}.json"
                 has_json = False
                 if json_file.exists():
                     dest_json = Path(self.accounts_dir) / json_file.name
@@ -1622,8 +1623,8 @@ class TGMassDM:
                 os.remove(journal_path)
             
             # 删除 json 文件(如果存在)
-            # 注意：文件名是 123.session.json，不是 123.json
-            json_path = Path(str(session_path) + '.json')
+            # 123.session → 123.json（不是 123.session.json）
+            json_path = session_path.parent / f"{session_path.stem}.json"
             if json_path.exists():
                 os.remove(json_path)
             
@@ -1691,8 +1692,8 @@ class TGMassDM:
                     shutil.copy2(journal_path, dest_journal)
                 
                 # 复制 json 文件(如果存在)
-                # 注意：文件名是 123.session.json，不是 123.json
-                json_path = Path(str(session_path) + '.json')
+                # 123.session → 123.json（不是 123.session.json）
+                json_path = session_path.parent / f"{session_path.stem}.json"
                 if json_path.exists():
                     dest_json = export_path / json_path.name
                     shutil.copy2(json_path, dest_json)
