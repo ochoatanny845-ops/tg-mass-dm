@@ -232,8 +232,11 @@ class TGMassDM:
                   command=self.select_all).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame, text="❌ 清空", width=8,
                   command=self.deselect_all).pack(side=tk.LEFT, padx=2)
-        ttk.Button(btn_frame, text="🔍 检测状态", width=12,
-                  command=self.check_accounts).pack(side=tk.LEFT, padx=5)
+        
+        # 开始按钮（点击弹出菜单）
+        start_btn = ttk.Button(btn_frame, text="🚀 开始", width=12,
+                              command=lambda: self.show_start_menu(start_btn))
+        start_btn.pack(side=tk.LEFT, padx=5)
         
         # 删除按钮（点击弹出菜单）
         delete_btn = ttk.Button(btn_frame, text="🗑️ 删除", width=12,
@@ -255,6 +258,11 @@ class TGMassDM:
         self.account_tree = ttk.Treeview(tree_frame,
                                          columns=("选择", "手机号", "用户名", "姓名", "状态", "代理", "2FA"),
                                          show="headings", height=25)
+        
+        # 设置字体（放大复选框）
+        style = ttk.Style()
+        style.configure("Treeview", font=("微软雅黑", 11))
+        style.configure("Treeview.Heading", font=("微软雅黑", 10, "bold"))
 
         self.account_tree.heading("选择", text="✓")
         self.account_tree.heading("手机号", text="手机号")
@@ -264,7 +272,7 @@ class TGMassDM:
         self.account_tree.heading("代理", text="代理")
         self.account_tree.heading("2FA", text="2FA")
 
-        self.account_tree.column("选择", width=40, anchor=tk.CENTER)
+        self.account_tree.column("选择", width=50, anchor=tk.CENTER)
         self.account_tree.column("手机号", width=120)
         self.account_tree.column("用户名", width=120)
         self.account_tree.column("姓名", width=100)
@@ -281,6 +289,9 @@ class TGMassDM:
 
         # 双击切换选择
         self.account_tree.bind("<Double-1>", self.toggle_account)
+        
+        # 右键菜单（复制手机号）
+        self.account_tree.bind("<Button-3>", self.show_context_menu)
 
         # 统计信息
         self.stats_frame = ttk.Frame(tab1)
@@ -970,6 +981,49 @@ class TGMassDM:
         self.log("❌ 已清空所有选择")
         self.update_account_stats()
         self.update_selected_count()
+    
+    def show_start_menu(self, button):
+        """显示开始菜单"""
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="检查账号限制", command=self.check_accounts)
+        menu.add_separator()
+        menu.add_command(label="新功能待开发", state=tk.DISABLED)
+        
+        # 在按钮下方显示菜单
+        x = button.winfo_rootx()
+        y = button.winfo_rooty() + button.winfo_height()
+        menu.post(x, y)
+    
+    def show_context_menu(self, event):
+        """显示右键菜单（复制手机号）"""
+        # 获取点击的行
+        item = self.account_tree.identify_row(event.y)
+        if not item:
+            return
+        
+        # 选中该行
+        self.account_tree.selection_set(item)
+        
+        # 获取手机号
+        values = self.account_tree.item(item, "values")
+        if len(values) < 2:
+            return
+        
+        phone = values[1]  # 第二列是手机号
+        
+        # 创建菜单
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label=f"📋 复制手机号: {phone}", 
+                        command=lambda: self.copy_to_clipboard(phone))
+        
+        # 显示菜单
+        menu.post(event.x_root, event.y_root)
+    
+    def copy_to_clipboard(self, text):
+        """复制文本到剪贴板"""
+        self.root.clipboard_clear()
+        self.root.clipboard_append(text)
+        self.log(f"📋 已复制到剪贴板: {text}")
     
     def show_delete_menu(self, button):
         """显示删除菜单"""
