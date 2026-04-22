@@ -834,50 +834,52 @@ class TGMassDM:
 
     async def check_single_account(self, account, index, total):
         """检测单个账号（并发调用）"""
-        # SpamBot 关键词库（基于真实回复）
+        # SpamBot 关键词库（多语言，不翻译）
         
-        # 1. 正常状态
+        # 1. 正常状态（多语言）
         NORMAL_KEYWORDS = [
-            "good news",
-            "no limits",
-            "free as a bird",
-            "no restrictions",
-            "all good",
-            "свободен от каких-либо ограничений",  # 俄语：自由无限制
-            "nenhum limite",  # 葡萄牙语：无限制
+            # 英文
+            "good news", "no limits", "free as a bird", "no restrictions", "all good",
+            # 俄语
+            "свободен от каких-либо ограничений", "свободен", "ограничений",
+            # 葡萄牙语
+            "nenhum limite", "livre como",
         ]
         
-        # 2. 地理受限（优先级高，需要与永久冻结区分）
+        # 2. 地理受限
         GEO_RESTRICTED_KEYWORDS = [
             "phone numbers may trigger",
             "some phone numbers may trigger",
         ]
         
-        # 3. 永久封禁（最严重）
+        # 3. 永久封禁
         PERMANENT_BLOCKED_KEYWORDS = [
             "blocked for violations",
             "terms of service",
             "user reports confirmed",
         ]
         
-        # 4. 永久双向限制（行为触发）
+        # 4. 永久双向限制
         PERMANENT_LIMITED_KEYWORDS = [
             "some actions can trigger",
             "your account was limited",
             "while the account is limited",
         ]
         
-        # 5. 冻结（有可能有申诉期限）
+        # 5. 冻结（多语言）
         FROZEN_KEYWORDS = [
-            "frozen",
-            "заморожен",  # 俄语：冻结
+            # 英文
+            "frozen", "account is frozen",
+            # 俄语
+            "заморожен", "аккаунт заморожен",
         ]
         
-        # 6. 临时限制（有到期时间）
+        # 6. 临时限制（多语言）
         TEMP_LIMITED_KEYWORDS = [
-            "limited until",
-            "automatically released on",
-            "account is now limited",
+            # 英文
+            "limited until", "automatically released on", "account is now limited",
+            # 俄语
+            "ограничен до", "до",
         ]
 
         self.log(f"[{index+1}/{total}] 检测: {Path(account['path']).stem}")
@@ -933,19 +935,10 @@ class TGMassDM:
                 messages = await client.get_messages("@spambot", limit=1)
 
                 if messages and len(messages) > 0:
-                    response_original = (messages[0].message or "").strip()
+                    response = (messages[0].message or "").strip().lower()
                     
-                    is_english = all(ord(c) < 128 for c in response_original.replace(' ', '')[:50])
-                    
-                    if not is_english:
-                        self.log(f"  🌍 检测到非英文回复，翻译中...")
-                        response = self.translate_to_english(response_original).lower()
-                        self.log(f"     翻译: {response[:60]}...")
-                    else:
-                        response = response_original.lower()
-                    
-                    # 优先级判断（按照真实场景）
-                    # 1. 地理受限（最高优先级，需要与永久冻结区分）
+                    # 优先级判断（多语言关键词，不翻译）
+                    # 1. 地理受限
                     if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
                         account["status"] = "✅ 正常（地理受限）"
                         self.log(f"  ✅ 正常（地理受限）: {account['username']}")
@@ -963,7 +956,7 @@ class TGMassDM:
                     
                     # 4. 冻结（可能有申诉期限）
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
-                        appeal_time = self.parse_limitation_time(response_original)
+                        appeal_time = self.parse_limitation_time(response)
                         if appeal_time:
                             time_str = appeal_time.strftime("%Y-%m-%d")
                             account["status"] = f"🚫 冻结（申诉至 {time_str}）"
@@ -974,7 +967,7 @@ class TGMassDM:
                     
                     # 5. 临时限制（有到期时间）
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
-                        release_time = self.parse_limitation_time(response_original)
+                        release_time = self.parse_limitation_time(response)
                         if release_time:
                             from datetime import datetime
                             now = datetime.utcnow()
