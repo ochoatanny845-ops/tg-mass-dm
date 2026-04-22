@@ -39,7 +39,7 @@ class TGMassDM:
         self.api_hash = "b18441a1ff607e10a989891a5462e627"
 
         # 数据存储
-        self.accounts = []  # {path, selected, status, username, phone}
+        self.accounts = []  # {path, selected, status, username, phone, first_name, proxy, 2fa}
         self.targets = []   # 目标用户列表
         self.collected_users = []  # 采集的用户
         self.is_running = False
@@ -189,13 +189,34 @@ class TGMassDM:
         # 重新填充
         for acc in self.accounts:
             check = "✓" if acc["selected"] else ""
+            
+            # 提取姓名（first_name）
+            first_name = acc.get("first_name", "-")
+            
+            # 代理状态
+            proxy_status = acc.get("proxy", "直连")
+            if proxy_status and proxy_status != "直连":
+                proxy_display = "代理已连接"
+            else:
+                proxy_display = "直连"
+            
+            # 2FA 状态
+            twofa_status = acc.get("2fa", "-")
+            if twofa_status == "yes":
+                twofa_display = "✓"
+            elif twofa_status == "no":
+                twofa_display = "✗"
+            else:
+                twofa_display = "-"
+            
             self.account_tree.insert("", tk.END, values=(
                 check,
-                Path(acc["path"]).name,
-                acc["username"],
                 acc["phone"],
+                acc["username"],
+                first_name,
                 acc["status"],
-                acc["last_login"]
+                proxy_display,
+                twofa_display
             ))
 
         self.update_account_stats()
@@ -237,22 +258,24 @@ class TGMassDM:
         tree_frame.pack(fill=tk.BOTH, expand=True)
 
         self.account_tree = ttk.Treeview(tree_frame,
-                                         columns=("选择", "账号文件", "用户名", "手机号", "状态", "最后登录"),
+                                         columns=("选择", "手机号", "用户名", "姓名", "状态", "代理", "2FA"),
                                          show="headings", height=25)
 
         self.account_tree.heading("选择", text="✓")
-        self.account_tree.heading("账号文件", text="账号文件")
-        self.account_tree.heading("用户名", text="用户名")
         self.account_tree.heading("手机号", text="手机号")
+        self.account_tree.heading("用户名", text="用户名")
+        self.account_tree.heading("姓名", text="姓名")
         self.account_tree.heading("状态", text="状态")
-        self.account_tree.heading("最后登录", text="最后登录")
+        self.account_tree.heading("代理", text="代理")
+        self.account_tree.heading("2FA", text="2FA")
 
         self.account_tree.column("选择", width=40, anchor=tk.CENTER)
-        self.account_tree.column("账号文件", width=180)
-        self.account_tree.column("用户名", width=150)
         self.account_tree.column("手机号", width=120)
-        self.account_tree.column("状态", width=100)
-        self.account_tree.column("最后登录", width=150)
+        self.account_tree.column("用户名", width=120)
+        self.account_tree.column("姓名", width=100)
+        self.account_tree.column("状态", width=150)
+        self.account_tree.column("代理", width=100)
+        self.account_tree.column("2FA", width=60, anchor=tk.CENTER)
 
         self.account_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
@@ -686,6 +709,9 @@ class TGMassDM:
                     "status": "未检测",
                     "username": "-",
                     "phone": "-",
+                    "first_name": "-",
+                    "proxy": "直连",
+                    "2fa": "-",
                     "last_login": "-"
                 }
                 
@@ -701,13 +727,26 @@ class TGMassDM:
                         username = json_data.get('username')
                         if username:
                             account["username"] = f"@{username}"
-                        elif json_data.get('first_name'):
-                            account["username"] = json_data.get('first_name', '-')
+                        
+                        # 提取姓名
+                        first_name = json_data.get('first_name')
+                        if first_name:
+                            account["first_name"] = first_name
                         
                         # 提取手机号
                         phone = json_data.get('phone')
                         if phone:
                             account["phone"] = phone
+                        
+                        # 提取代理信息
+                        proxy = json_data.get('proxy')
+                        if proxy:
+                            account["proxy"] = proxy
+                        
+                        # 提取 2FA 状态
+                        twofa = json_data.get('2fa')
+                        if twofa:
+                            account["2fa"] = twofa
                         
                         # 提取状态
                         spamblock = json_data.get('spamblock', '').lower()
@@ -794,6 +833,9 @@ class TGMassDM:
                     "status": "未检测",
                     "username": "-",
                     "phone": "-",
+                    "first_name": "-",
+                    "proxy": "直连",
+                    "2fa": "-",
                     "last_login": "-"
                 }
                 
@@ -808,14 +850,26 @@ class TGMassDM:
                         username = json_data.get('username')
                         if username:
                             account["username"] = f"@{username}"
-                        elif json_data.get('first_name'):
-                            # 没有 username，用 first_name
-                            account["username"] = json_data.get('first_name', '-')
+                        
+                        # 提取姓名
+                        first_name = json_data.get('first_name')
+                        if first_name:
+                            account["first_name"] = first_name
                         
                         # 提取手机号
                         phone = json_data.get('phone')
                         if phone:
                             account["phone"] = phone
+                        
+                        # 提取代理信息
+                        proxy = json_data.get('proxy')
+                        if proxy:
+                            account["proxy"] = proxy
+                        
+                        # 提取 2FA 状态
+                        twofa = json_data.get('2fa')
+                        if twofa:
+                            account["2fa"] = twofa
                         
                         # 提取状态（如果有）
                         spamblock = json_data.get('spamblock', '').lower()
