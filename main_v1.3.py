@@ -151,6 +151,10 @@ class TGMassDM:
         
         # 绑定标签切换事件
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
+        
+        # 绑定窗口缩放事件
+        self.root.bind("<Configure>", self.on_window_resize)
+        self.last_resize_time = 0  # 防抖
 
     def on_tab_changed(self, event):
         """标签页切换事件"""
@@ -159,6 +163,25 @@ class TGMassDM:
         if current_tab == 1:  # 私信广告页面
             # 延迟设置布局
             self.root.after(100, self.set_messaging_sash_position)
+    
+    def on_window_resize(self, event):
+        """窗口缩放事件（防抖处理）"""
+        import time
+        current_time = time.time()
+        
+        # 只在窗口缩放完成后300ms执行（防抖）
+        if current_time - self.last_resize_time > 0.3:
+            self.last_resize_time = current_time
+            
+            # 如果在私信广告页面，重新调整布局
+            try:
+                current_tab = self.notebook.index(self.notebook.select())
+                if current_tab == 1:  # 私信广告页面
+                    self.root.after(100, self.set_messaging_sash_position)
+                elif current_tab == 0:  # 账号管理页面
+                    self.root.after(100, self.set_initial_sash_position)
+            except:
+                pass
 
     def set_initial_sash_position(self):
         """设置初始分割位置（延迟执行）- 仅影响主界面"""
@@ -189,33 +212,36 @@ class TGMassDM:
             self.log(f"❌ 设置布局失败: {e}")
 
     def set_messaging_sash_position(self):
-        """设置私信广告分割位置（独立布局）"""
+        """设置私信广告分割位置（自适应布局）"""
         try:
             # 强制更新窗口
             self.root.update_idletasks()
             self.root.update()
             
             window_width = self.root.winfo_width()
-            self.log(f"🔍 窗口宽度: {window_width}px")
             
             if window_width > 100:  # 确保窗口已渲染
-                # 左侧占60%，右侧占40%（给右侧更多空间）
-                split_position = int(window_width * 0.60)
+                # 根据窗口宽度智能调整比例
+                if window_width >= 1400:
+                    # 大屏幕：左65% 右35%
+                    ratio = 0.65
+                elif window_width >= 1000:
+                    # 中等屏幕：左60% 右40%
+                    ratio = 0.60
+                else:
+                    # 小屏幕：左55% 右45%
+                    ratio = 0.55
                 
+                split_position = int(window_width * ratio)
                 self.messaging_paned.sashpos(0, split_position)
                 
-                # 验证分割位置
-                actual_pos = self.messaging_paned.sashpos(0)
-                self.log(f"✅ 私信广告布局: 左{split_position}px (实际{actual_pos}px) - 左60% 右40%")
-                
-                # 如果位置不对，重试
-                if abs(actual_pos - split_position) > 10:
-                    self.root.after(300, lambda: self.messaging_paned.sashpos(0, split_position))
+                # 不在日志中显示（避免缩放时刷屏）
+                # self.log(f"✅ 私信广告布局: {window_width}px, 左{int(ratio*100)}% 右{int((1-ratio)*100)}%")
             else:
-                self.log(f"⚠️ 窗口宽度异常，延迟重试...")
+                # 窗口未渲染，延迟重试
                 self.root.after(500, self.set_messaging_sash_position)
         except Exception as e:
-            self.log(f"❌ 设置私信广告布局失败: {e}")
+            pass  # 静默处理错误
 
         # 窗口关闭时保存配置
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
