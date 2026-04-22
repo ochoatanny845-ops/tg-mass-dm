@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.16.0"
+VERSION = "v1.17.0"
 
 import os
 import sys
@@ -554,6 +554,16 @@ class TGMassDM:
         
         # 保存 paned 引用，稍后设置分割位置
         self.messaging_paned = paned
+        
+        # 进度显示（顶部，醒目位置）
+        progress_frame = ttk.LabelFrame(right, text="📊 发送进度", padding="10")
+        progress_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        self.messaging_progress_label = ttk.Label(progress_frame, 
+                                                  text="任务未开始",
+                                                  font=("微软雅黑", 11, "bold"),
+                                                  foreground="gray")
+        self.messaging_progress_label.pack(anchor=tk.W)
 
         # 第一行：并发控制 + 额度限制
         row1_frame = ttk.Frame(right)
@@ -2404,12 +2414,19 @@ class TGMassDM:
         success = getattr(self, 'total_sent', 0)
         failed = getattr(self, 'total_failed', 0)
         
-        # 只在私信任务运行时显示
+        # 更新私信广告页面的进度显示
         if getattr(self, 'is_running', False):
-            text = f"📊 总计: {total} 条 | ✅ 成功: {success} | ❌ 失败: {failed}"
-            self.progress_label.config(text=text)
+            text = f"总计: {total} 条 | 成功: {success} 条 | 失败: {failed} 条"
+            if hasattr(self, 'messaging_progress_label'):
+                self.messaging_progress_label.config(text=text, foreground="blue")
+            # 同时更新顶部的进度标签（兼容）
+            if hasattr(self, 'progress_label'):
+                self.progress_label.config(text=f"📊 {text}")
         else:
-            self.progress_label.config(text="")
+            if hasattr(self, 'messaging_progress_label'):
+                self.messaging_progress_label.config(text="任务未开始", foreground="gray")
+            if hasattr(self, 'progress_label'):
+                self.progress_label.config(text="")
 
     # ========== 私信广告功能 ==========
 
@@ -2766,8 +2783,15 @@ class TGMassDM:
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
         
-        # 清空进度显示
-        self.progress_label.config(text="")
+        # 更新进度显示为完成状态
+        total = self.total_sent + self.total_failed
+        if hasattr(self, 'messaging_progress_label'):
+            self.messaging_progress_label.config(
+                text=f"任务完成 | 总计: {total} 条 | 成功: {self.total_sent} 条 | 失败: {self.total_failed} 条",
+                foreground="green"
+            )
+        if hasattr(self, 'progress_label'):
+            self.progress_label.config(text="")
 
     async def countdown_wait(self, wait_time, account_name):
         """倒计时等待（显示剩余时间）"""
