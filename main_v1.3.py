@@ -141,13 +141,30 @@ class TGMassDM:
     def set_initial_sash_position(self):
         """设置初始分割位置（延迟执行）"""
         try:
+            # 强制更新窗口
+            self.root.update()
+            
             window_height = self.root.winfo_height()
+            self.log(f"🔍 窗口高度: {window_height}px")
+            
             if window_height > 100:
                 split_position = int(window_height * 0.5)  # 50% 位置
+                self.log(f"🔧 设置分割位置: {split_position}px")
+                
+                # 设置分割位置
                 self.main_paned.sashpos(0, split_position)
-                self.log("📐 UI 布局已设置为 50:50")
+                
+                # 验证是否设置成功
+                actual_pos = self.main_paned.sashpos(0)
+                self.log(f"✅ 实际分割位置: {actual_pos}px")
+                
+                if actual_pos != split_position:
+                    self.log(f"⚠️ 位置不匹配，重试...")
+                    self.root.after(200, lambda: self.main_paned.sashpos(0, split_position))
+            else:
+                self.log(f"⚠️ 窗口高度异常: {window_height}px")
         except Exception as e:
-            self.log(f"⚠️ 设置布局失败: {e}")
+            self.log(f"❌ 设置布局失败: {e}")
 
         # 窗口关闭时保存配置
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
