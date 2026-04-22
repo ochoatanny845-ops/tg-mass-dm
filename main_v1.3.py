@@ -1371,15 +1371,21 @@ class TGMassDM:
                     await asyncio.sleep(interval)
                     
                 except errors.FloodWaitError as e:
-                    self.log(f"  ⚠️ [{account_name}] 触发频率限制: @{username} - 需等待 {e.seconds} 秒")
+                    wait_time = min(e.seconds, 300)  # 最多等待 5 分钟
+                    self.log(f"  ⚠️ [{account_name}] 触发频率限制: @{username} - 需等待 {wait_time} 秒")
                     self.log(f"      详细: FloodWaitError - Telegram 要求等待 {e.seconds} 秒后再发送")
                     async with self.send_lock:
                         self.total_failed += 1
+                    
                     if self.auto_switch.get():
-                        self.log(f"  🔄 [{account_name}] 提前结束，切换下一批")
-                        break
+                        self.log(f"  🔄 [{account_name}] 触发限制，切换下一个账号")
+                        break  # 切换账号
                     else:
-                        await asyncio.sleep(e.seconds)
+                        # 等待后重试当前用户
+                        self.log(f"  ⏳ [{account_name}] 等待 {wait_time} 秒后重试...")
+                        await asyncio.sleep(wait_time)
+                        # 不增加计数，下次循环会重试这个用户
+                        continue
                 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
@@ -1398,14 +1404,39 @@ class TGMassDM:
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
-                        
+                
                 except errors.ChatWriteForbiddenError as e:
                     self.log(f"  ❌ [{account_name}] 无权限发送消息: @{username}")
                     self.log(f"      详细: {str(e)}")
                     async with self.send_lock:
                         self.total_failed += 1
+                
+                except errors.AuthKeyUnregisteredError as e:
+                    self.log(f"  ❌ [{account_name}] 账号未授权（死号）: {str(e)}")
+                    async with self.send_lock:
+                        self.total_failed += 1
+                    break  # 账号失效，切换账号
                         
                 except Exception as e:
+                    error_str = str(e).lower()
+                    
+                    # 检测 "Too many requests" 错误
+                    if "too many requests" in error_str or "flood" in error_str:
+                        self.log(f"  ⚠️ [{account_name}] 触发请求限制: @{username}")
+                        self.log(f"      错误: {str(e)}")
+                        async with self.send_lock:
+                            self.total_failed += 1
+                        
+                        if self.auto_switch.get():
+                            self.log(f"  🔄 [{account_name}] 触发限制，切换下一个账号")
+                            break  # 切换账号
+                        else:
+                            # 等待后重试
+                            wait_time = 60  # 默认等待 60 秒
+                            self.log(f"  ⏳ [{account_name}] 等待 {wait_time} 秒后重试...")
+                            await asyncio.sleep(wait_time)
+                            continue
+                    
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
                     self.log(f"      错误类型: {type(e).__name__}")
                     self.log(f"      错误详情: {str(e)}")
