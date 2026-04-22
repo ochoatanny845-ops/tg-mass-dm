@@ -81,9 +81,9 @@ class TGMassDM:
         main_paned = ttk.PanedWindow(tab_frame, orient=tk.VERTICAL)
         main_paned.pack(fill=tk.BOTH, expand=True)
 
-        # 上方：标签页区域（40%）
+        # 上方：标签页区域（50%）
         notebook_frame = ttk.Frame(main_paned)
-        main_paned.add(notebook_frame, weight=2)
+        main_paned.add(notebook_frame, weight=1)
 
         self.notebook = ttk.Notebook(notebook_frame)
         self.notebook.pack(fill=tk.BOTH, expand=True)
@@ -97,9 +97,9 @@ class TGMassDM:
         self.setup_tab_messaging()
         self.setup_tab_scraper()
 
-        # 下方：日志区域（60%）
+        # 下方：日志区域（50%）
         log_container = ttk.Frame(main_paned)
-        main_paned.add(log_container, weight=3)
+        main_paned.add(log_container, weight=1)
 
         # 控制按钮
         control_frame = ttk.Frame(log_container, padding="5")
@@ -126,11 +126,11 @@ class TGMassDM:
         self.log("📋 功能: 账号管理、私信广告、采集用户")
         self.log("💡 点击顶部标签切换功能")
 
-        # 设置初始分割位置（日志区域占 60%）
+        # 设置初始分割位置（对半分）
         self.root.update_idletasks()  # 确保窗口已渲染
         window_height = self.root.winfo_height()
         if window_height > 100:  # 确保窗口高度有效
-            split_position = int(window_height * 0.4)  # 标签页占 40%
+            split_position = int(window_height * 0.5)  # 标签页占 50%
             main_paned.sashpos(0, split_position)
 
         # 应用加载的配置
