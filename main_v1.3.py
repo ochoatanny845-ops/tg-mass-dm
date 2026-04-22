@@ -919,27 +919,33 @@ class TGMassDM:
         self.log(f"[{index+1}/{total}] 检测: {Path(account['path']).stem}")
 
         try:
-            # 调试: 详细检查 path
-            path = account["path"]
-            self.log(f"  🔍 path 类型: {type(path)}")
-            self.log(f"  🔍 path 值: {path}")
-            self.log(f"  🔍 path 长度: {len(str(path))}")
+            # 获取并规范化路径
+            path = str(Path(account["path"]).resolve())
             
-            if not isinstance(path, str):
-                self.log(f"  ❌ 路径类型错误: 期望 str，实际 {type(path)}")
-                account["status"] = "⚠️ 路径错误"
+            self.log(f"  🔍 规范化路径: {path}")
+            
+            # 检查文件是否存在
+            if not Path(path).exists():
+                self.log(f"  ❌ 文件不存在")
+                account["status"] = "⚠️ 文件不存在"
                 self.root.after(0, self.refresh_account_tree)
                 return
             
-            # 检查 path 是否包含逗号或其他分隔符
-            if ',' in path or ';' in path or '|' in path:
-                self.log(f"  ❌ 路径包含非法字符")
-                account["status"] = "⚠️ 路径错误"
+            # 检查文件大小
+            file_size = Path(path).stat().st_size
+            self.log(f"  📏 文件大小: {file_size} bytes")
+            
+            if file_size < 1000:
+                self.log(f"  ❌ 文件太小，可能损坏")
+                account["status"] = "⚠️ 文件损坏"
                 self.root.after(0, self.refresh_account_tree)
                 return
             
-            self.log(f"  ✅ 路径检查通过，开始创建客户端...")
+            self.log(f"  ✅ 开始创建客户端...")
+            
+            # 创建 TelegramClient
             client = TelegramClient(path, self.api_id, self.api_hash)
+            
             self.log(f"  ✅ 客户端创建成功")
             await client.connect()
 
