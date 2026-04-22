@@ -126,18 +126,28 @@ class TGMassDM:
         self.log("📋 功能: 账号管理、私信广告、采集用户")
         self.log("💡 点击顶部标签切换功能")
 
-        # 设置初始分割位置（对半分）
-        self.root.update_idletasks()  # 确保窗口已渲染
-        window_height = self.root.winfo_height()
-        if window_height > 100:  # 确保窗口高度有效
-            split_position = int(window_height * 0.5)  # 标签页占 50%
-            main_paned.sashpos(0, split_position)
+        # 保存 main_paned 引用以便后续设置
+        self.main_paned = main_paned
+        
+        # 延迟设置分割位置（确保窗口完全渲染后）
+        self.root.after(100, self.set_initial_sash_position)
 
         # 应用加载的配置
         self.apply_loaded_config()
 
         # 显示自动加载的账号
         self.refresh_account_tree()
+
+    def set_initial_sash_position(self):
+        """设置初始分割位置（延迟执行）"""
+        try:
+            window_height = self.root.winfo_height()
+            if window_height > 100:
+                split_position = int(window_height * 0.5)  # 50% 位置
+                self.main_paned.sashpos(0, split_position)
+                self.log("📐 UI 布局已设置为 50:50")
+        except Exception as e:
+            self.log(f"⚠️ 设置布局失败: {e}")
 
         # 窗口关闭时保存配置
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
