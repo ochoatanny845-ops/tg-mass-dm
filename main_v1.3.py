@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.28.0"
+VERSION = "v1.29.0"
 
 import os
 import sys
@@ -2418,22 +2418,13 @@ class TGMassDM:
         success = getattr(self, 'total_sent', 0)
         failed = getattr(self, 'total_failed', 0)
         
-        # 更新顶部三色进度标签
-        if getattr(self, 'is_running', False):
-            if hasattr(self, 'progress_total_label'):
-                self.progress_total_label.config(text=f"总计: {total} 条")
-            if hasattr(self, 'progress_success_label'):
-                self.progress_success_label.config(text=f"成功: {success} 条")
-            if hasattr(self, 'progress_failed_label'):
-                self.progress_failed_label.config(text=f"失败: {failed} 条")
-        else:
-            # 任务停止时清空
-            if hasattr(self, 'progress_total_label'):
-                self.progress_total_label.config(text="")
-            if hasattr(self, 'progress_success_label'):
-                self.progress_success_label.config(text="")
-            if hasattr(self, 'progress_failed_label'):
-                self.progress_failed_label.config(text="")
+        # 始终显示进度（运行中和停止后都显示）
+        if hasattr(self, 'progress_total_label'):
+            self.progress_total_label.config(text=f"总计: {total} 条")
+        if hasattr(self, 'progress_success_label'):
+            self.progress_success_label.config(text=f"成功: {success} 条")
+        if hasattr(self, 'progress_failed_label'):
+            self.progress_failed_label.config(text=f"失败: {failed} 条")
 
     # ========== 私信广告功能 ==========
 
@@ -2770,19 +2761,58 @@ class TGMassDM:
         # 显示总体统计
         self.log(f"\n" + "="*50)
         self.log(f"✅ 任务完成!")
-        self.log(f"📊 总计成功: {self.total_sent} 条")
-        self.log(f"❌ 总计失败: {self.total_failed} 条")
+        self.log(f"📊 总计: {self.total_sent + self.total_failed} 条")
+        self.log(f"✅ 成功: {self.total_sent} 条")
+        self.log(f"❌ 失败: {self.total_failed} 条")
+        
+        # 计算成功率并给出建议
+        total = self.total_sent + self.total_failed
+        if total > 0:
+            success_rate = (self.total_sent / total * 100)
+            self.log(f"📈 成功率: {success_rate:.1f}%")
+            
+            # 根据成功率给出建议
+            if success_rate < 10:
+                self.log(f"\n⚠️ 成功率过低 ({success_rate:.1f}%)，建议检查：")
+                self.log(f"   1. 大量账号 session 失效 → 重新登录")
+                self.log(f"   2. 转发链接无效 → 检查链接是否正确")
+                self.log(f"   3. 目标用户名错误 → 检查用户名列表")
+            elif success_rate < 30:
+                self.log(f"\n⚠️ 成功率较低 ({success_rate:.1f}%)，建议：")
+                self.log(f"   1. 检查部分账号是否失效")
+                self.log(f"   2. 增加发送间隔（避免请求限制）")
+            elif success_rate < 60:
+                self.log(f"\n💡 成功率中等 ({success_rate:.1f}%)，可优化：")
+                self.log(f"   1. 调整发送间隔")
+                self.log(f"   2. 检查目标用户质量")
+            else:
+                self.log(f"\n✅ 成功率良好 ({success_rate:.1f}%)")
+        
         self.log("="*50)
 
         # 显示每个账号的统计
         if self.account_stats:
             self.log(f"\n📈 各账号发送统计:")
+            invalid_accounts = []
             for account_name, stats in sorted(self.account_stats.items()):
                 success = stats.get("sent", 0)
                 failed = stats.get("failed", 0)
-                total = success + failed
-                success_rate = (success / total * 100) if total > 0 else 0
-                self.log(f"  📱 {account_name}: ✅ {success} 条 | ❌ {failed} 条 | 成功率 {success_rate:.1f}%")
+                total_acc = success + failed
+                success_rate_acc = (success / total_acc * 100) if total_acc > 0 else 0
+                self.log(f"  📱 {account_name}: ✅ {success} 条 | ❌ {failed} 条 | 成功率 {success_rate_acc:.1f}%")
+                
+                # 收集成功率为0的账号
+                if total_acc > 0 and success == 0:
+                    invalid_accounts.append(account_name)
+            
+            # 如果有失效账号，给出提示
+            if invalid_accounts:
+                self.log(f"\n🚫 以下账号可能已失效（成功率0%）：")
+                for acc in invalid_accounts[:5]:  # 最多显示5个
+                    self.log(f"   • {acc}")
+                if len(invalid_accounts) > 5:
+                    self.log(f"   ... 还有 {len(invalid_accounts) - 5} 个账号")
+                self.log(f"💡 建议：在「账号管理」中重新登录这些账号")
 
         self.log("="*50)
 
