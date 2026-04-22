@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.7.0"
+VERSION = "v1.8.0"
 
 import os
 import sys
@@ -219,29 +219,15 @@ class TGMassDM:
         ttk.Button(btn_frame, text="🔍 检测状态", width=12,
                   command=self.check_accounts).pack(side=tk.LEFT, padx=5)
         
-        # 删除按钮（带下拉菜单）
-        delete_btn = ttk.Menubutton(btn_frame, text="🗑️ 删除", width=12)
+        # 删除按钮（点击弹出菜单）
+        delete_btn = ttk.Button(btn_frame, text="🗑️ 删除", width=12,
+                               command=lambda: self.show_delete_menu(delete_btn))
         delete_btn.pack(side=tk.LEFT, padx=2)
-        delete_menu = tk.Menu(delete_btn, tearoff=0)
-        delete_btn["menu"] = delete_menu
-        delete_menu.add_command(label="删除选择的账号", command=self.delete_selected)
-        delete_menu.add_command(label="删除全部账号", command=self.delete_all)
-        delete_menu.add_separator()
-        delete_menu.add_command(label="删除失效账号", command=self.delete_invalid)
-        delete_menu.add_command(label="删除冻结账号", command=self.delete_frozen)
-        delete_menu.add_command(label="删除封禁账号", command=self.delete_banned)
         
-        # 导出按钮（带下拉菜单）
-        export_btn = ttk.Menubutton(btn_frame, text="📤 导出", width=12)
+        # 导出按钮（点击弹出菜单）
+        export_btn = ttk.Button(btn_frame, text="📤 导出", width=12,
+                               command=lambda: self.show_export_menu(export_btn))
         export_btn.pack(side=tk.LEFT, padx=2)
-        export_menu = tk.Menu(export_btn, tearoff=0)
-        export_btn["menu"] = export_menu
-        export_menu.add_command(label="导出选择的账号", command=self.export_selected)
-        export_menu.add_command(label="导出全部账号", command=self.export_all)
-        export_menu.add_separator()
-        export_menu.add_command(label="导出失效账号", command=self.export_invalid)
-        export_menu.add_command(label="导出冻结账号", command=self.export_frozen)
-        export_menu.add_command(label="导出封禁账号", command=self.export_banned)
         
         ttk.Button(btn_frame, text="🔄 刷新", width=10,
                   command=self.refresh_accounts).pack(side=tk.LEFT, padx=2)
@@ -832,6 +818,36 @@ class TGMassDM:
         self.log("❌ 已清空所有选择")
         self.update_account_stats()
         self.update_selected_count()
+    
+    def show_delete_menu(self, button):
+        """显示删除菜单"""
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="删除选择的账号", command=self.delete_selected)
+        menu.add_command(label="删除全部账号", command=self.delete_all)
+        menu.add_separator()
+        menu.add_command(label="删除失效账号", command=self.delete_invalid)
+        menu.add_command(label="删除冻结账号", command=self.delete_frozen)
+        menu.add_command(label="删除封禁账号", command=self.delete_banned)
+        
+        # 在按钮下方显示菜单
+        x = button.winfo_rootx()
+        y = button.winfo_rooty() + button.winfo_height()
+        menu.post(x, y)
+    
+    def show_export_menu(self, button):
+        """显示导出菜单"""
+        menu = tk.Menu(self.root, tearoff=0)
+        menu.add_command(label="导出选择的账号", command=self.export_selected)
+        menu.add_command(label="导出全部账号", command=self.export_all)
+        menu.add_separator()
+        menu.add_command(label="导出失效账号", command=self.export_invalid)
+        menu.add_command(label="导出冻结账号", command=self.export_frozen)
+        menu.add_command(label="导出封禁账号", command=self.export_banned)
+        
+        # 在按钮下方显示菜单
+        x = button.winfo_rootx()
+        y = button.winfo_rooty() + button.winfo_height()
+        menu.post(x, y)
 
     # ========== 辅助函数 ==========
     
