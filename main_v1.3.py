@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.17.0"
+VERSION = "v1.18.0"
 
 import os
 import sys
@@ -2801,8 +2801,8 @@ class TGMassDM:
                     self.log(f"  ⏸️ [{account_name}] 等待被中断")
                     break
                 
-                # 每10秒显示一次，或最后5秒每秒显示
-                if remaining % 10 == 0 or remaining <= 5:
+                # 每60秒显示一次，或最后10秒每5秒显示，最后5秒每秒显示
+                if remaining % 60 == 0 or (remaining <= 10 and remaining % 5 == 0) or remaining <= 5:
                     minutes = remaining // 60
                     seconds = remaining % 60
                     if minutes > 0:
