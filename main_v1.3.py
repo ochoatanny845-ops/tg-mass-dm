@@ -199,9 +199,15 @@ class TGMassDM:
         ttk.Checkbutton(self.forward_msg_frame, text="隐藏来源（推荐）", 
                        variable=self.hide_source).pack(anchor=tk.W, pady=5)
         
+        # 保存左侧容器引用（用于切换）
+        self.messaging_left = left
+        
         # 目标用户
         target_frame = ttk.LabelFrame(left, text="👥 目标用户", padding="10")
         target_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # 保存目标框引用
+        self.target_frame = target_frame
         
         target_btn_frame = ttk.Frame(target_frame)
         target_btn_frame.pack(fill=tk.X, pady=(0, 5))
@@ -431,11 +437,11 @@ class TGMassDM:
         if self.send_type.get() == "text":
             # 显示文本框，隐藏转发框
             self.forward_msg_frame.pack_forget()
-            self.text_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_text.master)
+            self.text_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_frame)
         else:
             # 显示转发框，隐藏文本框
             self.text_msg_frame.pack_forget()
-            self.forward_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_text.master)
+            self.forward_msg_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10), before=self.target_frame)
     
     # ========== 账号管理功能 ==========
     
