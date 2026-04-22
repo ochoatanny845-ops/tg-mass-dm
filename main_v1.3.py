@@ -746,10 +746,10 @@ class TGMassDM:
             "you're free", "не ограничен", "все хорошо", "没有限制"
         ]
         
-        FROZEN_KEYWORDS = [
+        SPAM_KEYWORDS = [
             "account is now limited", "limited until", "temporarily limited",
-            "too many undelivered", "temporarily restricted",
-            "ограничен до", "временно ограничен", "暂时冻结"
+            "too many undelivered", "temporarily restricted", "spam",
+            "ограничен до", "временно ограничен", "临时垃圾邮件"
         ]
         
         BANNED_KEYWORDS = [
@@ -801,15 +801,15 @@ class TGMassDM:
                         
                         # 使用关键词库精准判断
                         is_normal = any(keyword.lower() in response for keyword in NORMAL_KEYWORDS)
-                        is_frozen = any(keyword.lower() in response for keyword in FROZEN_KEYWORDS)
+                        is_spam = any(keyword.lower() in response for keyword in SPAM_KEYWORDS)
                         is_banned = any(keyword.lower() in response for keyword in BANNED_KEYWORDS)
                         
                         if is_banned:
                             account["status"] = "🚫 永久封禁"
                             self.log(f"  🚫 永久封禁: {account['username']}")
-                        elif is_frozen:
-                            account["status"] = "⚠️ 临时冻结"
-                            self.log(f"  ⚠️ 临时冻结: {account['username']}")
+                        elif is_spam:
+                            account["status"] = "⚠️ 垃圾邮件限制"
+                            self.log(f"  ⚠️ 垃圾邮件限制: {account['username']}")
                         elif is_normal:
                             account["status"] = "✅ 正常"
                             self.log(f"  ✅ 正常: {account['username']}")
