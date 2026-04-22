@@ -827,7 +827,8 @@ class TGMassDM:
                         self.log(f"  ❌ 无法登录: {error_type}")
 
                     await client.disconnect()
-                    self.refresh_account_tree()  # 立即更新显示
+                    # 使用 after 在主线程更新界面
+                    self.root.after(0, self.refresh_account_tree)
                     continue
 
                 # 2. 向 @spambot 发送消息检测状态
@@ -862,17 +863,17 @@ class TGMassDM:
                             self.log(f"  ⚠️ 未知状态: {account['username']}")
                             self.log(f"     SpamBot 回复: {response[:200]}")
                         
-                        # 立即更新显示
-                        self.refresh_account_tree()
+                        # 使用 after 在主线程更新显示
+                        self.root.after(0, self.refresh_account_tree)
                     else:
                         account["status"] = "⚠️ 无回复"
                         self.log(f"  ⚠️ SpamBot 无回复")
-                        self.refresh_account_tree()  # 立即更新显示
+                        self.root.after(0, self.refresh_account_tree)
 
                 except Exception as e:
                     account["status"] = f"⚠️ 检测失败"
                     self.log(f"  ⚠️ SpamBot 检测失败: {type(e).__name__}")
-                    self.refresh_account_tree()  # 立即更新显示
+                    self.root.after(0, self.refresh_account_tree)
 
                 account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                 await client.disconnect()
@@ -880,24 +881,12 @@ class TGMassDM:
             except Exception as e:
                 account["status"] = f"❌ {type(e).__name__}"
                 self.log(f"  ❌ {type(e).__name__}")
-                self.refresh_account_tree()  # 立即更新显示
-
-            # 更新界面
-            item = self.account_tree.get_children()[i]
-            check = "✓" if account["selected"] else ""
-            self.account_tree.item(item, values=(
-                check,
-                Path(account["path"]).name,
-                account["username"],
-                account["phone"],
-                account["status"],
-                account["last_login"]
-            ))
+                self.root.after(0, self.refresh_account_tree)
 
             await asyncio.sleep(1)  # 每个账号间隔1秒
 
         self.log("✅ 账号检测完成")
-        self.update_account_stats()
+        self.root.after(0, self.update_account_stats)
 
     def delete_invalid(self):
         """删除失效账号(同步删除文件)"""
