@@ -957,7 +957,6 @@ class TGMassDM:
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
                         release_time = self.parse_limitation_time(response)
                         if release_time:
-                            from datetime import datetime
                             now = datetime.utcnow()
                             remaining = release_time - now
                             if remaining.total_seconds() > 0:
