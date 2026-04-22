@@ -144,6 +144,9 @@ class TGMassDM:
 
         # 显示自动加载的账号
         self.refresh_account_tree()
+        
+        # 更新选中数量和表头
+        self.update_selected_count()
 
     def set_initial_sash_position(self):
         """设置初始分割位置（延迟执行）"""
@@ -2058,9 +2061,15 @@ class TGMassDM:
         )
 
     def update_selected_count(self):
-        """更新已选账号数量"""
+        """更新已选账号数量和表头"""
         selected = sum(1 for acc in self.accounts if acc["selected"])
+        total = len(self.accounts)
+        
+        # 更新底部标签
         self.selected_count_label.config(text=f"✓ 已选择 {selected} 个账号")
+        
+        # 更新表头显示 选中/总数
+        self.account_tree.heading("选择", text=f"{selected}/{total}")
 
     # ========== 私信广告功能 ==========
 
