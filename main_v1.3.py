@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.24.0"
+VERSION = "v1.25.0"
 
 import os
 import sys
@@ -2891,13 +2891,17 @@ class TGMassDM:
 
             account_sent = 0
             account_failed_count = 0  # 记录连续失败次数
-            success_targets = []  # 记录发送成功的用户
             has_spam_restriction = False  # 是否有垃圾邮件限制
 
-            for target in self.targets[:]:  # 复制列表避免修改时出错
-                if not self.is_running:
-                    break
-
+            while self.is_running:
+                # 动态从共享列表中获取下一个目标（避免重复发送）
+                async with self.send_lock:
+                    if not self.targets or len(self.targets) == 0:
+                        self.log(f"  ✅ [{account_name}] 目标列表已空，完成发送")
+                        break
+                    
+                    target = self.targets.pop(0)  # 取出第一个目标并从列表删除
+                
                 if account_sent >= self.per_account_limit.get():
                     self.log(f"  ⚠️ [{account_name}] 达到单账号上限 ({self.per_account_limit.get()})")
                     break
@@ -3006,7 +3010,6 @@ class TGMassDM:
                         self.log(f"  ✅ [{account_name}] 发送成功: @{username} (msg_id: {sent_msg.id})")
 
                     account_sent += 1
-                    success_targets.append(target)  # 记录成功
                     account_failed_count = 0  # 重置失败计数（发送成功）
 
                     async with self.send_lock:
@@ -3016,6 +3019,9 @@ class TGMassDM:
                         
                         # 更新进度显示
                         self.root.after(0, self.update_progress)
+                        
+                        # 从 UI 目标列表中删除
+                        self.root.after(0, lambda: self.remove_successful_target(target))
 
                     self.log(f"  📊 [{account_name}] 总计: {current_total} 条")
 
@@ -3111,11 +3117,6 @@ class TGMassDM:
                         self.account_stats[account_name]["failed"] += 1
                         self.root.after(0, self.update_progress)
 
-            # 从目标列表中删除发送成功的用户
-            if success_targets:
-                self.remove_successful_targets(success_targets)
-                self.log(f"  🗑️ [{account_name}] 已从列表删除 {len(success_targets)} 个成功发送的用户")
-
             await client.disconnect()
             self.log(f"  📊 [{account_name}] 完成,本账号发送: {account_sent} 条")
 
@@ -3123,15 +3124,15 @@ class TGMassDM:
             self.log(f"  ❌ 账号错误: {type(e).__name__}")
             self.log(f"      详细: {str(e)}")
 
-    def remove_successful_targets(self, success_targets):
-        """从目标列表中删除成功发送的用户"""
+    def remove_successful_target(self, target):
+        """从目标列表中删除单个成功发送的用户"""
         try:
             # 获取当前列表
             current = self.target_text.get("1.0", tk.END).strip()
             lines = [line.strip() for line in current.split("\n") if line.strip()]
 
-            # 删除成功的
-            remaining = [line for line in lines if line not in success_targets]
+            # 删除该用户
+            remaining = [line for line in lines if line != target]
 
             # 更新显示
             self.target_text.delete("1.0", tk.END)
