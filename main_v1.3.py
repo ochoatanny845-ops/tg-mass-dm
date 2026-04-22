@@ -1589,7 +1589,12 @@ class TGMassDM:
                         
                         # 先获取 SpamBot 的信息
                         spambot = await client.get_entity("@spambot")
-                        await client(UnblockRequest(id=spambot.id, access_hash=spambot.access_hash))
+                        
+                        # 创建 InputUser 对象
+                        input_user = InputUser(user_id=spambot.id, access_hash=spambot.access_hash)
+                        
+                        # 调用取消拉黑API
+                        await client(UnblockRequest(id=input_user))
                         
                         self.log(f"  ✅ 已取消拉黑 SpamBot")
                         await asyncio.sleep(1)
