@@ -99,6 +99,10 @@ class UserScraper:
                     if self.stop_flag or (ui_callbacks and not ui_callbacks.get("is_running", lambda: True)()):
                         break
                     
+                    # 更新进度
+                    if ui_callbacks and "update_progress" in ui_callbacks:
+                        ui_callbacks["update_progress"](i, len(targets))
+                    
                     account = accounts[i % len(accounts)]
                     future = executor.submit(
                         self._scrape_single_target_sync,
@@ -112,6 +116,7 @@ class UserScraper:
                     tasks.append(future)
             
             # 等待所有任务完成
+            completed = 0
             for future in tasks:
                 if self.stop_flag or (ui_callbacks and not ui_callbacks.get("is_running", lambda: True)()):
                     break
@@ -119,8 +124,19 @@ class UserScraper:
                     users = future.result()
                     if users:
                         collected_count += len(users)
+                    completed += 1
+                    
+                    # 更新进度
+                    if ui_callbacks and "update_progress" in ui_callbacks:
+                        ui_callbacks["update_progress"](completed, len(tasks))
+                        
                 except Exception as e:
                     self.log(f"❌ 任务失败: {str(e)[:50]}")
+                    completed += 1
+                    
+                    # 更新进度（即使失败也更新）
+                    if ui_callbacks and "update_progress" in ui_callbacks:
+                        ui_callbacks["update_progress"](completed, len(tasks))
             
             executor.shutdown(wait=True)
             

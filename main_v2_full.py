@@ -206,6 +206,12 @@ class TGMassDM:
                                    command=self.stop_task, state=tk.DISABLED)
         self.stop_btn.pack(side=tk.LEFT, padx=5)
 
+        # 采集进度标签（仅采集页面显示）
+        self.scrape_progress_label = ttk.Label(control_frame, text="", 
+                                               font=("微软雅黑", 11),
+                                               foreground="blue")
+        # 默认隐藏
+        
         # 进度显示(在按钮右侧,使用 Frame 包含三个 Label)
         # 默认隐藏，只在私信广告页面显示
         progress_container = ttk.Frame(control_frame)
@@ -270,9 +276,22 @@ class TGMassDM:
         if current_tab == 1:  # 私信广告页面
             if not self.progress_container.winfo_ismapped():
                 self.progress_container.pack(side=tk.LEFT, padx=20)
+            # 隐藏采集进度
+            if self.scrape_progress_label.winfo_ismapped():
+                self.scrape_progress_label.pack_forget()
+        elif current_tab == 2:  # 采集用户页面
+            # 隐藏私信进度
+            if self.progress_container.winfo_ismapped():
+                self.progress_container.pack_forget()
+            # 显示采集进度（如果有）
+            if hasattr(self, 'is_scraping') and self.is_scraping:
+                if not self.scrape_progress_label.winfo_ismapped():
+                    self.scrape_progress_label.pack(side=tk.LEFT, padx=20)
         else:  # 其他页面
             if self.progress_container.winfo_ismapped():
                 self.progress_container.pack_forget()
+            if self.scrape_progress_label.winfo_ismapped():
+                self.scrape_progress_label.pack_forget()
 
         # 根据标签页显示/隐藏开始停止按钮
         if current_tab == 3:  # 代理管理页面 - 隐藏按钮
@@ -1004,8 +1023,10 @@ class TGMassDM:
                   command=self.deselect_all_collected).pack(side=tk.LEFT, padx=2)
         ttk.Button(action_frame, text="📤 导出到私信广告", width=18,
                   command=self.export_to_messaging).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="💾 保存为文件", width=15,
+        ttk.Button(action_frame, text="💾 保存为JSON", width=15,
                   command=self.save_collected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(action_frame, text="📄 导出TXT", width=12,
+                  command=self.export_usernames_txt).pack(side=tk.LEFT, padx=2)
 
         self.collected_stats = ttk.Label(action_frame, text="已采集 0 个用户,已选 0 个",
                                          font=("微软雅黑", 9))
@@ -3083,6 +3104,33 @@ class TGMassDM:
 
         except Exception as e:
             messagebox.showerror("错误", f"保存失败: {str(e)}")
+    
+    def export_usernames_txt(self):
+        """导出用户名到TXT（仅用户名，不含昵称）"""
+        if not self.collected_users:
+            messagebox.showwarning("提示", "没有采集结果可导出")
+            return
+        
+        filename = filedialog.asksaveasfilename(
+            title="导出用户名列表",
+            defaultextension=".txt",
+            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")],
+            initialfile="usernames.txt"
+        )
+        
+        if not filename:
+            return
+        
+        try:
+            with open(filename, "w", encoding="utf-8") as f:
+                for user in self.collected_users:
+                    f.write(f"{user['username']}\n")
+            
+            self.log(f"📄 已导出 {len(self.collected_users)} 个用户名到 TXT")
+            messagebox.showinfo("成功", f"已导出 {len(self.collected_users)} 个用户名")
+        
+        except Exception as e:
+            messagebox.showerror("错误", f"导出失败: {str(e)}")
 
     def update_collected_stats(self):
         """更新采集统计"""
@@ -3432,17 +3480,33 @@ class TGMassDM:
         self.start_btn.config(state=tk.DISABLED)
         self.stop_btn.config(state=tk.NORMAL)
         self.is_running = True
+        self.is_scraping = True  # 标记正在采集
 
         self.log("🚀 开始采集任务...")
         self.log(f"📊 使用 {len(selected_accounts)} 个账号")
         self.log(f"🎯 采集来源: {source_text}")
         self.log(f"⚙️ 模式: {mode_text}")
         self.log(f"🔀 并发: {self.scrape_threads.get()} 线程")
+        
+        # 显示采集进度
+        self.update_scrape_progress(0, len(targets))
+        if not self.scrape_progress_label.winfo_ismapped():
+            self.scrape_progress_label.pack(side=tk.LEFT, padx=20)
 
         # 在新线程中运行
         thread = threading.Thread(target=self.run_scraping_task,
                                   args=(selected_accounts, targets, source))
         thread.start()
+    
+    def update_scrape_progress(self, current, total):
+        """更新采集进度"""
+        if total > 0:
+            percentage = int((current / total) * 100)
+            text = f"📊 采集进度: {current}/{total} ({percentage}%)"
+        else:
+            text = ""
+        
+        self.scrape_progress_label.config(text=text)
 
     def run_scraping_task(self, accounts, targets, source):
         """运行采集任务"""
@@ -3479,7 +3543,8 @@ class TGMassDM:
                     u["name"],
                     u["source"]
                 )),
-                "is_running": lambda: self.is_running
+                "is_running": lambda: self.is_running,
+                "update_progress": lambda current, total: self.update_scrape_progress(current, total)
             }
             
             # 调用完整模块采集
@@ -3500,6 +3565,11 @@ class TGMassDM:
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
+        self.is_scraping = False
+        
+        # 隐藏采集进度
+        if self.scrape_progress_label.winfo_ismapped():
+            self.scrape_progress_label.pack_forget()
 
 
 
