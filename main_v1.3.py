@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.37.0"
+VERSION = "v1.38.0"
 
 import os
 import sys
@@ -1253,7 +1253,19 @@ class TGMassDM:
             "temporary": ["⚠️ 临时限制", "temporary"],
             "banned": ["🚫 封禁", "banned"],
             "unchecked": ["", None, "未检测"],
-            "unknown": ["⚠️ 检测失败", "⚠️ 重复登录", "⚠️ 登录失败", "⚠️ 其他错误"]
+            "unknown": [
+                "⚠️ 未知状态", 
+                "⚠️ 检测失败", 
+                "⚠️ 重复登录", 
+                "⚠️ 登录失败", 
+                "⚠️ 其他错误", 
+                "⚠️ 无回复",
+                "⚠️ 文件不存在",
+                "⚠️ 文件损坏",
+                "⚠️ 转换失败",
+                "⚠️ 转换后仍失败",
+                "⚠️ 客户端创建失败"
+            ]
         }
         
         if status_filter not in status_map:
