@@ -233,9 +233,9 @@ class TelegramWebLogin:
             if not driver:
                 raise Exception("所有启动方式都失败了")
             
-            # 打开Telegram Web
-            self.log("📱 正在打开 Telegram Web...")
-            driver.get("https://web.telegram.org/a/")
+            # 打开Telegram Web K版（使用localStorage，支持session注入）
+            self.log("📱 正在打开 Telegram Web K版...")
+            driver.get("https://web.telegram.org/k/")
             time.sleep(2)
             
             # 注入Telegram Web localStorage（真实格式）
