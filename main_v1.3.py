@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.51.0"
+VERSION = "v1.51.1"
 
 import os
 import sys
@@ -313,8 +313,13 @@ class TGMassDM:
             # 提取姓名（first_name）
             first_name = acc.get("first_name", "-")
             
-            # 代理状态（暂未实现，统一显示"直连"）
-            proxy_display = "直连"
+            # 代理状态（显示实际使用的代理）
+            proxy_used = acc.get("proxy_used", "")
+            if proxy_used:
+                # 截取代理地址前50个字符
+                proxy_display = proxy_used[:50] + "..." if len(proxy_used) > 50 else proxy_used
+            else:
+                proxy_display = "直连"
             
             # 2FA 状态（直接显示值）
             twofa_display = acc.get("2fa", "")
@@ -1905,6 +1910,7 @@ class TGMassDM:
             connection_type = None
             proxy_retry_count = 0
             max_proxy_retries = 3
+            proxy_used = None  # 记录使用的代理
             
             while proxy_retry_count < max_proxy_retries:
                 try:
@@ -1914,7 +1920,17 @@ class TGMassDM:
                         import random
                         proxy = random.choice(available_proxies)
                         proxy_config, connection_type = self.parse_proxy_for_telethon(proxy["proxy"])
+                        proxy_used = proxy["proxy"]  # 记录使用的代理
                         self.log(f"{log_prefix} {phone_number} - 🌐 使用代理: {proxy['proxy'][:60]}...")
+                    else:
+                        proxy_used = None  # 没有可用代理
+                        if self.proxies:
+                            # 有代理但都不可用或未选中
+                            total_proxies = len(self.proxies)
+                            available_count = sum(1 for p in self.proxies if p["status"] == "可用")
+                            selected_count = sum(1 for p in self.proxies if p["selected"])
+                            available_selected = sum(1 for p in self.proxies if p["status"] == "可用" and p["selected"])
+                            self.log(f"{log_prefix} {phone_number} - ⚠️ 无可用代理（总计:{total_proxies} 可用:{available_count} 已选:{selected_count} 可用且已选:{available_selected}）")
                     
                     # 创建客户端（带或不带代理）
                     if proxy_config:
@@ -2012,6 +2028,9 @@ class TGMassDM:
                     account["first_name"] = full_name
                 else:
                     account["first_name"] = "-"
+                
+                # 记录使用的代理
+                account["proxy_used"] = proxy_used if proxy_used else ""
 
             except Exception as e:
                 error_type = type(e).__name__
