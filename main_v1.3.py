@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.58.1"
+VERSION = "v1.59.0"
 
 import os
 import sys
@@ -1209,15 +1209,40 @@ class TGMassDM:
             self.log(f"⚠️ 加载账号失败: {str(e)}")
 
     def refresh_accounts(self):
-        """刷新账号列表(重新扫描 accounts 文件夹)"""
+        """刷新账号列表(重新扫描 accounts 文件夹,保留已检测的状态)"""
         try:
             self.log("🔄 刷新账号列表...")
+
+            # 保存当前账号的状态（以手机号为键）
+            old_status = {}
+            for acc in self.accounts:
+                phone = Path(acc['path']).stem
+                old_status[phone] = {
+                    'status': acc.get('status', '未检测'),
+                    'username': acc.get('username', '-'),
+                    'first_name': acc.get('first_name', '-'),
+                    'proxy_used': acc.get('proxy_used', ''),
+                }
 
             # 清空现有账号
             self.accounts.clear()
 
-            # 重新加载
+            # 重新加载文件
             self.load_accounts()
+
+            # 恢复之前的状态
+            for acc in self.accounts:
+                phone = Path(acc['path']).stem
+                if phone in old_status:
+                    # 如果之前有状态，恢复它
+                    acc['status'] = old_status[phone]['status']
+                    # 如果之前有用户名/姓名，也恢复
+                    if old_status[phone]['username'] != '-':
+                        acc['username'] = old_status[phone]['username']
+                    if old_status[phone]['first_name'] != '-':
+                        acc['first_name'] = old_status[phone]['first_name']
+                    if old_status[phone]['proxy_used']:
+                        acc['proxy_used'] = old_status[phone]['proxy_used']
 
             # 刷新显示
             self.refresh_account_tree()
