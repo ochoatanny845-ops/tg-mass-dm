@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.63.1"
+VERSION = "v1.64.0"
 
 import os
 import sys
@@ -3627,14 +3627,39 @@ class TGMassDM:
                         # 注意:{firstname} 变量需要获取用户信息,可能导致 Constructor ID 错误
                         # 如果消息模板包含 {firstname},建议改用 {username}
 
-                        # 如果启用随机emoji,添加到消息
+                        # 如果启用随机emoji,添加到消息（只对文本消息有效）
                         if self.random_emoji.get():
-                            emoji = random.choice(RANDOM_EMOJIS)
-                            # 随机决定emoji放在前面还是后面
-                            if random.choice([True, False]):
-                                message = f"{emoji}{message}"
+                            # 随机选择添加 1 个或 2 个emoji
+                            emoji_count = random.choice([1, 2])
+                            
+                            if emoji_count == 1:
+                                # 添加 1 个emoji，随机放在前面或后面
+                                emoji = random.choice(RANDOM_EMOJIS)
+                                if random.choice([True, False]):
+                                    message = f"{emoji}{message}"
+                                else:
+                                    message = f"{message}{emoji}"
                             else:
-                                message = f"{message}{emoji}"
+                                # 添加 2 个emoji
+                                emoji1 = random.choice(RANDOM_EMOJIS)
+                                emoji2 = random.choice(RANDOM_EMOJIS)
+                                # 确保两个emoji不同
+                                while emoji2 == emoji1 and len(RANDOM_EMOJIS) > 1:
+                                    emoji2 = random.choice(RANDOM_EMOJIS)
+                                
+                                # 随机决定两个emoji的位置分布
+                                position = random.choice([
+                                    "both_front",   # 两个都在前面：🌵🦥你好
+                                    "both_back",    # 两个都在后面：你好🌵🦥
+                                    "front_back"    # 前后各一个：🌵你好🦥
+                                ])
+                                
+                                if position == "both_front":
+                                    message = f"{emoji1}{emoji2}{message}"
+                                elif position == "both_back":
+                                    message = f"{message}{emoji1}{emoji2}"
+                                else:  # front_back
+                                    message = f"{emoji1}{message}{emoji2}"
 
                         # 直接发送文本消息(不获取用户信息,避免 Constructor ID 错误)
                         sent_msg = await client.send_message(username, message)
