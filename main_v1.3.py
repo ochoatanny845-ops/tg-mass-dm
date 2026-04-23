@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.47.0"
+VERSION = "v1.47.1"
 
 import os
 import sys
@@ -105,6 +105,11 @@ class TGMassDM:
                        relief='raised',
                        borderwidth=2,
                        padding=6)
+        
+        # 设置代理管理按钮样式（居中）
+        style.configure('Proxy.TButton',
+                       anchor='center',
+                       justify='center')
 
         # 创建四个功能标签页
         self.setup_tab_accounts()
@@ -847,15 +852,15 @@ class TGMassDM:
         action_frame = ttk.LabelFrame(left, text="⚙️ 批量操作", padding="10")
         action_frame.pack(fill=tk.X, pady=(10, 0))
 
-        ttk.Button(action_frame, text="🔍 检测所有代理",
+        ttk.Button(action_frame, text="🔍 检测所有代理", style='Proxy.TButton',
                   command=self.check_all_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="✅ 选中可用代理",
+        ttk.Button(action_frame, text="✅ 选中可用代理", style='Proxy.TButton',
                   command=self.select_available_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="🗑️ 删除不可用代理",
+        ttk.Button(action_frame, text="🗑️ 删除不可用代理", style='Proxy.TButton',
                   command=self.delete_unavailable_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="🧹 清空所有代理",
+        ttk.Button(action_frame, text="🧹 清空所有代理", style='Proxy.TButton',
                   command=self.clear_all_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="💾 导出可用代理",
+        ttk.Button(action_frame, text="💾 导出可用代理", style='Proxy.TButton',
                   command=self.export_available_proxies).pack(fill=tk.X, pady=2)
 
         # ========== 右侧:代理列表 ==========
