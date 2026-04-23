@@ -233,9 +233,9 @@ class TelegramWebLogin:
             if not driver:
                 raise Exception("所有启动方式都失败了")
             
-            # 打开Telegram Web K版（使用localStorage，支持session注入）
-            self.log("📱 正在打开 Telegram Web K版...")
-            driver.get("https://web.telegram.org/k/")
+            # 打开Telegram Web A版（Chrome扩展验证过的版本）
+            self.log("📱 正在打开 Telegram Web A版...")
+            driver.get("https://web.telegram.org/a/")
             time.sleep(2)
             
             # 注入Telegram Web localStorage（真实格式）
@@ -247,15 +247,18 @@ class TelegramWebLogin:
             user_id = session_data['user_id']
             server_salt = session_data['server_salt']
             
-            # 使用真实的localStorage格式（从已登录的Telegram Web获取）
-            script = f"""
-            // 不清空！直接覆盖当前DC的数据
+            # 生成随机server_salt（如果没有）
+            if not server_salt or server_salt == "0" * 16:
+                import random
+                server_salt = ''.join(random.choice('0123456789abcdef') for _ in range(16))
             
-            // 核心认证数据（Telegram Web真实格式）
+            # 使用真实的localStorage格式（从Chrome扩展学习到的正确格式）
+            script = f"""
+            // 核心认证数据（auth_key和server_salt需要用引号包裹！）
             localStorage.setItem('dc', '{dc_id}');
-            localStorage.setItem('dc{dc_id}_auth_key', '{auth_key_hex}');
-            localStorage.setItem('dc{dc_id}_server_salt', '{server_salt}');
-            localStorage.setItem('auth_key_fingerprint', '{fingerprint}');
+            localStorage.setItem('dc{dc_id}_auth_key', '"{auth_key_hex}"');
+            localStorage.setItem('dc{dc_id}_server_salt', '"{server_salt}"');
+            localStorage.setItem('auth_key_fingerprint', '"{fingerprint}"');
             
             // 用户认证信息
             const userAuth = {{
@@ -264,12 +267,30 @@ class TelegramWebLogin:
             }};
             localStorage.setItem('user_auth', JSON.stringify(userAuth));
             
-            // 其他必要字段
-            localStorage.setItem('k_build', '626');
-            localStorage.setItem('kz_version', 'K');
-            localStorage.setItem('number_of_accounts', '0');
+            // 其他必要字段（参考Chrome扩展的完整注入）
+            localStorage.setItem('k_build', '589');
+            localStorage.setItem('kz_version', '\"K\"');
+            localStorage.setItem('number_of_accounts', '1');
+            localStorage.setItem('server_time_offset', '0');
+            localStorage.setItem('tt-multitab_1', '1');
+            localStorage.setItem('loglevel', 'SILENT');
             
-            console.log('[TG-Login] Injected auth data: DC{dc_id}, User {user_id}');
+            // state_id和xt_instance
+            const stateId = Math.floor(Math.random() * 0xFFFFFFFF) >>> 0;
+            localStorage.setItem('state_id', stateId.toString());
+            localStorage.setItem('xt_instance', JSON.stringify({{
+                id: Math.floor(Math.random() * 1e8),
+                idle: false,
+                time: Date.now()
+            }}));
+            
+            // tgme_sync
+            localStorage.setItem('tgme_sync', JSON.stringify({{
+                canRedirect: true,
+                ts: Math.floor(Date.now() / 1000)
+            }}));
+            
+            console.log('[TG-Login] Session injected: DC{dc_id}, User {user_id}');
             """
             driver.execute_script(script)
             

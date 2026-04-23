@@ -1,0 +1,29 @@
+{
+    "manifest_version": 3,
+    "name": "Telegram Session Injector",
+    "version": "1.0",
+    "description": "Import Telegram session from .session files to Telegram Web",
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self'"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_title": "Telegram Session Injector"
+    },
+    "content_scripts": [{
+        "matches": [
+            "https://web.telegram.org/*"
+        ],
+        "js": ["content.js"],
+        "run_at": "document_idle"
+    }],
+    "web_accessible_resources": [{
+        "resources": ["sql-wasm.wasm", "sql.js"],
+        "matches": ["<all_urls>"]
+    }]
+}
