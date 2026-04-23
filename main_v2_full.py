@@ -2544,12 +2544,19 @@ class TGMassDM:
                 pass  # 忽略断开连接时的错误
 
     async def check_accounts_async(self, accounts):
-        """并发批量检测账号"""
+        """并发批量检测账号（使用Semaphore防止SQLite锁定）"""
         concurrent = self.check_concurrent.get()  # 并发数量
         batch_delay = self.check_batch_delay.get()  # 批次间隔
         total = len(accounts)
 
         self.log(f"📊 并发配置: 每批 {concurrent} 个账号,批次间隔 {batch_delay} 秒")
+        
+        # 创建信号量：限制同时connect的Client数量（防止SQLite锁定）
+        # 设置为批次大小的一半，确保安全
+        max_concurrent_connections = max(3, concurrent // 2)
+        semaphore = asyncio.Semaphore(max_concurrent_connections)
+        
+        self.log(f"🔒 SQLite保护: 最多 {max_concurrent_connections} 个账号同时连接")
 
         # 分批处理
         for i in range(0, total, concurrent):
@@ -2564,7 +2571,7 @@ class TGMassDM:
 
             self.log(f"🔄 批次 {batch_num}/{total_batches}: 检测 {len(batch)} 个账号...")
 
-            # 并发检测一批（每个账号带超时保护）
+            # 并发检测一批（每个账号带超时保护 + Semaphore限流）
             async def check_with_timeout(acc, idx, total):
                 try:
                     # 定期检查停止标志
@@ -2574,8 +2581,14 @@ class TGMassDM:
                                 raise asyncio.CancelledError("用户停止")
                             await asyncio.sleep(0.1)
                     
+                    # 包装检测函数，使用Semaphore限制并发
+                    async def check_with_semaphore():
+                        async with semaphore:
+                            # 只有获得信号量后才执行（防止SQLite并发锁定）
+                            return await self.check_single_account(acc, idx, total)
+                    
                     # 同时运行检测和停止检查
-                    check_task = asyncio.create_task(self.check_single_account(acc, idx, total))
+                    check_task = asyncio.create_task(check_with_semaphore())
                     cancel_task = asyncio.create_task(check_cancelable())
                     
                     done, pending = await asyncio.wait(
