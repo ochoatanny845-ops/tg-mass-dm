@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.61.1"
+VERSION = "v1.62.0"
 
 import os
 import sys
@@ -683,6 +683,11 @@ class TGMassDM:
         ttk.Spinbox(limit_frame, from_=1, to=100000, textvariable=self.total_limit,
                    width=8).grid(row=1, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
 
+        ttk.Label(limit_frame, text="无视双向限制:").grid(row=2, column=0, sticky=tk.W, pady=3)
+        self.ignore_privacy_limit = tk.IntVar(value=10)
+        ttk.Spinbox(limit_frame, from_=1, to=100, textvariable=self.ignore_privacy_limit,
+                   width=8).grid(row=2, column=1, sticky=tk.EW, padx=(10, 0), pady=3)
+
         limit_frame.columnconfigure(1, weight=1)
 
         # 第二行:发送间隔 + 其他选项
@@ -1033,6 +1038,7 @@ class TGMassDM:
                 "thread_interval": self.thread_interval.get(),
                 "per_account_limit": self.per_account_limit.get(),
                 "total_limit": self.total_limit.get(),
+                "ignore_privacy_limit": self.ignore_privacy_limit.get(),
                 "interval_min": self.interval_min.get(),
                 "interval_max": self.interval_max.get(),
                 "send_type": self.send_type.get(),
@@ -1082,6 +1088,7 @@ class TGMassDM:
             self.thread_interval.set(config.get("thread_interval", 1))
             self.per_account_limit.set(config.get("per_account_limit", 50))
             self.total_limit.set(config.get("total_limit", 1000))
+            self.ignore_privacy_limit.set(config.get("ignore_privacy_limit", 10))
             self.interval_min.set(config.get("interval_min", 3))
             self.interval_max.set(config.get("interval_max", 8))
             self.send_type.set(config.get("send_type", "text"))
@@ -3613,8 +3620,10 @@ class TGMassDM:
 
                     # 检测是否是双向限制(连续多个用户失败)
                     account_failed_count += 1
-                    if account_failed_count >= 3:
-                        self.log(f"  ⚠️ [{account_name}] 连续失败3次,可能遇到双向限制")
+                    ignore_limit = self.ignore_privacy_limit.get()
+                    
+                    if account_failed_count >= ignore_limit:
+                        self.log(f"  ⚠️ [{account_name}] 连续失败{ignore_limit}次,可能遇到双向限制")
                         # 检查 SpamBot
                         has_restriction = await self.check_spambot_status(client, account_name)
                         if has_restriction:
