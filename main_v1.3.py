@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.56.0"
+VERSION = "v1.56.1"
 
 import os
 import sys
@@ -234,9 +234,9 @@ class TGMassDM:
         else:  # 其他页面 - 显示按钮
             # 检查按钮是否已经显示
             if not self.start_btn.winfo_ismapped():
-                # 重新打包按钮(放在 progress_container 之前)
-                self.start_btn.pack(side=tk.LEFT, padx=5, before=self.progress_total_label.master)
-                self.stop_btn.pack(side=tk.LEFT, padx=5, after=self.start_btn)
+                # 重新打包按钮（直接 pack，不指定 before）
+                self.start_btn.pack(side=tk.LEFT, padx=5)
+                self.stop_btn.pack(side=tk.LEFT, padx=5)
 
         if current_tab == 1:  # 私信广告页面
             # 延迟设置布局
