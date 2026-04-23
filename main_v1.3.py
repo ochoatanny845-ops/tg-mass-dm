@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.43.0"
+VERSION = "v1.44.0"
 
 import os
 import sys
@@ -1264,9 +1264,7 @@ class TGMassDM:
                 "⚠️ 文件损坏",
                 "⚠️ 转换失败",
                 "⚠️ 转换后仍失败",
-                "⚠️ 客户端创建失败",
-                "⚠️ 需要 Premium",
-                "⚠️ 需要绑定支付"
+                "⚠️ 客户端创建失败"
             ]
         }
         
@@ -3222,43 +3220,25 @@ class TGMassDM:
                     error_type = type(e).__name__
                     consecutive_fails += 1
 
-                    # 检测 Premium 限制
+                    # 检测 Premium 限制（跳过该用户，继续下一个）
                     if "privacy_premium_required" in error_str:
-                        self.log(f"  ⚠️ [{account_name}] 账号受限: 需要 Premium 会员才能发消息")
-                        account["status"] = "⚠️ 需要 Premium"
-                        account["selected"] = False
-                        
-                        # 保存并刷新
-                        self.save_accounts()
-                        def update_tree():
-                            self.refresh_account_tree()
-                            self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
-                        self.root.after(100, update_tree)
-                        
+                        self.log(f"  ⚠️ [{account_name}] 目标用户需要 Premium: @{username} - 跳过")
+                        consecutive_fails -= 1  # 不计入连续失败
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        break  # 停止使用该账号
+                        continue  # 跳过该用户，继续下一个
                     
-                    # 检测支付方式限制
+                    # 检测支付方式限制（跳过该用户，继续下一个）
                     if "allow_payment_required" in error_str:
-                        self.log(f"  ⚠️ [{account_name}] 账号受限: 需要绑定支付方式才能发消息")
-                        account["status"] = "⚠️ 需要绑定支付"
-                        account["selected"] = False
-                        
-                        # 保存并刷新
-                        self.save_accounts()
-                        def update_tree():
-                            self.refresh_account_tree()
-                            self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
-                        self.root.after(100, update_tree)
-                        
+                        self.log(f"  ⚠️ [{account_name}] 目标用户需要绑定支付: @{username} - 跳过")
+                        consecutive_fails -= 1  # 不计入连续失败
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        break  # 停止使用该账号
+                        continue  # 跳过该用户，继续下一个
                     
                     # 检测账号封禁错误
                     if "key is not registered" in error_str or "authkeyunregistered" in error_str:
