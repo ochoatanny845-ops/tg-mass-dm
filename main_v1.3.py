@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.30.0"
+VERSION = "v1.31.0"
 
 import os
 import sys
@@ -3135,6 +3135,10 @@ class TGMassDM:
                     self.log(f"      此账号无法使用，已自动停止")
                     account["status"] = "🚫 已封禁"
                     account["selected"] = False  # 自动取消选择
+                    
+                    # 实时更新账号列表显示
+                    self.root.after(0, self.refresh_account_tree)
+                    
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3151,6 +3155,10 @@ class TGMassDM:
                         self.log(f"      此账号无法使用，已自动停止")
                         account["status"] = "🚫 已封禁"
                         account["selected"] = False  # 自动取消选择
+                        
+                        # 实时更新账号列表显示
+                        self.root.after(0, self.refresh_account_tree)
+                        
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
