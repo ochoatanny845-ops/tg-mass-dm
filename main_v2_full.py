@@ -3490,7 +3490,7 @@ class TGMassDM:
             # 更新采集结果
             if users:
                 self.collected_users.extend(users)
-                self.save_collected_users()
+                self.save_collected()
             
             self.update_collected_stats()
 
