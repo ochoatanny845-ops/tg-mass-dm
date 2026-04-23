@@ -3259,8 +3259,8 @@ class TGMassDM:
                 "send_type": send_type,
                 "thread_count": self.thread_count.get(),
                 "thread_interval": self.thread_interval.get(),
-                "send_delay_min": self.send_delay_min.get(),
-                "send_delay_max": self.send_delay_max.get(),
+                "send_delay_min": self.interval_min.get(),
+                "send_delay_max": self.interval_max.get(),
                 "per_account_limit": self.per_account_limit.get(),
                 "total_limit": self.total_limit.get()
             }
