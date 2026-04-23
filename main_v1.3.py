@@ -4,7 +4,11 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.65.0"
+VERSION = "v1.66.0"
+
+# 隐私保护说明：
+# 代理信息不会保存到 JSON 文件中
+# 只在程序运行时使用，导出的账号不包含代理配置
 
 import os
 import sys
@@ -1244,15 +1248,10 @@ class TGMassDM:
                         full_name = f"{first_name} {last_name}".strip() if last_name else first_name
                         account["first_name"] = full_name
 
-                    # 提取代理信息
-                    proxy = json_data.get('proxy')
-                    if proxy:
-                        # 确保 proxy 是字符串类型
-                        proxy_str = str(proxy) if proxy is not None else ""
-                        account["proxy"] = proxy_str
-                        account["proxy_used"] = proxy_str
-                    else:
-                        account["proxy_used"] = ""
+                    # 不从 JSON 读取代理信息（隐私保护）
+                    # 代理信息只在程序运行时通过其他方式配置
+                    # JSON 文件中不保存代理地址
+                    account["proxy_used"] = ""
 
                     # 提取 2FA 状态(检测 twoFA 和 passwordFA)
                     twofa = json_data.get('twoFA')
@@ -1406,11 +1405,8 @@ class TGMassDM:
                         full_name = f"{first_name} {last_name}".strip() if last_name else first_name
                         account["first_name"] = full_name
 
-                    # 提取代理信息
-                    proxy = json_data.get('proxy')
-                    if proxy:
-                        # 确保 proxy 是字符串类型
-                        account["proxy"] = str(proxy) if proxy is not None else "直连"
+                    # 不从 JSON 读取代理信息（隐私保护）
+                    # 导入的账号默认不使用代理
 
                     # 提取 2FA 状态(检测 twoFA 和 passwordFA)
                     twofa = json_data.get('twoFA')
@@ -2454,12 +2450,11 @@ class TGMassDM:
                     if account["phone"] and account["phone"] != "-":
                         json_data["phone"] = account["phone"]
 
-                    # 更新代理信息
-                    proxy_used = account.get("proxy_used", "")
-                    if proxy_used:
-                        json_data["proxy"] = proxy_used
-                    else:
-                        json_data["proxy"] = ""
+                    # 不保存代理信息到 JSON 文件（隐私保护）
+                    # 代理信息只在程序内存中使用
+                    # 移除 proxy 字段（如果存在）
+                    if "proxy" in json_data:
+                        del json_data["proxy"]
 
                     # 更新状态(映射到 spamblock 字段)
                     status = account.get("status", "")
