@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.46.0"
+VERSION = "v1.46.1"
 
 import os
 import sys
@@ -785,7 +785,7 @@ class TGMassDM:
 
         # 导入代理
         import_frame = ttk.LabelFrame(left, text="📥 导入代理", padding="10")
-        import_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        import_frame.pack(fill=tk.X, pady=(0, 10))  # 不使用 expand=True
 
         ttk.Label(import_frame, text="支持格式:").pack(anchor=tk.W)
         ttk.Label(import_frame, text="• http://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
@@ -793,11 +793,11 @@ class TGMassDM:
         ttk.Label(import_frame, text="• socks5://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
         ttk.Label(import_frame, text="• socks5://user:pass@ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
 
-        self.proxy_input = scrolledtext.ScrolledText(import_frame, height=10, font=("Consolas", 9))
-        self.proxy_input.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+        self.proxy_input = scrolledtext.ScrolledText(import_frame, height=6, font=("Consolas", 9))  # 减小高度
+        self.proxy_input.pack(fill=tk.BOTH, pady=(5, 0))  # 不使用 expand=True
 
         btn_frame1 = ttk.Frame(import_frame)
-        btn_frame1.pack(fill=tk.X, pady=(10, 0))
+        btn_frame1.pack(fill=tk.X, pady=(5, 0))  # 减小间距
         ttk.Button(btn_frame1, text="📂 从文件导入", width=15,
                   command=self.import_proxy_file).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame1, text="➕ 添加到列表", width=15,
@@ -807,7 +807,7 @@ class TGMassDM:
 
         # 批量操作
         action_frame = ttk.LabelFrame(left, text="⚙️ 批量操作", padding="10")
-        action_frame.pack(fill=tk.X)
+        action_frame.pack(fill=tk.X, pady=(10, 0))  # 添加上边距
 
         ttk.Button(action_frame, text="🔍 检测所有代理", width=20,
                   command=self.check_all_proxies).pack(fill=tk.X, pady=2)
