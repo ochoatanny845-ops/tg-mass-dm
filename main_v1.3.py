@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.64.1"
+VERSION = "v1.65.0"
 
 import os
 import sys
@@ -423,10 +423,10 @@ class TGMassDM:
             # 提取姓名(first_name)
             first_name = acc.get("first_name", "-")
 
-            # 代理状态（显示实际使用的代理，账号密码打码）
+            # 代理状态（简化显示：使用代理/直连）
             proxy_used = acc.get("proxy_used", "")
-            if proxy_used:
-                proxy_display = self.mask_proxy(proxy_used)
+            if proxy_used and proxy_used not in ["", "直连", "False", "false"]:
+                proxy_display = "使用代理"
             else:
                 proxy_display = "直连"
 
