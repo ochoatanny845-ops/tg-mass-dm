@@ -252,7 +252,7 @@ class UserScraper:
         return users_collected
     
     async def _scrape_from_messages(self, client, entity, target, config, ui_callbacks):
-        """通过聊天记录采集（完整版）"""
+        """通过聊天记录采集（完整版）- 按时间范围"""
         users_collected = []
         user_ids = set()
         
@@ -270,13 +270,34 @@ class UserScraper:
         }
         
         try:
-            self.log(f"    📨 获取聊天记录...")
+            # 获取时间范围（从在线时间过滤获取天数，如果没开启则默认7天）
+            if config.get("filter_online_time", False):
+                days = config.get("online_days", 3)
+            else:
+                days = 7  # 默认获取7天的消息
             
-            # 获取最近的消息（最多3000条）
-            messages = await client.get_messages(entity, limit=3000)
+            from datetime import datetime, timedelta
+            cutoff_time = datetime.now() - timedelta(days=days)
+            
+            self.log(f"    📨 获取最近 {days} 天的聊天记录...")
+            
+            # 按时间范围获取所有消息（不限数量）
+            messages = []
+            async for msg in client.iter_messages(entity, offset_date=cutoff_time):
+                messages.append(msg)
+                
+                # 显示进度（每1000条）
+                if len(messages) % 1000 == 0:
+                    self.log(f"       已获取 {len(messages)} 条消息...")
+                
+                # 安全上限：最多50000条消息
+                if len(messages) >= 50000:
+                    self.log(f"       达到消息上限 (50000 条)，停止获取")
+                    break
+            
             filter_stats["total_messages"] = len(messages)
             
-            self.log(f"    📊 分析 {len(messages)} 条消息")
+            self.log(f"    📊 分析 {len(messages)} 条消息（最近 {days} 天）")
             
             limit = config.get("limit", 500)
             
@@ -351,7 +372,7 @@ class UserScraper:
             
             # 显示过滤统计
             self.log(f"    📊 过滤统计:")
-            self.log(f"       总消息数: {filter_stats['total_messages']}")
+            self.log(f"       总消息数: {filter_stats['total_messages']} (最近 {days} 天)")
             self.log(f"       有发送者: {filter_stats['has_sender']}")
             self.log(f"       唯一用户: {filter_stats['unique_users']}")
             if filter_stats['bot'] > 0:
