@@ -102,15 +102,28 @@ class TelegramWebLogin:
             import sqlite3
             conn = sqlite3.connect(session_file)
             cursor = conn.cursor()
-            cursor.execute("SELECT dc_id, auth_key FROM sessions")
+            cursor.execute("SELECT dc_id, server_address, port, auth_key FROM sessions")
             row = cursor.fetchone()
-            conn.close()
             
             if not row:
+                conn.close()
                 await client.disconnect()
                 raise ValueError("Session文件损坏，无法读取auth_key")
             
-            dc_id, auth_key_bytes = row
+            dc_id, server_address, port, auth_key_bytes = row
+            
+            # 读取server_salt（如果有）
+            server_salt = None
+            try:
+                cursor.execute("SELECT server_salt FROM sent_files LIMIT 1")
+                salt_row = cursor.fetchone()
+                if salt_row and salt_row[0]:
+                    server_salt = salt_row[0].hex()
+            except:
+                # 如果没有server_salt表或字段，使用默认值
+                server_salt = "0" * 16  # 16个0
+            
+            conn.close()
             
             # 转换为16进制字符串（Telegram Web格式）
             auth_key_hex = auth_key_bytes.hex()
@@ -126,7 +139,10 @@ class TelegramWebLogin:
                 'dc_id': dc_id,
                 'auth_key_hex': auth_key_hex,
                 'fingerprint': fingerprint,
-                'user_id': user_id
+                'user_id': user_id,
+                'server_salt': server_salt,
+                'server_address': server_address,
+                'port': port
             }
             
         except Exception as e:
@@ -229,6 +245,7 @@ class TelegramWebLogin:
             auth_key_hex = session_data['auth_key_hex']
             fingerprint = session_data['fingerprint']
             user_id = session_data['user_id']
+            server_salt = session_data['server_salt']
             
             # 使用真实的localStorage格式（从已登录的Telegram Web获取）
             script = f"""
@@ -238,6 +255,7 @@ class TelegramWebLogin:
             // 核心认证数据（Telegram Web真实格式）
             localStorage.setItem('dc', '{dc_id}');
             localStorage.setItem('dc{dc_id}_auth_key', '{auth_key_hex}');
+            localStorage.setItem('dc{dc_id}_server_salt', '{server_salt}');
             localStorage.setItem('auth_key_fingerprint', '{fingerprint}');
             
             // 用户认证信息
