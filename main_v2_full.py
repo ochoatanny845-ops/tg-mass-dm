@@ -117,7 +117,7 @@ class TGMassDM:
         self.stop_flag = False  # 停止标志
 
         # 检测配置(问题 4:并发优化)
-        self.check_concurrent = tk.IntVar(value=30)  # 并发数量(默认 30)
+        self.check_concurrent = tk.IntVar(value=10)  # 并发数量(降低到 10 避免数据库锁定)
         self.check_batch_delay = tk.IntVar(value=2)  # 批次间隔(秒)
         self.check_timeout = tk.IntVar(value=30)  # 超时时间(秒)
 
@@ -2248,6 +2248,15 @@ class TGMassDM:
             except Exception as e:
                 error_type = type(e).__name__
                 error_str = str(e).lower()
+
+                # OperationalError: database is locked - SQLite并发冲突
+                if error_type == "OperationalError" and "database is locked" in error_str:
+                    account["status"] = "⚠️ 数据库锁定"
+                    account["username"] = "-"
+                    account["first_name"] = "-"
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 数据库锁定(并发检测冲突,请降低并发数)")
+                    self.root.after(0, self.refresh_account_tree)
+                    return
 
                 # AuthKeyDuplicatedError - 重复登录
                 if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
