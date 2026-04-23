@@ -977,8 +977,8 @@ class TGMassDM:
         limit_sub_frame = ttk.Frame(filter_frame)
         limit_sub_frame.pack(fill=tk.X, pady=(5, 0))
         ttk.Label(limit_sub_frame, text="每个群组采集数量:").pack(side=tk.LEFT)
-        self.scrape_limit = tk.IntVar(value=999999)  # 改为无限制
-        ttk.Spinbox(limit_sub_frame, from_=10, to=999999, textvariable=self.scrape_limit,
+        self.scrape_limit = tk.IntVar(value=0)  # 0 = 不限制
+        ttk.Spinbox(limit_sub_frame, from_=0, to=999999, textvariable=self.scrape_limit,
                    width=8).pack(side=tk.LEFT, padx=(10, 0))
         ttk.Label(limit_sub_frame, text="(0=不限)", font=("微软雅黑", 8), 
                  foreground="gray").pack(side=tk.LEFT, padx=(5, 0))
