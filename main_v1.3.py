@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.55.0"
+VERSION = "v1.55.1"
 
 import os
 import sys
@@ -2454,15 +2454,45 @@ class TGMassDM:
             # 并发检测一批（每个账号带超时保护）
             async def check_with_timeout(acc, idx, total):
                 try:
-                    await asyncio.wait_for(
-                        self.check_single_account(acc, idx, total),
-                        timeout=60  # 每个账号最多 60 秒
+                    # 定期检查停止标志
+                    async def check_cancelable():
+                        while True:
+                            if self.stop_flag:
+                                raise asyncio.CancelledError("用户停止")
+                            await asyncio.sleep(0.1)
+                    
+                    # 同时运行检测和停止检查
+                    check_task = asyncio.create_task(self.check_single_account(acc, idx, total))
+                    cancel_task = asyncio.create_task(check_cancelable())
+                    
+                    done, pending = await asyncio.wait(
+                        [check_task, cancel_task],
+                        timeout=60,
+                        return_when=asyncio.FIRST_COMPLETED
                     )
-                except asyncio.TimeoutError:
+                    
+                    # 取消未完成的任务
+                    for task in pending:
+                        task.cancel()
+                    
+                    # 检查结果
+                    if check_task.done() and not check_task.cancelled():
+                        # 正常完成
+                        pass
+                    elif self.stop_flag:
+                        # 用户停止
+                        phone_number = Path(acc['path']).stem
+                        self.log(f"⏸️ [{idx+1}/{total}] {phone_number} - 检测已停止")
+                    else:
+                        # 超时
+                        phone_number = Path(acc['path']).stem
+                        acc["status"] = "⚠️ 检测超时"
+                        self.log(f"⏱️ [{idx+1}/{total}] {phone_number} - ⚠️ 检测超时（超过 60 秒）")
+                        self.root.after(0, self.refresh_account_tree)
+                        
+                except asyncio.CancelledError:
                     phone_number = Path(acc['path']).stem
-                    acc["status"] = "⚠️ 检测超时"
-                    self.log(f"⏱️ [{idx+1}/{total}] {phone_number} - ⚠️ 检测超时（超过 60 秒）")
-                    self.root.after(0, self.refresh_account_tree)
+                    self.log(f"⏸️ [{idx+1}/{total}] {phone_number} - 检测已取消")
                 except Exception as e:
                     phone_number = Path(acc['path']).stem
                     acc["status"] = "⚠️ 检测异常"
@@ -2470,7 +2500,7 @@ class TGMassDM:
                     self.root.after(0, self.refresh_account_tree)
             
             tasks = [check_with_timeout(acc, i+j, total) for j, acc in enumerate(batch)]
-            await asyncio.gather(*tasks)
+            await asyncio.gather(*tasks, return_exceptions=True)
 
             # 检查停止标志（批次完成后）
             if self.stop_flag:
