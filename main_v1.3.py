@@ -1,10 +1,10 @@
 """
 TG 批量私信系统 - 多功能版
-功能：账号管理、私信广告、采集用户
+功能:账号管理、私信广告、采集用户
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.53.1"
+VERSION = "v1.53.2"
 
 import os
 import sys
@@ -30,7 +30,7 @@ try:
     from telethon.tl.functions.messages import GetDialogsRequest
     from telethon.tl.types import InputPeerEmpty, UserStatusOnline, UserStatusRecently
 except ImportError:
-    print("❌ 缺少 telethon 库，请运行: pip install telethon")
+    print("❌ 缺少 telethon 库,请运行: pip install telethon")
     sys.exit(1)
 
 
@@ -40,18 +40,18 @@ class TGMassDM:
         self.root.title(f"TG 批量私信系统 {VERSION}")
         self.root.geometry("1200x800")
         self.root.minsize(900, 600)  # 设置最小窗口尺寸
-        
-        # 设置异步异常处理器，禁止打印 AuthKeyDuplicatedError
+
+        # 设置异步异常处理器,禁止打印 AuthKeyDuplicatedError
         def custom_exception_handler(loop, context):
             exception = context.get('exception')
             if exception:
-                # 只抑制 AuthKeyDuplicatedError，其他异常仍然记录
+                # 只抑制 AuthKeyDuplicatedError,其他异常仍然记录
                 if 'AuthKeyDuplicatedError' not in str(exception):
                     # 默认处理其他异常
                     loop.default_exception_handler(context)
             else:
                 loop.default_exception_handler(context)
-        
+
         # 获取或创建事件循环
         try:
             loop = asyncio.get_event_loop()
@@ -71,8 +71,8 @@ class TGMassDM:
         self.is_running = False
         self.stop_flag = False  # 停止标志
 
-        # 检测配置（问题 4：并发优化）
-        self.check_concurrent = tk.IntVar(value=30)  # 并发数量（默认 30）
+        # 检测配置(问题 4:并发优化)
+        self.check_concurrent = tk.IntVar(value=30)  # 并发数量(默认 30)
         self.check_batch_delay = tk.IntVar(value=2)  # 批次间隔(秒)
         self.check_timeout = tk.IntVar(value=30)  # 超时时间(秒)
 
@@ -111,11 +111,11 @@ class TGMassDM:
         tab_frame = ttk.Frame(self.root)
         tab_frame.pack(fill=tk.BOTH, expand=True, padx=10)
 
-        # 使用 PanedWindow 可拖动分隔栏（问题 11：UI 布局优化）
+        # 使用 PanedWindow 可拖动分隔栏(问题 11:UI 布局优化)
         main_paned = ttk.PanedWindow(tab_frame, orient=tk.VERTICAL)
         main_paned.pack(fill=tk.BOTH, expand=True)
 
-        # 上方：标签页区域（50%）
+        # 上方:标签页区域(50%)
         notebook_frame = ttk.Frame(main_paned)
         main_paned.add(notebook_frame, weight=1)
 
@@ -125,14 +125,14 @@ class TGMassDM:
         # 设置标签字体
         style = ttk.Style()
         style.configure('TNotebook.Tab', font=('微软雅黑', 12, 'bold'), padding=[20, 10])
-        
-        # 设置 Menubutton 样式，让它看起来像普通按钮
-        style.configure('TMenubutton', 
+
+        # 设置 Menubutton 样式,让它看起来像普通按钮
+        style.configure('TMenubutton',
                        relief='raised',
                        borderwidth=2,
                        padding=6)
-        
-        # 设置代理管理按钮样式（左对齐）
+
+        # 设置代理管理按钮样式(左对齐)
         style.configure('Proxy.TButton',
                        anchor='w')  # 'w' = west = 左对齐
 
@@ -140,9 +140,9 @@ class TGMassDM:
         self.setup_tab_accounts()
         self.setup_tab_messaging()
         self.setup_tab_scraper()
-        self.setup_tab_proxy()  # 新增：代理管理
+        self.setup_tab_proxy()  # 新增:代理管理
 
-        # 下方：日志区域（50%）
+        # 下方:日志区域(50%)
         log_container = ttk.Frame(main_paned)
         main_paned.add(log_container, weight=1)
 
@@ -150,7 +150,7 @@ class TGMassDM:
         control_frame = ttk.Frame(log_container, padding="5")
         control_frame.pack(fill=tk.X)
 
-        # 开始按钮（根据当前标签页决定行为）
+        # 开始按钮(根据当前标签页决定行为)
         self.start_btn = ttk.Button(control_frame, text="🚀 开始", width=15,
                                     command=self.on_start_button_click)
         self.start_btn.pack(side=tk.LEFT, padx=5)
@@ -158,21 +158,21 @@ class TGMassDM:
         self.stop_btn = ttk.Button(control_frame, text="⏸️ 停止", width=15,
                                    command=self.stop_task, state=tk.DISABLED)
         self.stop_btn.pack(side=tk.LEFT, padx=5)
-        
-        # 进度显示（在按钮右侧，使用 Frame 包含三个 Label）
+
+        # 进度显示(在按钮右侧,使用 Frame 包含三个 Label)
         progress_container = ttk.Frame(control_frame)
         progress_container.pack(side=tk.LEFT, padx=20)
-        
+
         self.progress_total_label = ttk.Label(progress_container, text="",
                                               font=("微软雅黑", 14, "bold"),
                                               foreground="blue")
         self.progress_total_label.pack(side=tk.LEFT)
-        
+
         self.progress_success_label = ttk.Label(progress_container, text="",
                                                 font=("微软雅黑", 14, "bold"),
                                                 foreground="green")
         self.progress_success_label.pack(side=tk.LEFT, padx=(10, 0))
-        
+
         self.progress_failed_label = ttk.Label(progress_container, text="",
                                                font=("微软雅黑", 14, "bold"),
                                                foreground="red")
@@ -193,8 +193,8 @@ class TGMassDM:
 
         # 保存 main_paned 引用以便后续设置
         self.main_paned = main_paned
-        
-        # 延迟设置分割位置（确保窗口完全渲染后）
+
+        # 延迟设置分割位置(确保窗口完全渲染后)
         self.root.after(100, self.set_initial_sash_position)
 
         # 应用加载的配置
@@ -202,13 +202,13 @@ class TGMassDM:
 
         # 显示自动加载的账号
         self.refresh_account_tree()
-        
+
         # 更新选中数量和表头
         self.update_selected_count()
-        
+
         # 绑定标签切换事件
         self.notebook.bind("<<NotebookTabChanged>>", self.on_tab_changed)
-        
+
         # 绑定窗口缩放事件
         self.root.bind("<Configure>", self.on_window_resize)
         self.last_resize_time = 0  # 防抖
@@ -216,7 +216,7 @@ class TGMassDM:
     def on_tab_changed(self, event):
         """标签页切换事件"""
         current_tab = self.notebook.index(self.notebook.select())
-        
+
         # 根据标签页显示/隐藏开始停止按钮
         if current_tab == 3:  # 代理管理页面 - 隐藏按钮
             self.start_btn.pack_forget()
@@ -224,24 +224,24 @@ class TGMassDM:
         else:  # 其他页面 - 显示按钮
             # 检查按钮是否已经显示
             if not self.start_btn.winfo_ismapped():
-                # 重新打包按钮（放在 progress_container 之前）
+                # 重新打包按钮(放在 progress_container 之前)
                 self.start_btn.pack(side=tk.LEFT, padx=5, before=self.progress_total_label.master)
                 self.stop_btn.pack(side=tk.LEFT, padx=5, after=self.start_btn)
-        
+
         if current_tab == 1:  # 私信广告页面
             # 延迟设置布局
             self.root.after(100, self.set_messaging_sash_position)
-    
+
     def on_window_resize(self, event):
-        """窗口缩放事件（防抖处理）"""
+        """窗口缩放事件(防抖处理)"""
         import time
         current_time = time.time()
-        
-        # 只在窗口缩放完成后300ms执行（防抖）
+
+        # 只在窗口缩放完成后300ms执行(防抖)
         if current_time - self.last_resize_time > 0.3:
             self.last_resize_time = current_time
-            
-            # 如果在私信广告页面，重新调整布局
+
+            # 如果在私信广告页面,重新调整布局
             try:
                 current_tab = self.notebook.index(self.notebook.select())
                 if current_tab == 1:  # 私信广告页面
@@ -252,27 +252,27 @@ class TGMassDM:
                 pass
 
     def set_initial_sash_position(self):
-        """设置初始分割位置（延迟执行）- 仅影响主界面"""
+        """设置初始分割位置(延迟执行)- 仅影响主界面"""
         try:
             # 强制更新窗口
             self.root.update()
-            
+
             window_height = self.root.winfo_height()
             # self.log(f"🔍 窗口高度: {window_height}px")  # 静默
-            
+
             if window_height > 100:
                 split_position = int(window_height * 0.5)  # 50% 位置
                 # self.log(f"🔧 设置分割位置: {split_position}px")  # 静默
-                
+
                 # 设置分割位置
                 self.main_paned.sashpos(0, split_position)
-                
+
                 # 验证是否设置成功
                 actual_pos = self.main_paned.sashpos(0)
                 # self.log(f"✅ 实际分割位置: {actual_pos}px")  # 静默
-                
+
                 if actual_pos != split_position:
-                    # self.log(f"⚠️ 位置不匹配，重试...")  # 静默
+                    # self.log(f"⚠️ 位置不匹配,重试...")  # 静默
                     self.root.after(200, lambda: self.main_paned.sashpos(0, split_position))
             # else:
                 # self.log(f"⚠️ 窗口高度异常: {window_height}px")  # 静默
@@ -280,38 +280,38 @@ class TGMassDM:
             pass  # 静默处理错误
 
     def set_messaging_sash_position(self):
-        """设置私信广告分割位置（自适应布局，确保右侧最小宽度）"""
+        """设置私信广告分割位置(自适应布局,确保右侧最小宽度)"""
         try:
             # 强制更新窗口
             self.root.update_idletasks()
             self.root.update()
-            
+
             window_width = self.root.winfo_width()
-            
+
             if window_width > 100:  # 确保窗口已渲染
-                # 右侧最小宽度：400px（确保配置项显示完整）
+                # 右侧最小宽度:400px(确保配置项显示完整)
                 min_right_width = 400
-                
+
                 # 根据窗口宽度智能调整比例
                 if window_width >= 1400:
-                    # 大屏幕：左65% 右35%
+                    # 大屏幕:左65% 右35%
                     ratio = 0.65
                 elif window_width >= 1000:
-                    # 中等屏幕：左60% 右40%
+                    # 中等屏幕:左60% 右40%
                     ratio = 0.60
                 else:
-                    # 小屏幕：保证右侧至少400px
+                    # 小屏幕:保证右侧至少400px
                     ratio = min(0.55, (window_width - min_right_width) / window_width)
-                
+
                 split_position = int(window_width * ratio)
-                
+
                 # 确保右侧至少有最小宽度
                 if window_width - split_position < min_right_width:
                     split_position = window_width - min_right_width
-                
+
                 self.messaging_paned.sashpos(0, split_position)
             else:
-                # 窗口未渲染，延迟重试
+                # 窗口未渲染,延迟重试
                 self.root.after(500, self.set_messaging_sash_position)
         except Exception as e:
             pass  # 静默处理错误
@@ -332,23 +332,23 @@ class TGMassDM:
 
         # 重新填充
         for index, acc in enumerate(self.accounts, start=1):
-            # 复选框：☑ (已选) 或 ☐ (未选)
+            # 复选框:☑ (已选) 或 ☐ (未选)
             check = "☑" if acc["selected"] else "☐"
-            
-            # 提取姓名（first_name）
+
+            # 提取姓名(first_name)
             first_name = acc.get("first_name", "-")
-            
-            # 代理状态（显示实际使用的代理）
+
+            # 代理状态(显示实际使用的代理)
             proxy_used = acc.get("proxy_used", "")
             if proxy_used:
                 # 截取代理地址前50个字符
                 proxy_display = proxy_used[:50] + "..." if len(proxy_used) > 50 else proxy_used
             else:
                 proxy_display = "直连"
-            
-            # 2FA 状态（直接显示值）
+
+            # 2FA 状态(直接显示值)
             twofa_display = acc.get("2fa", "")
-            
+
             self.account_tree.insert("", tk.END, values=(
                 index,  # 序号
                 check,
@@ -378,33 +378,33 @@ class TGMassDM:
                   command=self.select_all).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame, text="❌ 清空", width=8,
                   command=self.deselect_all).pack(side=tk.LEFT, padx=2)
-        
-        # 删除按钮（点击弹出菜单）
+
+        # 删除按钮(点击弹出菜单)
         delete_btn = ttk.Button(btn_frame, text="🗑️ 删除", width=12,
                                command=lambda: self.show_delete_menu(delete_btn))
         delete_btn.pack(side=tk.LEFT, padx=2)
-        
-        # 导出按钮（点击弹出菜单）
+
+        # 导出按钮(点击弹出菜单)
         export_btn = ttk.Button(btn_frame, text="📤 导出", width=12,
                                command=lambda: self.show_export_menu(export_btn))
         export_btn.pack(side=tk.LEFT, padx=2)
 
-        # 第二行：范围选择
+        # 第二行:范围选择
         range_frame = ttk.Frame(tab1)
         range_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 选择按钮（Menubutton）
+        # 选择按钮(Menubutton)
         self.select_menubutton = ttk.Menubutton(range_frame, text="🎯 选择 ▼", width=12)
         self.select_menubutton.pack(side=tk.LEFT, padx=5)
-        
+
         # 创建菜单
         select_menu = tk.Menu(self.select_menubutton, tearoff=0, font=("Microsoft YaHei UI", 10))
         self.select_menubutton.config(menu=select_menu)
-        
+
         # 范围选择
         select_menu.add_command(label="📍 选中序号范围", command=self.select_by_range)
         select_menu.add_separator()
-        
+
         # 状态筛选
         select_menu.add_command(label="✅ 选中无限制", command=lambda: self.select_by_status("free"))
         select_menu.add_command(label="🚫 选中冻结", command=lambda: self.select_by_status("frozen"))
@@ -419,12 +419,12 @@ class TGMassDM:
         self.range_from = tk.IntVar(value=1)
         ttk.Spinbox(range_frame, from_=1, to=10000, textvariable=self.range_from,
                    width=8).pack(side=tk.LEFT, padx=2)
-        
+
         ttk.Label(range_frame, text="到").pack(side=tk.LEFT, padx=2)
         self.range_to = tk.IntVar(value=50)
         ttk.Spinbox(range_frame, from_=1, to=10000, textvariable=self.range_to,
                    width=8).pack(side=tk.LEFT, padx=2)
-        
+
         ttk.Button(range_frame, text="🔄 刷新", width=10,
                   command=self.refresh_accounts).pack(side=tk.LEFT, padx=(20, 2))
 
@@ -435,8 +435,8 @@ class TGMassDM:
         self.account_tree = ttk.Treeview(tree_frame,
                                          columns=("#", "选择", "手机号", "用户名", "姓名", "状态", "代理", "2FA"),
                                          show="headings", height=25)
-        
-        # 设置字体（放大复选框）
+
+        # 设置字体(放大复选框)
         style = ttk.Style()
         style.configure("Treeview", font=("微软雅黑", 11))
         style.configure("Treeview.Heading", font=("微软雅黑", 10, "bold"))
@@ -468,8 +468,8 @@ class TGMassDM:
 
         # 双击切换选择
         self.account_tree.bind("<Double-1>", self.toggle_account)
-        
-        # 右键菜单（复制手机号）
+
+        # 右键菜单(复制手机号)
         self.account_tree.bind("<Button-3>", self.show_context_menu)
 
         # 统计信息
@@ -484,11 +484,11 @@ class TGMassDM:
         tab2 = ttk.Frame(self.notebook, padding="10")
         self.notebook.add(tab2, text="✉️ 私信广告")
 
-        # 左右分栏（私信广告独立布局）
+        # 左右分栏(私信广告独立布局)
         paned = ttk.PanedWindow(tab2, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
-        # ========== 左侧:消息设置（可滚动） ==========
+        # ========== 左侧:消息设置(可滚动) ==========
         left_container = ttk.Frame(paned)
         paned.add(left_container, weight=3)  # 左侧占更多空间
 
@@ -511,17 +511,17 @@ class TGMassDM:
         # 鼠标滚轮支持
         def on_mousewheel(event):
             left_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
-        
+
         left_canvas.bind_all("<MouseWheel>", on_mousewheel)
 
         # 使用 left_scrollable_frame 作为实际的左侧容器
         left = left_scrollable_frame
 
-        # 顶部横向布局：选择账号 + 发送类型
+        # 顶部横向布局:选择账号 + 发送类型
         top_frame = ttk.Frame(left)
         top_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 选择账号（左侧）
+        # 选择账号(左侧)
         account_frame = ttk.LabelFrame(top_frame, text="📱 选择账号", padding="10")
         account_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
 
@@ -531,7 +531,7 @@ class TGMassDM:
                                               foreground="green", font=("微软雅黑", 10, "bold"))
         self.selected_count_label.pack(anchor=tk.W, pady=(3, 0))
 
-        # 发送类型（右侧）
+        # 发送类型(右侧)
         type_frame = ttk.LabelFrame(top_frame, text="📝 发送类型", padding="10")
         type_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
@@ -549,7 +549,7 @@ class TGMassDM:
                                                       font=("微软雅黑", 10), wrap=tk.WORD)
         self.message_text.pack(fill=tk.BOTH, expand=True)
         self.message_text.insert("1.0", "你好 {firstname}!\n\n这是一条测试消息。\n\n支持变量:\n• {username} - 用户名\n• {firstname} - 名字")
-        
+
         # 绑定内容变化事件
         self.message_text.bind("<<Modified>>", self.on_message_text_change)
 
@@ -565,7 +565,7 @@ class TGMassDM:
                                                            font=("微软雅黑", 9), wrap=tk.WORD)
         self.forward_urls_text.pack(fill=tk.BOTH, expand=True, pady=5)
         self.forward_urls_text.insert("1.0", "https://t.me/channel_name/123\nhttps://t.me/channel_name/456\nhttps://t.me/channel_name/789")
-        
+
         # 绑定内容变化事件
         self.forward_urls_text.bind("<<Modified>>", self.on_forward_urls_change)
 
@@ -601,7 +601,7 @@ class TGMassDM:
                                                      font=("微软雅黑", 10), wrap=tk.WORD)
         self.target_text.pack(fill=tk.BOTH, expand=True)
         self.target_text.insert("1.0", "@username1\n@username2\n@username3")
-        
+
         # 绑定内容变化事件
         self.target_text.bind("<<Modified>>", self.on_target_text_change)
 
@@ -612,15 +612,15 @@ class TGMassDM:
         # ========== 右侧:发送设置 ==========
         right = ttk.Frame(paned)
         paned.add(right, weight=1)  # 右侧占较少空间
-        
-        # 保存 paned 引用，稍后设置分割位置
+
+        # 保存 paned 引用,稍后设置分割位置
         self.messaging_paned = paned
 
-        # 第一行：并发控制 + 额度限制
+        # 第一行:并发控制 + 额度限制
         row1_frame = ttk.Frame(right)
         row1_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 并发控制（左侧）
+        # 并发控制(左侧)
         concurrent_frame = ttk.LabelFrame(row1_frame, text="⚡ 并发控制", padding="10")
         concurrent_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
 
@@ -636,7 +636,7 @@ class TGMassDM:
 
         concurrent_frame.columnconfigure(1, weight=1)
 
-        # 额度限制（右侧）
+        # 额度限制(右侧)
         limit_frame = ttk.LabelFrame(row1_frame, text="📊 额度限制", padding="10")
         limit_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
@@ -652,11 +652,11 @@ class TGMassDM:
 
         limit_frame.columnconfigure(1, weight=1)
 
-        # 第二行：发送间隔 + 其他选项
+        # 第二行:发送间隔 + 其他选项
         row2_frame = ttk.Frame(right)
         row2_frame.pack(fill=tk.X, pady=(0, 10))
 
-        # 发送间隔（左侧）
+        # 发送间隔(左侧)
         interval_frame = ttk.LabelFrame(row2_frame, text="⏱️ 发送间隔", padding="10")
         interval_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
 
@@ -675,7 +675,7 @@ class TGMassDM:
 
         interval_frame.columnconfigure(1, weight=1)
 
-        # 其他选项（右侧）
+        # 其他选项(右侧)
         option_frame = ttk.LabelFrame(row2_frame, text="🔧 其他选项", padding="10")
         option_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
@@ -825,33 +825,33 @@ class TGMassDM:
         paned = ttk.PanedWindow(tab4, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
-        # ========== 左侧:导入和操作（带滚动条）==========
+        # ========== 左侧:导入和操作(带滚动条)==========
         left_container = ttk.Frame(paned)
         paned.add(left_container, weight=1)
-        
+
         # 创建 Canvas 和 Scrollbar
         left_canvas = tk.Canvas(left_container, highlightthickness=0)
         left_scrollbar = ttk.Scrollbar(left_container, orient=tk.VERTICAL, command=left_canvas.yview)
         left_scrollable = ttk.Frame(left_canvas)
-        
+
         # 配置 Canvas
         left_scrollable.bind(
             "<Configure>",
             lambda e: left_canvas.configure(scrollregion=left_canvas.bbox("all"))
         )
-        
+
         left_canvas.create_window((0, 0), window=left_scrollable, anchor=tk.NW)
         left_canvas.configure(yscrollcommand=left_scrollbar.set)
-        
+
         # 绑定鼠标滚轮
         def _on_mousewheel(event):
             left_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         left_canvas.bind_all("<MouseWheel>", _on_mousewheel)
-        
+
         left_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         left_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        
-        # 使用 left_scrollable 作为内容容器（替代原来的 left）
+
+        # 使用 left_scrollable 作为内容容器(替代原来的 left)
         left = left_scrollable
 
         # 导入代理
@@ -864,17 +864,17 @@ class TGMassDM:
         ttk.Label(import_frame, text="• socks5://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
         ttk.Label(import_frame, text="• socks5://user:pass@ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
         ttk.Label(import_frame, text="• user:pass@ip:port (自动识别协议)", font=("Consolas", 9)).pack(anchor=tk.W)
-        
+
         # 协议类型选择
         protocol_frame = ttk.Frame(import_frame)
         protocol_frame.pack(fill=tk.X, pady=(5, 5))
         ttk.Label(protocol_frame, text="默认协议:").pack(side=tk.LEFT, padx=(0, 5))
         self.default_proxy_protocol = tk.StringVar(value="socks5")
-        ttk.Radiobutton(protocol_frame, text="SOCKS5", variable=self.default_proxy_protocol, 
+        ttk.Radiobutton(protocol_frame, text="SOCKS5", variable=self.default_proxy_protocol,
                        value="socks5").pack(side=tk.LEFT, padx=5)
-        ttk.Radiobutton(protocol_frame, text="HTTP", variable=self.default_proxy_protocol, 
+        ttk.Radiobutton(protocol_frame, text="HTTP", variable=self.default_proxy_protocol,
                        value="http").pack(side=tk.LEFT, padx=5)
-        ttk.Label(protocol_frame, text="(无协议前缀时使用)", 
+        ttk.Label(protocol_frame, text="(无协议前缀时使用)",
                  font=("微软雅黑", 8), foreground="gray").pack(side=tk.LEFT, padx=5)
 
         self.proxy_input = scrolledtext.ScrolledText(import_frame, height=6, font=("Consolas", 9))
@@ -977,7 +977,7 @@ class TGMassDM:
             self.update_target_count()
             # 重置修改标志
             self.target_text.edit_modified(False)
-    
+
     def on_forward_urls_change(self, event=None):
         """转发链接内容变化"""
         if self.forward_urls_text.edit_modified():
@@ -987,7 +987,7 @@ class TGMassDM:
             self.update_forward_count()
             # 重置修改标志
             self.forward_urls_text.edit_modified(False)
-    
+
     def on_message_text_change(self, event=None):
         """文本消息内容变化"""
         if self.message_text.edit_modified():
@@ -1110,12 +1110,12 @@ class TGMassDM:
                     "2fa": "",
                     "last_login": "-"
                 }
-                
+
                 # 尝试读取配套的 JSON 文件
-                # 123.session → 123.json（不是 123.session.json）
+                # 123.session → 123.json(不是 123.session.json)
                 json_file = session_file.parent / f"{session_file.stem}.json"
                 json_data = None
-                
+
                 if json_file.exists():
                     try:
                         import json
@@ -1124,51 +1124,54 @@ class TGMassDM:
                     except Exception:
                         pass  # JSON 读取失败
                 else:
-                    # 没有 JSON 文件，尝试自动生成
+                    # 没有 JSON 文件,尝试自动生成
                     json_data = self.generate_json_from_session(session_file)
-                
-                # 如果有 JSON 数据，提取信息
+
+                # 如果有 JSON 数据,提取信息
                 if json_data:
                     # 提取手机号
                     phone = json_data.get('phone')
                     if phone:
                         account["phone"] = str(phone)
-                    
+
                     # 提取用户名
                     username = json_data.get('username')
                     if username:
                         account["username"] = f"@{username}" if not username.startswith('@') else username
-                    
-                    # 提取姓名（first_name + last_name）
+
+                    # 提取姓名(first_name + last_name)
                     first_name = json_data.get('first_name', '')
                     last_name = json_data.get('last_name', '')
                     if first_name:
                         full_name = f"{first_name} {last_name}".strip() if last_name else first_name
                         account["first_name"] = full_name
-                    
+
                     # 提取代理信息
                     proxy = json_data.get('proxy')
                     if proxy:
                         account["proxy"] = proxy
-                    
-                    # 提取 2FA 状态（检测 twoFA 和 passwordFA）
+                        account["proxy_used"] = proxy
+                    else:
+                        account["proxy_used"] = ""
+
+                    # 提取 2FA 状态(检测 twoFA 和 passwordFA)
                     twofa = json_data.get('twoFA')
                     passwordfa = json_data.get('passwordFA')
-                    
-                    # 优先显示 twoFA，如果没有则显示 passwordFA
+
+                    # 优先显示 twoFA,如果没有则显示 passwordFA
                     if twofa:
                         account["2fa"] = str(twofa)
                     elif passwordfa:
                         account["2fa"] = str(passwordfa)
                     else:
                         account["2fa"] = ""
-                    
-                    # 提取状态（只有未检测时才使用JSON状态）
+
+                    # 提取状态(只有未检测时才使用JSON状态)
                     spamblock = json_data.get('spamblock') or ''
                     spamblock = str(spamblock).lower()
-                    
-                    # 检查是否已检测过（有last_login或status不是"未检测"）
-                    # 如果已检测，不覆盖状态
+
+                    # 检查是否已检测过(有last_login或status不是"未检测")
+                    # 如果已检测,不覆盖状态
                     if account.get("status") == "未检测":
                         if spamblock == 'free':
                             account["status"] = "✅ 无限制"
@@ -1180,7 +1183,7 @@ class TGMassDM:
                             account["status"] = "🚫 冻结"
                         elif spamblock == 'banned':
                             account["status"] = "🚫 封禁"
-                
+
                 self.accounts.append(account)
 
             self.log(f"📂 自动加载 {len(session_files)} 个账号")
@@ -1238,17 +1241,17 @@ class TGMassDM:
                 if journal_file.exists():
                     dest_journal = Path(self.accounts_dir) / journal_file.name
                     shutil.copy2(journal_file, dest_journal)
-                
+
                 # 同时复制 .json 文件(如果存在) - 账号信息文件
-                # 123.session → 123.json（不是 123.session.json）
+                # 123.session → 123.json(不是 123.session.json)
                 json_file = session_file.parent / f"{session_file.stem}.json"
                 json_data = None
-                
+
                 if json_file.exists():
                     dest_json = Path(self.accounts_dir) / json_file.name
                     shutil.copy2(json_file, dest_json)
                     self.log(f"    📄 已复制配套 JSON 文件")
-                    
+
                     # 读取 JSON
                     try:
                         import json
@@ -1257,11 +1260,11 @@ class TGMassDM:
                     except:
                         pass
                 else:
-                    # 没有 JSON 文件，尝试自动生成
-                    self.log(f"    ⚠️ 未找到 JSON 文件，正在自动生成...")
+                    # 没有 JSON 文件,尝试自动生成
+                    self.log(f"    ⚠️ 未找到 JSON 文件,正在自动生成...")
                     json_data = self.generate_json_from_session(dest_path)
 
-                # 创建账号记录（import_sessions）
+                # 创建账号记录(import_sessions)
                 account = {
                     "path": str(dest_path),
                     "selected": True,
@@ -1273,48 +1276,48 @@ class TGMassDM:
                     "2fa": "",
                     "last_login": "-"
                 }
-                
-                # 如果有 JSON 数据，提取信息
+
+                # 如果有 JSON 数据,提取信息
                 if json_data:
                     # 提取手机号
                     phone = json_data.get('phone')
                     if phone:
                         account["phone"] = str(phone)
-                    
+
                     # 提取用户名
                     username = json_data.get('username')
                     if username:
                         account["username"] = f"@{username}" if not username.startswith('@') else username
-                    
-                    # 提取姓名（first_name + last_name）
+
+                    # 提取姓名(first_name + last_name)
                     first_name = json_data.get('first_name', '')
                     last_name = json_data.get('last_name', '')
                     if first_name:
                         full_name = f"{first_name} {last_name}".strip() if last_name else first_name
                         account["first_name"] = full_name
-                    
+
                     # 提取代理信息
                     proxy = json_data.get('proxy')
                     if proxy:
                         account["proxy"] = proxy
-                    
-                    # 提取 2FA 状态（检测 twoFA 和 passwordFA）
+
+                    # 提取 2FA 状态(检测 twoFA 和 passwordFA)
                     twofa = json_data.get('twoFA')
                     passwordfa = json_data.get('passwordFA')
-                    
-                    # 优先显示 twoFA，如果没有则显示 passwordFA
+
+                    # 优先显示 twoFA,如果没有则显示 passwordFA
                     if twofa:
                         account["2fa"] = str(twofa)
                     elif passwordfa:
                         account["2fa"] = str(passwordfa)
                     else:
                         account["2fa"] = ""
-                    
-                    # 提取状态（只有未检测时才使用JSON状态）
+
+                    # 提取状态(只有未检测时才使用JSON状态)
                     spamblock = json_data.get('spamblock') or ''
                     spamblock = str(spamblock).lower()
-                    
-                    # 导入时默认为"未检测"，使用JSON状态
+
+                    # 导入时默认为"未检测",使用JSON状态
                     if spamblock == 'free':
                         account["status"] = "✅ 无限制"
                     elif spamblock == 'permanent':
@@ -1325,9 +1328,9 @@ class TGMassDM:
                         account["status"] = "🚫 冻结"
                     elif spamblock == 'banned':
                         account["status"] = "🚫 封禁"
-                    
+
                     self.log(f"    📋 已读取 JSON 信息: {account['username']} ({account['phone']})")
-                
+
                 self.accounts.append(account)
                 added += 1
 
@@ -1351,10 +1354,10 @@ class TGMassDM:
 
         self.accounts[index]["selected"] = not self.accounts[index]["selected"]
 
-        # 复选框：☑ (已选) 或 ☐ (未选)
+        # 复选框:☑ (已选) 或 ☐ (未选)
         check = "☑" if self.accounts[index]["selected"] else "☐"
         values = list(self.account_tree.item(item, "values"))
-        values[1] = check  # 第二列是复选框（第一列是序号）
+        values[1] = check  # 第二列是复选框(第一列是序号)
         self.account_tree.item(item, values=tuple(values))
 
         self.update_account_stats()
@@ -1366,7 +1369,7 @@ class TGMassDM:
             account["selected"] = True
             item = self.account_tree.get_children()[i]
             values = list(self.account_tree.item(item, "values"))
-            values[1] = "☑"  # 第二列是复选框（第一列是序号）
+            values[1] = "☑"  # 第二列是复选框(第一列是序号)
             self.account_tree.item(item, values=tuple(values))
 
         self.log("✅ 已全选所有账号")
@@ -1379,51 +1382,51 @@ class TGMassDM:
             account["selected"] = False
             item = self.account_tree.get_children()[i]
             values = list(self.account_tree.item(item, "values"))
-            values[1] = "☐"  # 第二列是复选框（第一列是序号）
+            values[1] = "☐"  # 第二列是复选框(第一列是序号)
             self.account_tree.item(item, values=tuple(values))
 
         self.log("❌ 已清空所有选择")
         self.update_account_stats()
         self.update_selected_count()
-    
+
     def select_by_range(self):
         """按序号范围选择账号"""
         try:
             start = self.range_from.get()
             end = self.range_to.get()
-            
+
             if start < 1 or end < 1:
                 messagebox.showwarning("范围错误", "序号必须大于0")
                 return
-            
+
             if start > end:
                 messagebox.showwarning("范围错误", "起始序号不能大于结束序号")
                 return
-            
+
             if end > len(self.accounts):
-                messagebox.showwarning("范围错误", f"结束序号超出范围（最大{len(self.accounts)}）")
+                messagebox.showwarning("范围错误", f"结束序号超出范围(最大{len(self.accounts)})")
                 return
-            
+
             # 清空所有选择
             for account in self.accounts:
                 account["selected"] = False
-            
+
             # 选中范围内的账号
             count = 0
-            for i in range(start - 1, end):  # 序号从1开始，索引从0开始
+            for i in range(start - 1, end):  # 序号从1开始,索引从0开始
                 if i < len(self.accounts):
                     self.accounts[i]["selected"] = True
                     count += 1
-            
+
             # 刷新界面
             self.refresh_account_tree()
-            self.log(f"✅ 已选中序号 {start}-{end} 的账号，共 {count} 个")
+            self.log(f"✅ 已选中序号 {start}-{end} 的账号,共 {count} 个")
             self.update_account_stats()
             self.update_selected_count()
-            
+
         except Exception as e:
             messagebox.showerror("错误", f"选择失败: {e}")
-    
+
     def select_by_status(self, status_filter):
         """按状态筛选账号"""
         status_map = {
@@ -1434,11 +1437,11 @@ class TGMassDM:
             "banned": ["🚫 封禁", "banned"],
             "unchecked": ["", None, "未检测"],
             "unknown": [
-                "⚠️ 未知状态", 
-                "⚠️ 检测失败", 
-                "⚠️ 重复登录", 
-                "⚠️ 登录失败", 
-                "⚠️ 其他错误", 
+                "⚠️ 未知状态",
+                "⚠️ 检测失败",
+                "⚠️ 重复登录",
+                "⚠️ 登录失败",
+                "⚠️ 其他错误",
                 "⚠️ 无回复",
                 "⚠️ 文件不存在",
                 "⚠️ 文件损坏",
@@ -1448,21 +1451,21 @@ class TGMassDM:
                 "⚠️ 代理超时"
             ]
         }
-        
+
         if status_filter not in status_map:
             return
-        
+
         allowed_statuses = status_map[status_filter]
-        
+
         # 清空所有选择
         for account in self.accounts:
             account["selected"] = False
-        
+
         # 选中匹配状态的账号
         count = 0
         for account in self.accounts:
             acc_status = account.get("status", "")
-            
+
             # 处理未检测状态
             if status_filter == "unchecked":
                 if not acc_status or acc_status in allowed_statuses:
@@ -1478,10 +1481,10 @@ class TGMassDM:
                 if acc_status in allowed_statuses:
                     account["selected"] = True
                     count += 1
-        
+
         # 刷新界面
         self.refresh_account_tree()
-        
+
         status_names = {
             "free": "无限制",
             "frozen": "冻结",
@@ -1491,15 +1494,15 @@ class TGMassDM:
             "unchecked": "未检测",
             "unknown": "未知/检测失败"
         }
-        
-        self.log(f"✅ 已选中状态为「{status_names[status_filter]}」的账号，共 {count} 个")
+
+        self.log(f"✅ 已选中状态为「{status_names[status_filter]}」的账号,共 {count} 个")
         self.update_account_stats()
         self.update_selected_count()
-    
+
     def on_start_button_click(self):
         """开始按钮点击事件 - 根据当前标签页决定行为"""
         current_tab = self.notebook.index(self.notebook.select())
-        
+
         if current_tab == 0:
             # 账号管理页面 - 显示菜单
             self.show_main_start_menu(self.start_btn)
@@ -1509,62 +1512,62 @@ class TGMassDM:
         elif current_tab == 2:
             # 采集用户页面 - 直接开始采集
             self.start_scraping()
-    
+
     def show_main_start_menu(self, button):
-        """显示主界面开始菜单（仅账号管理页面）"""
+        """显示主界面开始菜单(仅账号管理页面)"""
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label="检查账号限制", command=self.check_accounts)
         menu.add_separator()
         menu.add_command(label="新功能待开发", state=tk.DISABLED)
-        
+
         # 在按钮下方显示菜单
         x = button.winfo_rootx()
         y = button.winfo_rooty() + button.winfo_height()
         menu.post(x, y)
-    
+
     def show_start_menu(self, button):
-        """显示开始菜单（账号管理页面）"""
+        """显示开始菜单(账号管理页面)"""
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label="检查账号限制", command=self.check_accounts)
         menu.add_separator()
         menu.add_command(label="新功能待开发", state=tk.DISABLED)
-        
+
         # 在按钮下方显示菜单
         x = button.winfo_rootx()
         y = button.winfo_rooty() + button.winfo_height()
         menu.post(x, y)
-    
+
     def show_context_menu(self, event):
-        """显示右键菜单（复制手机号）"""
+        """显示右键菜单(复制手机号)"""
         # 获取点击的行
         item = self.account_tree.identify_row(event.y)
         if not item:
             return
-        
+
         # 选中该行
         self.account_tree.selection_set(item)
-        
+
         # 获取手机号
         values = self.account_tree.item(item, "values")
         if len(values) < 3:
             return
-        
-        phone = values[2]  # 第三列是手机号（第一列序号，第二列复选框）
-        
+
+        phone = values[2]  # 第三列是手机号(第一列序号,第二列复选框)
+
         # 创建菜单
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
-        menu.add_command(label=f"📋 复制手机号: {phone}", 
+        menu.add_command(label=f"📋 复制手机号: {phone}",
                         command=lambda: self.copy_to_clipboard(phone))
-        
+
         # 显示菜单
         menu.post(event.x_root, event.y_root)
-    
+
     def copy_to_clipboard(self, text):
         """复制文本到剪贴板"""
         self.root.clipboard_clear()
         self.root.clipboard_append(text)
         self.log(f"📋 已复制到剪贴板: {text}")
-    
+
     def show_delete_menu(self, button):
         """显示删除菜单"""
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
@@ -1574,12 +1577,12 @@ class TGMassDM:
         menu.add_command(label="删除重复登录账号", command=self.delete_invalid)
         menu.add_command(label="删除冻结账号", command=self.delete_frozen)
         menu.add_command(label="删除封禁账号", command=self.delete_banned)
-        
+
         # 在按钮下方显示菜单
         x = button.winfo_rootx()
         y = button.winfo_rooty() + button.winfo_height()
         menu.post(x, y)
-    
+
     def show_export_menu(self, button):
         """显示导出菜单"""
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
@@ -1591,35 +1594,35 @@ class TGMassDM:
         menu.add_command(label="导出封禁账号", command=self.export_banned)
         menu.add_command(label="导出永久双向限制", command=self.export_permanent_limited)
         menu.add_command(label="导出临时限制", command=self.export_temp_limited)
-        
+
         # 在按钮下方显示菜单
         x = button.winfo_rootx()
         y = button.winfo_rooty() + button.winfo_height()
         menu.post(x, y)
 
     # ========== 辅助函数 ==========
-    
+
     def generate_json_from_session(self, session_file):
         """
         从 session 文件生成基础 JSON 文件
-        返回: JSON 数据字典，失败返回 None
+        返回: JSON 数据字典,失败返回 None
         """
         import sqlite3
-        
+
         try:
             conn = sqlite3.connect(session_file)
             cursor = conn.cursor()
-            
+
             # 尝试从 entities 表读取自己的信息
             # entities 表可能包含用户自己的记录
             cursor.execute("SELECT id, username, phone, name FROM entities ORDER BY id LIMIT 1")
             row = cursor.fetchone()
-            
+
             conn.close()
-            
+
             if row:
                 entity_id, username, phone, name = row
-                
+
                 # 生成基础 JSON
                 json_data = {
                     "app_id": self.api_id,
@@ -1636,56 +1639,56 @@ class TGMassDM:
                     "session_created_date": None,
                     "last_connect_date": None
                 }
-                
+
                 # 保存 JSON 文件
                 json_file = session_file.parent / f"{session_file.stem}.json"
                 import json
                 with open(json_file, 'w', encoding='utf-8') as f:
                     json.dump(json_data, f, indent=2, ensure_ascii=False)
-                
+
                 self.log(f"    ✨ 已生成 JSON 文件")
                 return json_data
-            
+
             return None
-            
+
         except Exception as e:
             self.log(f"    ⚠️ 生成 JSON 失败: {str(e)[:50]}")
             return None
-    
+
     def convert_session_file(self, session_file):
         """
-        转换 session 文件（移除 tmp_auth_key 列）
+        转换 session 文件(移除 tmp_auth_key 列)
         返回: True=成功, False=失败
         """
         import sqlite3
         import shutil
-        
+
         try:
             # 备份原文件
             backup_file = str(session_file) + ".backup"
             shutil.copy2(session_file, backup_file)
-            
+
             temp_file = str(session_file) + ".converting"
-            
+
             # 连接原数据库
             conn_old = sqlite3.connect(session_file)
             cursor_old = conn_old.cursor()
-            
+
             # 创建新数据库
             conn_new = sqlite3.connect(temp_file)
             cursor_new = conn_new.cursor()
-            
+
             # 1. 复制 version 表
             cursor_old.execute("SELECT version FROM version")
             version = cursor_old.fetchone()
             if version:
                 cursor_new.execute("CREATE TABLE version (version INTEGER PRIMARY KEY)")
                 cursor_new.execute("INSERT INTO version VALUES (?)", version)
-            
-            # 2. 转换 sessions 表（6列 → 5列）
+
+            # 2. 转换 sessions 表(6列 → 5列)
             cursor_old.execute("SELECT dc_id, server_address, port, auth_key, takeout_id FROM sessions")
             sessions_data = cursor_old.fetchall()
-            
+
             cursor_new.execute("""
                 CREATE TABLE sessions (
                     dc_id INTEGER PRIMARY KEY,
@@ -1695,14 +1698,14 @@ class TGMassDM:
                     takeout_id INTEGER
                 )
             """)
-            
+
             for row in sessions_data:
                 cursor_new.execute("INSERT INTO sessions VALUES (?, ?, ?, ?, ?)", row)
-            
+
             # 3. 复制 entities 表
             cursor_old.execute("SELECT * FROM entities")
             entities_data = cursor_old.fetchall()
-            
+
             cursor_new.execute("""
                 CREATE TABLE entities (
                     id INTEGER PRIMARY KEY,
@@ -1713,10 +1716,10 @@ class TGMassDM:
                     date INTEGER
                 )
             """)
-            
+
             for row in entities_data:
                 cursor_new.execute("INSERT INTO entities VALUES (?, ?, ?, ?, ?, ?)", row)
-            
+
             # 4. 复制 sent_files 表
             cursor_new.execute("""
                 CREATE TABLE sent_files (
@@ -1728,17 +1731,17 @@ class TGMassDM:
                     PRIMARY KEY (md5_digest, file_size, type)
                 )
             """)
-            
+
             cursor_old.execute("SELECT * FROM sent_files")
             sent_files_data = cursor_old.fetchall()
-            
+
             for row in sent_files_data:
                 cursor_new.execute("INSERT INTO sent_files VALUES (?, ?, ?, ?, ?)", row)
-            
+
             # 5. 复制 update_state 表
             cursor_old.execute("SELECT * FROM update_state")
             update_state_data = cursor_old.fetchall()
-            
+
             cursor_new.execute("""
                 CREATE TABLE update_state (
                     id INTEGER PRIMARY KEY,
@@ -1748,27 +1751,27 @@ class TGMassDM:
                     seq INTEGER
                 )
             """)
-            
+
             for row in update_state_data:
                 cursor_new.execute("INSERT INTO update_state VALUES (?, ?, ?, ?, ?)", row)
-            
+
             # 提交并关闭
             conn_new.commit()
             conn_old.close()
             conn_new.close()
-            
+
             # 替换原文件
             shutil.move(temp_file, session_file)
-            
+
             return True
-            
+
         except Exception as e:
             self.log(f"  ❌ 转换失败: {str(e)[:100]}")
             # 清理临时文件
             if Path(temp_file).exists():
                 Path(temp_file).unlink()
             return False
-    
+
     def translate_to_english(self, text):
         """将任意语言翻译成英文"""
         try:
@@ -1778,20 +1781,20 @@ class TGMassDM:
         except Exception as e:
             self.log(f"  ⚠️ 翻译失败: {str(e)}")
             return text  # 翻译失败返回原文
-    
+
     def parse_limitation_time(self, response):
         """解析限制到期时间"""
         import re
         from datetime import datetime
-        
+
         # 匹配模式: "until DD MMM YYYY, HH:MM UTC"
         pattern = r"(?:until|on|до)\s+(\d{1,2})\s+([A-Za-z]+|[а-я]+)\s+(\d{4})(?:,?\s+г\.?)?"
         match = re.search(pattern, response, re.IGNORECASE)
-        
+
         if match:
             day, month_str, year = match.groups()[:3]
-            
-            # 月份映射（英文和俄文）
+
+            # 月份映射(英文和俄文)
             months = {
                 # 英文
                 'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4,
@@ -1802,20 +1805,20 @@ class TGMassDM:
                 'мая': 5, 'июня': 6, 'июля': 7, 'августа': 8,
                 'сентября': 9, 'октября': 10, 'ноября': 11, 'декабря': 12,
             }
-            
+
             month = months.get(month_str[:3].lower(), None)
             if not month:
                 return None
-            
+
             try:
                 # 构造时间对象
                 release_time = datetime(int(year), month, int(day))
                 return release_time
             except:
                 return None
-        
+
         return None
-    
+
     # ========== 账号检测功能 ==========
 
     def check_accounts(self):
@@ -1823,7 +1826,7 @@ class TGMassDM:
         if not self.accounts:
             messagebox.showwarning("提示", "请先导入账号")
             return
-        
+
         # 获取选中的账号
         selected_accounts = [acc for acc in self.accounts if acc["selected"]]
         if not selected_accounts:
@@ -1832,15 +1835,15 @@ class TGMassDM:
 
         # 重置停止标志
         self.stop_flag = False
-        
+
         # 获取并发配置
         concurrent = self.check_concurrent.get()
-        self.log(f"🔍 开始检测账号状态... (选中 {len(selected_accounts)} 个账号，并发: {concurrent})")
-        
+        self.log(f"🔍 开始检测账号状态... (选中 {len(selected_accounts)} 个账号,并发: {concurrent})")
+
         # 启用停止按钮
         self.stop_btn.config(state=tk.NORMAL)
         self.start_btn.config(state=tk.DISABLED)
-        
+
         thread = threading.Thread(target=self.run_check_accounts, args=(selected_accounts,))
         thread.start()
 
@@ -1856,14 +1859,14 @@ class TGMassDM:
             self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
 
     async def check_single_account(self, account, index, total):
-        """检测单个账号（并发调用）"""
+        """检测单个账号(并发调用)"""
         # 检查停止标志
         if self.stop_flag:
             return
-        
-        # SpamBot 关键词库（多语言，不翻译）
-        
-        # 1. 正常状态（多语言）
+
+        # SpamBot 关键词库(多语言,不翻译)
+
+        # 1. 正常状态(多语言)
         NORMAL_KEYWORDS = [
             # 英文
             "good news", "no limits", "free as a bird", "no restrictions", "all good",
@@ -1872,29 +1875,29 @@ class TGMassDM:
             # 葡萄牙语
             "nenhum limite", "livre como",
         ]
-        
+
         # 2. 地理受限
         GEO_RESTRICTED_KEYWORDS = [
             "phone numbers may trigger",
             "some phone numbers may trigger",
         ]
-        
-        # 3. 冻结（包含所有冻结相关的关键词）
+
+        # 3. 冻结(包含所有冻结相关的关键词)
         FROZEN_KEYWORDS = [
             # 英文
             "frozen", "account is frozen", "blocked for violations", "terms of service", "user reports confirmed",
             # 俄语
             "заморожен", "аккаунт заморожен",
         ]
-        
+
         # 4. 永久双向限制
         PERMANENT_LIMITED_KEYWORDS = [
             "some actions can trigger",
             "your account was limited",
             "while the account is limited",
         ]
-        
-        # 5. 临时限制（多语言）
+
+        # 5. 临时限制(多语言)
         TEMP_LIMITED_KEYWORDS = [
             # 英文
             "limited until", "automatically released on", "account is now limited",
@@ -1904,46 +1907,46 @@ class TGMassDM:
 
         # 提取手机号用于日志
         phone_number = Path(account['path']).stem
-        
-        # 格式：[序号/总数] 手机号 - 状态
+
+        # 格式:[序号/总数] 手机号 - 状态
         log_prefix = f"[{index+1}/{total}]"
 
         try:
             # 获取并规范化路径
             path = str(Path(account["path"]).resolve())
-            
+
             # self.log(f"  🔍 规范化路径: {path}")  # 调试日志已隐藏
-            
+
             # 检查文件是否存在
             if not Path(path).exists():
                 self.log(f"{log_prefix} {phone_number} - ❌ 文件不存在")
                 account["status"] = "⚠️ 文件不存在"
                 self.root.after(0, self.refresh_account_tree)
                 return
-            
+
             # 检查文件大小
             file_size = Path(path).stat().st_size
             # self.log(f"  📏 文件大小: {file_size} bytes")  # 调试日志已隐藏
-            
+
             if file_size < 1000:
                 self.log(f"{log_prefix} {phone_number} - ❌ 文件损坏")
                 account["status"] = "⚠️ 文件损坏"
                 self.root.after(0, self.refresh_account_tree)
                 return
-            
+
             # self.log(f"  ✅ 开始创建客户端...")  # 调试日志已隐藏
-            
-            # 创建 TelegramClient（可能失败）
+
+            # 创建 TelegramClient(可能失败)
             # 获取可用代理
             proxy_config = None
             connection_type = None
             proxy_retry_count = 0
             max_proxy_retries = 3
             proxy_used = None  # 记录使用的代理
-            
+
             while proxy_retry_count < max_proxy_retries:
                 try:
-                    # 如果有可用代理，随机选择一个（不需要选中状态）
+                    # 如果有可用代理,随机选择一个(不需要选中状态)
                     available_proxies = [p for p in self.proxies if p["status"] == "可用"]
                     if available_proxies:
                         import random
@@ -1958,51 +1961,51 @@ class TGMassDM:
                             total_proxies = len(self.proxies)
                             available_count = sum(1 for p in self.proxies if p["status"] == "可用")
                             unchecked_count = sum(1 for p in self.proxies if p["status"] == "未检测")
-                            self.log(f"{log_prefix} {phone_number} - ⚠️ 无可用代理（总计:{total_proxies} 可用:{available_count} 未检测:{unchecked_count}）")
-                    
-                    # 创建客户端（带或不带代理）
+                            self.log(f"{log_prefix} {phone_number} - ⚠️ 无可用代理(总计:{total_proxies} 可用:{available_count} 未检测:{unchecked_count})")
+
+                    # 创建客户端(带或不带代理)
                     if proxy_config:
                         if connection_type:
                             # HTTP 代理需要指定连接类型
-                            client = TelegramClient(path, self.api_id, self.api_hash, 
-                                                  proxy=proxy_config, 
+                            client = TelegramClient(path, self.api_id, self.api_hash,
+                                                  proxy=proxy_config,
                                                   connection=connection_type)
                         else:
                             # SOCKS 代理使用默认连接类型
                             client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
                     else:
                         client = TelegramClient(path, self.api_id, self.api_hash)
-                    
-                    # 设置异常处理器，抑制 AuthKeyDuplicatedError 堆栈
+
+                    # 设置异常处理器,抑制 AuthKeyDuplicatedError 堆栈
                     def suppress_auth_error(loop, context):
                         exception = context.get('exception')
                         if exception and 'AuthKeyDuplicatedError' not in str(exception):
                             loop.default_exception_handler(context)
-                    
+
                     try:
                         loop = asyncio.get_running_loop()
                         loop.set_exception_handler(suppress_auth_error)
                     except RuntimeError:
                         pass
-                    
-                    # 尝试连接（会触发代理超时）
+
+                    # 尝试连接(会触发代理超时)
                     await client.connect()
-                    break  # 连接成功，跳出重试循环
-                    
+                    break  # 连接成功,跳出重试循环
+
                 except ValueError as ve:
                     # Session 文件格式错误
                     if self.convert_session_file(path):
                         try:
                             if proxy_config:
                                 if connection_type:
-                                    client = TelegramClient(path, self.api_id, self.api_hash, 
-                                                          proxy=proxy_config, 
+                                    client = TelegramClient(path, self.api_id, self.api_hash,
+                                                          proxy=proxy_config,
                                                           connection=connection_type)
                                 else:
                                     client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
                             else:
                                 client = TelegramClient(path, self.api_id, self.api_hash)
-                            
+
                             # 设置异常处理器
                             def suppress_auth_error(loop, context):
                                 exception = context.get('exception')
@@ -2013,7 +2016,7 @@ class TGMassDM:
                                 loop.set_exception_handler(suppress_auth_error)
                             except RuntimeError:
                                 pass
-                            
+
                             await client.connect()
                             break
                         except Exception as retry_error:
@@ -2030,49 +2033,49 @@ class TGMassDM:
                         self.log(f"{log_prefix} {phone_number} - ❌ 转换失败")
                         self.root.after(0, self.refresh_account_tree)
                         return
-                        
+
                 except Exception as proxy_error:
                     error_str = str(proxy_error).lower()
                     error_type = type(proxy_error).__name__.lower()
-                    
-                    # 检测 AuthKeyDuplicatedError，直接跳过不重试
+
+                    # 检测 AuthKeyDuplicatedError,直接跳过不重试
                     if "authkey" in error_type and "duplicated" in error_type:
                         account["status"] = "⚠️ 重复登录"
                         account["username"] = "-"
                         account["first_name"] = "-"
                         account["proxy_used"] = proxy_used if proxy_used else ""
-                        self.log(f"{log_prefix} {phone_number} - ⚠️ 账号多IP登录（Session在其他地方使用中）")
+                        self.log(f"{log_prefix} {phone_number} - ⚠️ 账号多IP登录(Session在其他地方使用中)")
                         self.root.after(0, self.refresh_account_tree)
-                        return  # 直接返回，不重试
-                    
+                        return  # 直接返回,不重试
+
                     # 检测代理超时或连接错误
                     if "timeout" in error_str or "connection" in error_str or "proxy" in error_str:
                         proxy_retry_count += 1
                         if proxy_retry_count < max_proxy_retries:
-                            self.log(f"{log_prefix} {phone_number} - ⚠️ 代理超时，重试 {proxy_retry_count}/{max_proxy_retries}")
-                            proxy_config = None  # 清除当前代理，下次循环会选择新的
+                            self.log(f"{log_prefix} {phone_number} - ⚠️ 代理超时,重试 {proxy_retry_count}/{max_proxy_retries}")
+                            proxy_config = None  # 清除当前代理,下次循环会选择新的
                             continue
                         else:
-                            self.log(f"{log_prefix} {phone_number} - ❌ 代理连接失败（已重试3次）")
+                            self.log(f"{log_prefix} {phone_number} - ❌ 代理连接失败(已重试3次)")
                             account["status"] = "⚠️ 代理超时"
                             self.root.after(0, self.refresh_account_tree)
                             return
                     else:
                         # 其他错误
                         raise
-            
+
             # if 'client' not in locals():
             #     self.log(f"  ✅ 客户端创建成功")  # 调试日志已隐藏
-            
-            # 连接已在上面完成，不需要再次连接
-            
+
+            # 连接已在上面完成,不需要再次连接
+
             # 1. 尝试登录
             try:
                 me = await client.get_me()
                 if not me:
                     account["status"] = "🚫 封禁"
                     account["username"] = "-"
-                    # 保留原始手机号，不要设置为 "-"
+                    # 保留原始手机号,不要设置为 "-"
                     # account["phone"] = "-"
                     account["first_name"] = "-"
                     self.log(f"{log_prefix} {phone_number} - 🚫 封禁")
@@ -2080,11 +2083,11 @@ class TGMassDM:
                     self.root.after(0, self.refresh_account_tree)
                     return
 
-                # 更新账号信息（从 Telegram 读取）
+                # 更新账号信息(从 Telegram 读取)
                 account["username"] = f"@{me.username}" if me.username else "-"
                 account["phone"] = me.phone or "-"
-                
-                # 更新姓名（first_name + last_name）
+
+                # 更新姓名(first_name + last_name)
                 first_name = me.first_name or ""
                 last_name = me.last_name or ""
                 if first_name:
@@ -2092,14 +2095,14 @@ class TGMassDM:
                     account["first_name"] = full_name
                 else:
                     account["first_name"] = "-"
-                
+
                 # 记录使用的代理
                 account["proxy_used"] = proxy_used if proxy_used else ""
 
             except Exception as e:
                 error_type = type(e).__name__
                 error_str = str(e).lower()
-                
+
                 # AuthKeyDuplicatedError - 重复登录
                 if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
                     account["status"] = "⚠️ 重复登录"
@@ -2107,7 +2110,7 @@ class TGMassDM:
                     # 保留原始手机号
                     # account["phone"] = "-"
                     account["first_name"] = "-"
-                    self.log(f"{log_prefix} {phone_number} - ⚠️ 账号多IP登录（Session在其他地方使用中）")
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 账号多IP登录(Session在其他地方使用中)")
                     await client.disconnect()
                     self.root.after(0, self.refresh_account_tree)
                     return
@@ -2147,35 +2150,35 @@ class TGMassDM:
 
                 if messages and len(messages) > 0:
                     response = (messages[0].message or "").strip().lower()
-                    
-                    # 优先级判断（多语言关键词，不翻译）
+
+                    # 优先级判断(多语言关键词,不翻译)
                     # 1. 地理受限
                     if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
-                        account["status"] = "✅ 无限制（地理受限）"
-                        self.log(f"{log_prefix} {phone_number} - ✅ 无限制（地理受限）")
+                        account["status"] = "✅ 无限制(地理受限)"
+                        self.log(f"{log_prefix} {phone_number} - ✅ 无限制(地理受限)")
                         self.root.after(0, self.refresh_account_tree)
-                    
-                    # 2. 冻结（包含所有冻结场景）
+
+                    # 2. 冻结(包含所有冻结场景)
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
                         appeal_time = self.parse_limitation_time(response)
                         if appeal_time:
                             time_str = appeal_time.strftime("%Y-%m-%d")
-                            account["status"] = f"🚫 冻结（申诉至 {time_str}）"
-                            self.log(f"{log_prefix} {phone_number} - 🚫 冻结（申诉至 {time_str}）")
+                            account["status"] = f"🚫 冻结(申诉至 {time_str})"
+                            self.log(f"{log_prefix} {phone_number} - 🚫 冻结(申诉至 {time_str})")
                         else:
                             account["status"] = "🚫 冻结"
                             self.log(f"{log_prefix} {phone_number} - 🚫 冻结")
-                        # 显示 SpamBot 原始回复（调试用）
+                        # 显示 SpamBot 原始回复(调试用)
                         self.log(f"      SpamBot 回复: {response[:200]}")
                         self.root.after(0, self.refresh_account_tree)
-                    
+
                     # 3. 永久双向限制
                     elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
                         account["status"] = "⚠️ 永久双向限制"
                         self.log(f"{log_prefix} {phone_number} - ⚠️ 永久双向限制")
                         self.root.after(0, self.refresh_account_tree)
-                    
-                    # 4. 临时限制（有到期时间）
+
+                    # 4. 临时限制(有到期时间)
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
                         release_time = self.parse_limitation_time(response)
                         if release_time:
@@ -2184,30 +2187,30 @@ class TGMassDM:
                             if remaining.total_seconds() > 0:
                                 days = remaining.days
                                 hours = remaining.seconds // 3600
-                                account["status"] = f"⚠️ 临时限制（剩余 {days}天{hours}时）"
-                                self.log(f"{log_prefix} {phone_number} - ⚠️ 临时限制（剩余 {days}天{hours}时）")
+                                account["status"] = f"⚠️ 临时限制(剩余 {days}天{hours}时)"
+                                self.log(f"{log_prefix} {phone_number} - ⚠️ 临时限制(剩余 {days}天{hours}时)")
                             else:
-                                account["status"] = "⚠️ 临时限制（已过期）"
-                                self.log(f"{log_prefix} {phone_number} - ⚠️ 临时限制（已过期）")
+                                account["status"] = "⚠️ 临时限制(已过期)"
+                                self.log(f"{log_prefix} {phone_number} - ⚠️ 临时限制(已过期)")
                         else:
                             account["status"] = "⚠️ 临时垃圾邮件"
                             self.log(f"{log_prefix} {phone_number} - ⚠️ 临时垃圾邮件")
                         self.root.after(0, self.refresh_account_tree)
-                    
+
                     # 5. 无限制
                     elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                         account["status"] = "✅ 无限制"
                         self.log(f"{log_prefix} {phone_number} - ✅ 无限制")
                         self.root.after(0, self.refresh_account_tree)
-                    
+
                     # 6. 未知
                     else:
                         account["status"] = "⚠️ 未知状态"
                         self.log(f"{log_prefix} {phone_number} - ⚠️ 未知状态")
-                        # 显示 SpamBot 原始回复（调试用）
+                        # 显示 SpamBot 原始回复(调试用)
                         self.log(f"      SpamBot 回复: {response[:200]}")
                         self.root.after(0, self.refresh_account_tree)
-                    
+
                     self.root.after(0, self.refresh_account_tree)
                 else:
                     account["status"] = "⚠️ 无回复"
@@ -2217,54 +2220,54 @@ class TGMassDM:
             except Exception as e:
                 error_type = type(e).__name__
                 error_str = str(e).lower()
-                
-                # AuthKeyDuplicatedError - 重复登录，直接标记并返回
+
+                # AuthKeyDuplicatedError - 重复登录,直接标记并返回
                 if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
                     account["status"] = "⚠️ 重复登录"
                     self.log(f"{log_prefix} {phone_number} - ⚠️ 重复登录")
                     self.root.after(0, self.refresh_account_tree)
-                    # 不再尝试取消拉黑，直接断开连接并返回
+                    # 不再尝试取消拉黑,直接断开连接并返回
                     try:
                         await client.disconnect()
                     except:
                         pass
                     return
-                
-                # YouBlockedUserError - 拉黑了 SpamBot，尝试自动取消拉黑
+
+                # YouBlockedUserError - 拉黑了 SpamBot,尝试自动取消拉黑
                 if "youblocked" in error_type.lower():
-                    # self.log(f"  ⚠️ 已拉黑 SpamBot，自动取消拉黑中...")  # 调试日志已隐藏
-                    
+                    # self.log(f"  ⚠️ 已拉黑 SpamBot,自动取消拉黑中...")  # 调试日志已隐藏
+
                     try:
-                        # 取消拉黑 @spambot（使用正确的API）
+                        # 取消拉黑 @spambot(使用正确的API)
                         from telethon.tl.functions.contacts import UnblockRequest
                         from telethon.tl.types import InputUser
-                        
+
                         # 先获取 SpamBot 的信息
                         spambot = await client.get_entity("@spambot")
-                        
+
                         # 创建 InputUser 对象
                         input_user = InputUser(user_id=spambot.id, access_hash=spambot.access_hash)
-                        
+
                         # 调用取消拉黑API
                         await client(UnblockRequest(id=input_user))
-                        
+
                         # self.log(f"  ✅ 已取消拉黑 SpamBot")  # 调试日志已隐藏
                         await asyncio.sleep(1)
-                        
+
                         # 重试检测
                         # self.log(f"  🔄 重新检测...")  # 调试日志已隐藏
                         await client.send_message("@spambot", "/start")
                         await asyncio.sleep(2)
-                        
+
                         messages = await client.get_messages("@spambot", limit=1)
-                        
+
                         if messages and len(messages) > 0:
                             response = (messages[0].message or "").strip().lower()
-                            
-                            # 重新判断状态（使用相同的逻辑）
+
+                            # 重新判断状态(使用相同的逻辑)
                             if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
-                                account["status"] = "✅ 无限制（地理受限）"
-                                self.log(f"{log_prefix} {phone_number} - ✅ 无限制（地理受限）")
+                                account["status"] = "✅ 无限制(地理受限)"
+                                self.log(f"{log_prefix} {phone_number} - ✅ 无限制(地理受限)")
                             elif any(keyword in response for keyword in FROZEN_KEYWORDS):
                                 account["status"] = "🚫 冻结"
                                 self.log(f"{log_prefix} {phone_number} - 🚫 冻结")
@@ -2283,46 +2286,53 @@ class TGMassDM:
                         else:
                             account["status"] = "⚠️ 无回复"
                             self.log(f"{log_prefix} {phone_number} - ⚠️ 无回复")
-                        
+
                     except Exception as retry_error:
                         account["status"] = "⚠️ 取消拉黑失败"
                         self.log(f"{log_prefix} {phone_number} - ❌ 取消拉黑失败")
-                
+
                 # 其他错误
                 else:
                     account["status"] = f"⚠️ 检测失败"
                     self.log(f"{log_prefix} {phone_number} - ⚠️ 检测失败")
-                
+
                 self.root.after(0, self.refresh_account_tree)
 
             account["last_login"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-            
-            # 更新 JSON 文件（保存最新信息）
+
+            # 更新 JSON 文件(保存最新信息)
             try:
                 session_path = Path(account["path"])
                 json_file = session_path.parent / f"{session_path.stem}.json"
-                
+
                 if json_file.exists():
                     import json
                     with open(json_file, 'r', encoding='utf-8') as f:
                         json_data = json.load(f)
-                    
+
                     # 更新姓名
                     if account["first_name"] and account["first_name"] != "-":
                         # 分离 first_name 和 last_name
                         parts = account["first_name"].split(' ', 1)
                         json_data["first_name"] = parts[0]
                         json_data["last_name"] = parts[1] if len(parts) > 1 else None
-                    
+
                     # 更新用户名
                     if account["username"] and account["username"] != "-":
                         json_data["username"] = account["username"].lstrip('@')
-                    
+
                     # 更新手机号
                     if account["phone"] and account["phone"] != "-":
                         json_data["phone"] = account["phone"]
-                    
-                    # 更新状态（映射到 spamblock 字段）
+
+                    # 更新代理信息
+                    proxy_used = account.get("proxy_used", "")
+                    if proxy_used:
+                        json_data["proxy"] = proxy_used
+                    else:
+                        json_data["proxy"] = ""
+
+                    # 更新状态(映射到 spamblock 字段)
                     status = account.get("status", "")
                     if "无限制" in status:
                         json_data["spamblock"] = "free"
@@ -2336,13 +2346,13 @@ class TGMassDM:
                         json_data["spamblock"] = "banned"
                     else:
                         json_data["spamblock"] = None
-                    
+
                     # 保存
                     with open(json_file, 'w', encoding='utf-8') as f:
                         json.dump(json_data, f, indent=2, ensure_ascii=False)
             except:
                 pass  # 忽略 JSON 保存错误
-            
+
             # 确保断开连接
             try:
                 await client.disconnect()
@@ -2356,7 +2366,7 @@ class TGMassDM:
             import traceback
             self.log(f"     追踪: {traceback.format_exc()[:200]}")
             self.root.after(0, self.refresh_account_tree)
-            
+
             # 确保断开连接
             try:
                 if 'client' in locals():
@@ -2369,44 +2379,44 @@ class TGMassDM:
         concurrent = self.check_concurrent.get()  # 并发数量
         batch_delay = self.check_batch_delay.get()  # 批次间隔
         total = len(accounts)
-        
-        self.log(f"📊 并发配置: 每批 {concurrent} 个账号，批次间隔 {batch_delay} 秒")
-        
+
+        self.log(f"📊 并发配置: 每批 {concurrent} 个账号,批次间隔 {batch_delay} 秒")
+
         # 分批处理
         for i in range(0, total, concurrent):
             # 检查是否停止
             if self.stop_flag:
                 self.log("⏸️ 检测已停止")
                 break
-            
+
             batch = accounts[i:i+concurrent]
             batch_num = i // concurrent + 1
             total_batches = (total + concurrent - 1) // concurrent
-            
+
             self.log(f"🔄 批次 {batch_num}/{total_batches}: 检测 {len(batch)} 个账号...")
-            
+
             # 并发检测一批
             tasks = [self.check_single_account(acc, i+j, total) for j, acc in enumerate(batch)]
             await asyncio.gather(*tasks)
-            
+
             # 批次间隔
             if i + concurrent < total:
                 self.log(f"⏳ 等待 {batch_delay} 秒后继续下一批...")
                 await asyncio.sleep(batch_delay)
-        
+
         if not self.stop_flag:
             self.log("✅ 账号检测完成")
-        
-        # 统计各状态数量（只统计本次检测的账号）
+
+        # 统计各状态数量(只统计本次检测的账号)
         normal_count = sum(1 for acc in accounts if "✅ 无限制" in acc["status"])
         limited_count = sum(1 for acc in accounts if "⚠️ 永久双向限制" in acc["status"])
         frozen_count = sum(1 for acc in accounts if "🚫 冻结" in acc["status"])
         banned_count = sum(1 for acc in accounts if "🚫 封禁" in acc["status"])
         temp_limited_count = sum(1 for acc in accounts if "⚠️ 临时限制" in acc["status"])
         other_count = total - normal_count - limited_count - frozen_count - banned_count - temp_limited_count
-        
+
         self.log("=" * 50)
-        self.log("📊 检测结果统计：")
+        self.log("📊 检测结果统计:")
         self.log(f"  ✅ 无限制: {normal_count} 个")
         self.log(f"  ⚠️ 永久双向限制: {limited_count} 个")
         self.log(f"  🚫 冻结: {frozen_count} 个")
@@ -2416,14 +2426,14 @@ class TGMassDM:
             self.log(f"  ⚠️ 其他: {other_count} 个")
         self.log(f"  📝 总计: {total} 个")
         self.log("=" * 50)
-        
+
         self.root.after(0, self.update_account_stats)
-        
+
         # 清理所有异步任务
         await self.cleanup_async_tasks()
-    
+
     async def cleanup_async_tasks(self):
-        """清理所有异步任务，确保程序可以停止"""
+        """清理所有异步任务,确保程序可以停止"""
         try:
             # 获取所有未完成的任务
             tasks = [task for task in asyncio.all_tasks() if not task.done()]
@@ -2446,231 +2456,231 @@ class TGMassDM:
     def delete_selected(self):
         """删除选择的账号"""
         selected_accounts = [acc for acc in self.accounts if acc["selected"]]
-        
+
         if not selected_accounts:
             messagebox.showinfo("提示", "没有选择任何账号")
             return
-        
+
         confirm = messagebox.askyesno("确认删除",
             f"确定要删除 {len(selected_accounts)} 个选择的账号吗?\n"
             f"(同时删除文件)")
         if not confirm:
             return
-        
+
         deleted_count = 0
         for acc in selected_accounts:
             if self._delete_account_files(acc):
                 deleted_count += 1
-        
+
         self.accounts = [acc for acc in self.accounts if not acc["selected"]]
-        
+
         self.log(f"🗑️ 已删除 {deleted_count} 个选择的账号(含文件)")
         self.refresh_account_tree()
         self.save_config()
-    
+
     def delete_all(self):
         """删除全部账号"""
         if not self.accounts:
             messagebox.showinfo("提示", "没有账号")
             return
-        
+
         confirm = messagebox.askyesno("⚠️ 危险操作",
             f"确定要删除全部 {len(self.accounts)} 个账号吗?\n"
             f"(同时删除文件)\n\n"
-            f"此操作不可恢复！")
+            f"此操作不可恢复!")
         if not confirm:
             return
-        
+
         deleted_count = 0
         for acc in self.accounts:
             if self._delete_account_files(acc):
                 deleted_count += 1
-        
+
         self.accounts = []
-        
+
         self.log(f"🗑️ 已删除全部 {deleted_count} 个账号(含文件)")
         self.refresh_account_tree()
         self.save_config()
-    
+
     def delete_frozen(self):
         """删除冻结账号"""
         self._delete_by_status("冻结", ["🚫 冻结"])
-    
+
     def delete_banned(self):
         """删除封禁账号"""
         self._delete_by_status("封禁", ["🚫 封禁"])
-    
+
     def _delete_by_status(self, status_name, status_keywords):
         """通用删除函数"""
-        target_accounts = [acc for acc in self.accounts 
+        target_accounts = [acc for acc in self.accounts
                           if any(keyword in acc["status"] for keyword in status_keywords)]
-        
+
         if not target_accounts:
             messagebox.showinfo("提示", f"没有{status_name}账号")
             return
-        
+
         confirm = messagebox.askyesno("确认删除",
             f"确定要删除 {len(target_accounts)} 个{status_name}账号吗?\n"
             f"(同时删除文件)")
         if not confirm:
             return
-        
+
         deleted_count = 0
         for acc in target_accounts:
             if self._delete_account_files(acc):
                 deleted_count += 1
-        
-        self.accounts = [acc for acc in self.accounts 
+
+        self.accounts = [acc for acc in self.accounts
                         if not any(keyword in acc["status"] for keyword in status_keywords)]
-        
+
         self.log(f"🗑️ 已删除 {deleted_count} 个{status_name}账号(含文件)")
         self.refresh_account_tree()
         self.save_config()
-    
+
     def _delete_account_files(self, acc):
         """删除账号文件"""
         try:
             session_path = Path(acc["path"])
-            
+
             # 删除 session 文件
             if session_path.exists():
                 os.remove(session_path)
-            
+
             # 删除 session-journal 文件(如果存在)
             journal_path = session_path.with_suffix('.session-journal')
             if journal_path.exists():
                 os.remove(journal_path)
-            
+
             # 删除 json 文件(如果存在)
-            # 123.session → 123.json（不是 123.session.json）
+            # 123.session → 123.json(不是 123.session.json)
             json_path = session_path.parent / f"{session_path.stem}.json"
             if json_path.exists():
                 os.remove(json_path)
-            
+
             self.log(f"  🗑️ 已删除: {session_path.name}")
             return True
         except Exception as e:
             self.log(f"  ⚠️ 删除失败: {session_path.name} - {str(e)}")
             return False
-    
+
     # ========== 导出功能 ==========
-    
+
     def export_selected(self):
         """导出选择的账号"""
         selected_accounts = [acc for acc in self.accounts if acc["selected"]]
         self._export_accounts(selected_accounts, "选择的账号")
-    
+
     def export_all(self):
         """导出全部账号"""
         self._export_accounts(self.accounts, "全部账号")
-    
+
     def export_invalid(self):
         """导出失效账号"""
         invalid_accounts = [acc for acc in self.accounts if "❌" in acc["status"]]
         self._export_accounts(invalid_accounts, "失效账号")
-    
+
     def export_frozen(self):
         """导出冻结账号"""
         frozen_accounts = [acc for acc in self.accounts if "🚫 冻结" in acc["status"]]
         self._export_accounts(frozen_accounts, "冻结账号")
-    
+
     def export_banned(self):
         """导出封禁账号"""
         banned_accounts = [acc for acc in self.accounts if "🚫 封禁" in acc["status"]]
         self._export_accounts(banned_accounts, "封禁账号")
-    
+
     def export_permanent_limited(self):
         """导出永久双向限制账号"""
         permanent_accounts = [acc for acc in self.accounts if "永久双向限制" in acc["status"]]
         self._export_and_remove_accounts(permanent_accounts, "永久双向限制账号")
-    
+
     def export_temp_limited(self):
         """导出临时限制账号"""
         temp_accounts = [acc for acc in self.accounts if "临时限制" in acc["status"] or "临时垃圾邮件" in acc["status"]]
         self._export_and_remove_accounts(temp_accounts, "临时限制账号")
-    
+
     def _export_and_remove_accounts(self, accounts, export_name):
-        """导出账号并从程序中删除（移动文件）"""
+        """导出账号并从程序中删除(移动文件)"""
         if not accounts:
             messagebox.showinfo("提示", f"没有{export_name}")
             return
-        
+
         # 选择导出文件夹
-        export_folder = filedialog.askdirectory(title=f"选择导出文件夹（{export_name}）")
+        export_folder = filedialog.askdirectory(title=f"选择导出文件夹({export_name})")
         if not export_folder:
             return
-        
+
         export_path = Path(export_folder)
         exported_count = 0
         removed_accounts = []
-        
+
         for acc in accounts:
             try:
                 import shutil
                 session_path = Path(acc["path"])
-                
+
                 # 移动 session 文件
                 if session_path.exists():
                     dest_session = export_path / session_path.name
                     shutil.move(str(session_path), str(dest_session))
                     exported_count += 1
-                    
+
                     # 移动对应的 JSON 文件
                     json_file = session_path.parent / f"{session_path.stem}.json"
                     if json_file.exists():
                         dest_json = export_path / json_file.name
                         shutil.move(str(json_file), str(dest_json))
-                    
+
                     # 标记为待删除
                     removed_accounts.append(acc)
-                    
+
             except Exception as e:
                 self.log(f"❌ 导出失败: {session_path.name} - {str(e)}")
-        
+
         # 从账号列表中删除
         for acc in removed_accounts:
             self.accounts.remove(acc)
-        
+
         self.log(f"✅ 导出 {exported_count} 个{export_name}到: {export_folder}")
         self.log(f"✅ 已从程序中删除 {len(removed_accounts)} 个账号")
         self.refresh_account_tree()
         self.save_config()
         messagebox.showinfo("导出成功", f"成功导出 {exported_count} 个{export_name}\n并从程序中删除")
-    
+
     def _export_accounts(self, accounts, export_name):
         """通用导出函数"""
         if not accounts:
             messagebox.showinfo("提示", f"没有{export_name}")
             return
-        
+
         # 选择导出文件夹
-        export_folder = filedialog.askdirectory(title=f"选择导出文件夹（{export_name}）")
+        export_folder = filedialog.askdirectory(title=f"选择导出文件夹({export_name})")
         if not export_folder:
             return
-        
+
         export_path = Path(export_folder)
         exported_count = 0
         removed_accounts = []
-        
+
         for acc in accounts:
             try:
                 import shutil
                 session_path = Path(acc["path"])
-                
+
                 # 移动 session 文件
                 if session_path.exists():
                     dest_session = export_path / session_path.name
                     shutil.move(str(session_path), str(dest_session))
                     exported_count += 1
-                
+
                 # 移动 session-journal 文件(如果存在)
                 journal_path = session_path.with_suffix('.session-journal')
                 if journal_path.exists():
                     dest_journal = export_path / journal_path.name
                     shutil.move(str(journal_path), str(dest_journal))
-                
+
                 # 移动 json 文件(如果存在)
-                # 123.session → 123.json（不是 123.session.json）
+                # 123.session → 123.json(不是 123.session.json)
                 json_path = session_path.parent / f"{session_path.stem}.json"
                 if json_path.exists():
                     dest_json = export_path / json_path.name
@@ -2678,17 +2688,17 @@ class TGMassDM:
                     self.log(f"  📤 已导出: {session_path.name} (含JSON)")
                 else:
                     self.log(f"  📤 已导出: {session_path.name}")
-                
+
                 # 标记为待删除
                 removed_accounts.append(acc)
-                
+
             except Exception as e:
                 self.log(f"  ⚠️ 导出失败: {session_path.name} - {str(e)}")
-        
+
         # 从账号列表中删除
         for acc in removed_accounts:
             self.accounts.remove(acc)
-        
+
         self.log(f"📤 导出完成: {exported_count}/{len(accounts)} 个{export_name}")
         self.log(f"✅ 已从程序中删除 {len(removed_accounts)} 个账号")
         self.refresh_account_tree()
@@ -2711,20 +2721,20 @@ class TGMassDM:
         """更新已选账号数量和表头"""
         selected = sum(1 for acc in self.accounts if acc["selected"])
         total = len(self.accounts)
-        
+
         # 更新底部标签
         self.selected_count_label.config(text=f"✓ 已选择 {selected} 个账号")
-        
+
         # 更新表头显示 选中/总数
         self.account_tree.heading("选择", text=f"{selected}/{total}")
-    
+
     def update_progress(self):
-        """更新私信进度显示（顶部三色标签）"""
+        """更新私信进度显示(顶部三色标签)"""
         total = getattr(self, 'total_sent', 0) + getattr(self, 'total_failed', 0)
         success = getattr(self, 'total_sent', 0)
         failed = getattr(self, 'total_failed', 0)
-        
-        # 始终显示进度（运行中和停止后都显示）
+
+        # 始终显示进度(运行中和停止后都显示)
         if hasattr(self, 'progress_total_label'):
             self.progress_total_label.config(text=f"总计: {total} 条")
         if hasattr(self, 'progress_success_label'):
@@ -3041,11 +3051,11 @@ class TGMassDM:
             if not self.is_running:
                 self.log("⏸️ 任务已停止")
                 break
-            
+
             # 修复2: 检查是否还有可用账号
             available_accounts = [acc for acc in selected_accounts if acc.get("selected", False)]
             if not available_accounts:
-                self.log("⚠️ 所有选中的账号都已不可用，自动停止任务")
+                self.log("⚠️ 所有选中的账号都已不可用,自动停止任务")
                 self.is_running = False
                 break
 
@@ -3070,30 +3080,30 @@ class TGMassDM:
         self.log(f"📊 总计: {self.total_sent + self.total_failed} 条")
         self.log(f"✅ 成功: {self.total_sent} 条")
         self.log(f"❌ 失败: {self.total_failed} 条")
-        
+
         # 计算成功率并给出建议
         total = self.total_sent + self.total_failed
         if total > 0:
             success_rate = (self.total_sent / total * 100)
             self.log(f"📈 成功率: {success_rate:.1f}%")
-            
+
             # 根据成功率给出建议
             if success_rate < 10:
-                self.log(f"\n⚠️ 成功率过低 ({success_rate:.1f}%)，建议检查：")
+                self.log(f"\n⚠️ 成功率过低 ({success_rate:.1f}%),建议检查:")
                 self.log(f"   1. 大量账号已被封禁 → 删除封禁账号")
                 self.log(f"   2. 转发链接无效 → 检查链接是否正确")
                 self.log(f"   3. 目标用户名错误 → 检查用户名列表")
             elif success_rate < 30:
-                self.log(f"\n⚠️ 成功率较低 ({success_rate:.1f}%)，建议：")
+                self.log(f"\n⚠️ 成功率较低 ({success_rate:.1f}%),建议:")
                 self.log(f"   1. 检查部分账号是否被封禁")
-                self.log(f"   2. 增加发送间隔（避免请求限制）")
+                self.log(f"   2. 增加发送间隔(避免请求限制)")
             elif success_rate < 60:
-                self.log(f"\n💡 成功率中等 ({success_rate:.1f}%)，可优化：")
+                self.log(f"\n💡 成功率中等 ({success_rate:.1f}%),可优化:")
                 self.log(f"   1. 调整发送间隔")
                 self.log(f"   2. 检查目标用户质量")
             else:
                 self.log(f"\n✅ 成功率良好 ({success_rate:.1f}%)")
-        
+
         self.log("="*50)
 
         # 显示每个账号的统计
@@ -3106,28 +3116,28 @@ class TGMassDM:
                 total_acc = success + failed
                 success_rate_acc = (success / total_acc * 100) if total_acc > 0 else 0
                 self.log(f"  📱 {account_name}: ✅ {success} 条 | ❌ {failed} 条 | 成功率 {success_rate_acc:.1f}%")
-                
+
                 # 收集成功率为0的账号
                 if total_acc > 0 and success == 0:
                     invalid_accounts.append(account_name)
-            
-            # 如果有封禁/失效账号，给出提示
+
+            # 如果有封禁/失效账号,给出提示
             if invalid_accounts:
-                self.log(f"\n🚫 以下账号已被封禁或失效（成功率0%）：")
+                self.log(f"\n🚫 以下账号已被封禁或失效(成功率0%):")
                 for acc in invalid_accounts[:5]:  # 最多显示5个
                     self.log(f"   • {acc}")
                 if len(invalid_accounts) > 5:
                     self.log(f"   ... 还有 {len(invalid_accounts) - 5} 个账号")
-                self.log(f"💡 建议：在「账号管理」中删除这些账号，避免浪费时间")
+                self.log(f"💡 建议:在「账号管理」中删除这些账号,避免浪费时间")
 
         self.log("="*50)
 
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
-        
-        # 任务完成后保持显示最终统计（不清空）
-        # update_progress 会在 is_running=False 时清空，所以这里手动设置
+
+        # 任务完成后保持显示最终统计(不清空)
+        # update_progress 会在 is_running=False 时清空,所以这里手动设置
         total = self.total_sent + self.total_failed
         if hasattr(self, 'progress_total_label'):
             self.progress_total_label.config(text=f"总计: {total} 条")
@@ -3137,14 +3147,14 @@ class TGMassDM:
             self.progress_failed_label.config(text=f"失败: {self.total_failed} 条")
 
     async def countdown_wait(self, wait_time, account_name):
-        """倒计时等待（显示剩余时间）"""
+        """倒计时等待(显示剩余时间)"""
         try:
             for remaining in range(wait_time, 0, -1):
                 if not self.is_running:
                     self.log(f"  ⏸️ [{account_name}] 等待被中断")
                     break
-                
-                # 每60秒显示一次，或最后10秒每5秒显示，最后5秒每秒显示
+
+                # 每60秒显示一次,或最后10秒每5秒显示,最后5秒每秒显示
                 if remaining % 60 == 0 or (remaining <= 10 and remaining % 5 == 0) or remaining <= 5:
                     minutes = remaining // 60
                     seconds = remaining % 60
@@ -3152,9 +3162,9 @@ class TGMassDM:
                         time_str = f"{minutes}分{seconds}秒"
                     else:
                         time_str = f"{seconds}秒"
-                    
+
                     self.log(f"  ⏳ [{account_name}] 剩余等待时间: {time_str}")
-                
+
                 await asyncio.sleep(1)
         except Exception as e:
             self.log(f"  ⚠️ [{account_name}] 倒计时错误: {e}")
@@ -3163,41 +3173,41 @@ class TGMassDM:
         """检查 SpamBot 状态"""
         try:
             self.log(f"  🤖 [{account_name}] 正在检查 SpamBot 状态...")
-            
+
             # 发送 /start 给 @SpamBot
             await client.send_message("SpamBot", "/start")
-            
+
             # 等待回复
             await asyncio.sleep(3)
-            
+
             # 获取最近的消息
             messages = await client.get_messages("SpamBot", limit=1)
-            
+
             if messages and len(messages) > 0:
                 reply_text = messages[0].text or messages[0].message or ""
-                
+
                 # 检测限制关键词
                 restriction_keywords = [
                     "限制", "restriction", "spam", "flood", "banned", "限流",
                     "temporarily", "暂时", "永久", "permanent"
                 ]
-                
+
                 has_restriction = any(keyword in reply_text.lower() for keyword in restriction_keywords)
-                
+
                 if has_restriction:
                     self.log(f"  ⚠️ [{account_name}] SpamBot 检测到限制:")
                     self.log(f"      {reply_text[:100]}")
                     return True  # 有限制
                 else:
-                    self.log(f"  ✅ [{account_name}] SpamBot 无限制，可以继续发送")
+                    self.log(f"  ✅ [{account_name}] SpamBot 无限制,可以继续发送")
                     return False  # 无限制
             else:
                 self.log(f"  ⚠️ [{account_name}] SpamBot 未回复")
-                return True  # 安全起见，认为有限制
-                
+                return True  # 安全起见,认为有限制
+
         except Exception as e:
             self.log(f"  ⚠️ [{account_name}] 检查 SpamBot 失败: {e}")
-            return True  # 出错时安全起见，认为有限制
+            return True  # 出错时安全起见,认为有限制
 
     async def send_with_account(self, account, index, total):
         """使用单个账号发送"""
@@ -3208,7 +3218,7 @@ class TGMassDM:
             await client.connect()
 
             me = await client.get_me()
-            
+
             # 修复1: 检查 me 是否为 None
             if not me:
                 self.log(f"  ❌ 登录失败: 账号无效或已失效")
@@ -3216,8 +3226,8 @@ class TGMassDM:
                 account["selected"] = False  # 取消选择
                 await client.disconnect()
                 return
-            
-            # 优先显示手机号，其次用户名，最后 ID
+
+            # 优先显示手机号,其次用户名,最后 ID
             account_name = me.phone or me.username or str(me.id)
             self.log(f"  ✅ 已登录: {account_name}")
 
@@ -3227,23 +3237,23 @@ class TGMassDM:
 
             account_sent = 0
             account_failed_count = 0  # 记录连续失败次数
-            consecutive_fails = 0  # 连续失败计数（用于检测刷屏）
+            consecutive_fails = 0  # 连续失败计数(用于检测刷屏)
             has_spam_restriction = False  # 是否有垃圾邮件限制
 
             while self.is_running:
-                # 检测连续失败过多，停止该账号
+                # 检测连续失败过多,停止该账号
                 if consecutive_fails >= 10:
-                    self.log(f"  🚫 [{account_name}] 连续失败 {consecutive_fails} 次，停止该账号")
+                    self.log(f"  🚫 [{account_name}] 连续失败 {consecutive_fails} 次,停止该账号")
                     break
-                
-                # 动态从共享列表中获取下一个目标（避免重复发送）
+
+                # 动态从共享列表中获取下一个目标(避免重复发送)
                 async with self.send_lock:
                     if not self.targets or len(self.targets) == 0:
-                        self.log(f"  ✅ [{account_name}] 目标列表已空，完成发送")
+                        self.log(f"  ✅ [{account_name}] 目标列表已空,完成发送")
                         break
-                    
+
                     target = self.targets.pop(0)  # 取出第一个目标并从列表删除
-                
+
                 if account_sent >= self.per_account_limit.get():
                     self.log(f"  ⚠️ [{account_name}] 达到单账号上限 ({self.per_account_limit.get()})")
                     break
@@ -3279,17 +3289,17 @@ class TGMassDM:
                                 parts = forward_url.split("/")
                                 if len(parts) >= 2:
                                     channel_username = parts[-2]
-                                    
-                                    # 提取消息ID（去除查询参数）
+
+                                    # 提取消息ID(去除查询参数)
                                     message_id_str = parts[-1].split("?")[0].split("#")[0]
-                                    
+
                                     # 调试日志
                                     self.log(f"  🔍 [{account_name}] 解析链接: {forward_url}")
                                     self.log(f"      频道: {channel_username}, 消息ID: {message_id_str}")
-                                    
+
                                     message_id = int(message_id_str)
 
-                                    # 获取原始消息（可能失败：未加入频道/频道不存在）
+                                    # 获取原始消息(可能失败:未加入频道/频道不存在)
                                     try:
                                         channel = await client.get_entity(channel_username)
                                         message_obj = await client.get_messages(channel, ids=message_id)
@@ -3331,13 +3341,13 @@ class TGMassDM:
                             except ValueError as ve:
                                 error_msg = str(ve)
                                 consecutive_fails += 1
-                                
+
                                 # 区分不同的错误类型
                                 if "账号未加入频道" in error_msg:
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                     self.log(f"      {error_msg}")
                                     self.log(f"      可能原因: 这是一个私有频道")
-                                    self.log(f"      解决方案1: 使用 /c/ 格式链接（右键消息→复制链接）")
+                                    self.log(f"      解决方案1: 使用 /c/ 格式链接(右键消息→复制链接)")
                                     self.log(f"      解决方案2: 确保账号已加入该频道")
                                 elif "no user" in error_msg.lower() or "no channel" in error_msg.lower():
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
@@ -3347,7 +3357,7 @@ class TGMassDM:
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                     self.log(f"      链接格式错误: {forward_url}")
                                     self.log(f"      错误详情: {error_msg}")
-                                
+
                                 async with self.send_lock:
                                     self.total_failed += 1
                                     self.account_stats[account_name]["failed"] += 1  # 账号统计
@@ -3356,11 +3366,11 @@ class TGMassDM:
                             except Exception as e:
                                 error_str = str(e).lower()
                                 consecutive_fails += 1
-                                
+
                                 # 显示完整错误
                                 self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                 self.log(f"      {str(e)}")
-                                
+
                                 async with self.send_lock:
                                     self.total_failed += 1
                                     self.account_stats[account_name]["failed"] += 1
@@ -3376,10 +3386,10 @@ class TGMassDM:
                         # 文本消息模式
                         message = self.message_text.get("1.0", tk.END).strip()
                         message = message.replace("{username}", username)
-                        # 注意：{firstname} 变量需要获取用户信息，可能导致 Constructor ID 错误
-                        # 如果消息模板包含 {firstname}，建议改用 {username}
+                        # 注意:{firstname} 变量需要获取用户信息,可能导致 Constructor ID 错误
+                        # 如果消息模板包含 {firstname},建议改用 {username}
 
-                        # 直接发送文本消息（不获取用户信息，避免 Constructor ID 错误）
+                        # 直接发送文本消息(不获取用户信息,避免 Constructor ID 错误)
                         sent_msg = await client.send_message(username, message)
 
                         # 验证发送成功(检查返回的消息对象)
@@ -3389,17 +3399,17 @@ class TGMassDM:
                         self.log(f"  ✅ [{account_name}] 发送成功: @{username} (msg_id: {sent_msg.id})")
 
                     account_sent += 1
-                    account_failed_count = 0  # 重置失败计数（发送成功）
+                    account_failed_count = 0  # 重置失败计数(发送成功)
                     consecutive_fails = 0  # 重置连续失败计数
 
                     async with self.send_lock:
                         self.total_sent += 1
                         self.account_stats[account_name]["sent"] += 1  # 账号统计
                         current_total = self.total_sent
-                        
+
                         # 更新进度显示
                         self.root.after(0, self.update_progress)
-                        
+
                         # 从 UI 目标列表中删除
                         self.root.after(0, lambda: self.remove_successful_target(target))
 
@@ -3414,10 +3424,10 @@ class TGMassDM:
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
-                        
+
                         # 更新进度显示
                         self.root.after(0, self.update_progress)
-                    # 直接跳过，不等待
+                    # 直接跳过,不等待
 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
@@ -3426,32 +3436,32 @@ class TGMassDM:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
                         self.root.after(0, self.update_progress)
-                    
-                    # 检测是否是双向限制（连续多个用户失败）
+
+                    # 检测是否是双向限制(连续多个用户失败)
                     account_failed_count += 1
                     if account_failed_count >= 3:
-                        self.log(f"  ⚠️ [{account_name}] 连续失败3次，可能遇到双向限制")
+                        self.log(f"  ⚠️ [{account_name}] 连续失败3次,可能遇到双向限制")
                         # 检查 SpamBot
                         has_restriction = await self.check_spambot_status(client, account_name)
                         if has_restriction:
-                            self.log(f"  🚫 [{account_name}] SpamBot 检测到限制，停止该账号")
+                            self.log(f"  🚫 [{account_name}] SpamBot 检测到限制,停止该账号")
                             account["status"] = "⚠️ 双向限制"
                             account["selected"] = False
-                            
+
                             # 强制保存账号数据
                             self.save_accounts()
-                            
-                            # 在主线程中刷新账号列表（延迟100ms确保数据已保存）
+
+                            # 在主线程中刷新账号列表(延迟100ms确保数据已保存)
                             def update_tree():
                                 self.refresh_account_tree()
                                 self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
-                            
+
                             self.root.after(100, update_tree)
-                            
+
                             has_spam_restriction = True
                             break
                         else:
-                            self.log(f"  ✅ [{account_name}] SpamBot 无限制，继续发送")
+                            self.log(f"  ✅ [{account_name}] SpamBot 无限制,继续发送")
                             account_failed_count = 0  # 重置失败计数
 
                 except errors.UserIsBlockedError as e:
@@ -3480,32 +3490,32 @@ class TGMassDM:
 
                 except errors.AuthKeyUnregisteredError as e:
                     self.log(f"  🚫 [{account_name}] 账号已封禁 (The key is not registered)")
-                    self.log(f"      此账号无法使用，已自动停止")
+                    self.log(f"      此账号无法使用,已自动停止")
                     account["status"] = "🚫 已封禁"
                     account["selected"] = False  # 自动取消选择
-                    
+
                     # 强制保存账号数据
                     self.save_accounts()
-                    
-                    # 在主线程中刷新账号列表（延迟100ms确保数据已保存）
+
+                    # 在主线程中刷新账号列表(延迟100ms确保数据已保存)
                     def update_tree():
                         self.refresh_account_tree()
                         self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
-                    
+
                     self.root.after(100, update_tree)
-                    
+
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
                         self.root.after(0, self.update_progress)
-                    break  # 账号已封禁，停止使用
+                    break  # 账号已封禁,停止使用
 
                 except Exception as e:
                     error_str = str(e).lower()
                     error_type = type(e).__name__
                     consecutive_fails += 1
 
-                    # 检测 Premium 限制（跳过该用户，继续下一个）
+                    # 检测 Premium 限制(跳过该用户,继续下一个)
                     if "privacy_premium_required" in error_str:
                         self.log(f"  ⚠️ [{account_name}] 目标用户需要 Premium: @{username} - 跳过")
                         consecutive_fails -= 1  # 不计入连续失败
@@ -3513,9 +3523,9 @@ class TGMassDM:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        continue  # 跳过该用户，继续下一个
-                    
-                    # 检测支付方式限制（跳过该用户，继续下一个）
+                        continue  # 跳过该用户,继续下一个
+
+                    # 检测支付方式限制(跳过该用户,继续下一个)
                     if "allow_payment_required" in error_str:
                         self.log(f"  ⚠️ [{account_name}] 目标用户需要绑定支付: @{username} - 跳过")
                         consecutive_fails -= 1  # 不计入连续失败
@@ -3523,31 +3533,31 @@ class TGMassDM:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        continue  # 跳过该用户，继续下一个
-                    
+                        continue  # 跳过该用户,继续下一个
+
                     # 检测账号封禁错误
                     if "key is not registered" in error_str or "authkeyunregistered" in error_str:
                         self.log(f"  🚫 [{account_name}] 账号已封禁 (The key is not registered)")
-                        self.log(f"      此账号无法使用，已自动停止")
+                        self.log(f"      此账号无法使用,已自动停止")
                         account["status"] = "🚫 已封禁"
                         account["selected"] = False  # 自动取消选择
-                        
+
                         # 强制保存账号数据
                         self.save_accounts()
-                        
-                        # 在主线程中刷新账号列表（延迟100ms确保数据已保存）
+
+                        # 在主线程中刷新账号列表(延迟100ms确保数据已保存)
                         def update_tree():
                             self.refresh_account_tree()
                             self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
-                        
+
                         self.root.after(100, update_tree)
-                        
+
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        break  # 账号已封禁，停止使用
-                    
+                        break  # 账号已封禁,停止使用
+
                     # 检测 "Too many requests" 错误
                     if "too many requests" in error_str or "flood" in error_str:
                         self.log(f"  ❌ [{account_name}] 触发请求限制: @{username} - 跳过")
@@ -3555,8 +3565,8 @@ class TGMassDM:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        # 直接跳过，不等待
-                        continue  # 跳过后续处理，继续下一个用户
+                        # 直接跳过,不等待
+                        continue  # 跳过后续处理,继续下一个用户
 
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
                     self.log(f"      {str(e)}")
@@ -3726,14 +3736,14 @@ class TGMassDM:
         try:
             if not os.path.exists(self.targets_file):
                 return
-            
+
             with open(self.targets_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
+
             targets = data.get("targets", [])
             # 只加载待发送的用户
             pending_targets = [t["username"] for t in targets if t.get("status") == "pending"]
-            
+
             if pending_targets:
                 self.target_text.delete("1.0", tk.END)
                 self.target_text.insert("1.0", "\n".join(pending_targets))
@@ -3741,13 +3751,13 @@ class TGMassDM:
                 self.log(f"✅ 自动加载 {len(pending_targets)} 个目标用户")
         except Exception as e:
             self.log(f"⚠️ 加载目标用户失败: {e}")
-    
+
     def save_targets(self):
         """保存目标用户列表"""
         try:
             text = self.target_text.get("1.0", tk.END)
             lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
-            
+
             targets = []
             for username in lines:
                 targets.append({
@@ -3755,111 +3765,111 @@ class TGMassDM:
                     "status": "pending",
                     "added_time": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 })
-            
+
             data = {"targets": targets}
-            
+
             with open(self.targets_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             self.log(f"⚠️ 保存目标用户失败: {e}")
-    
+
     def update_target_count(self):
         """更新目标用户数量"""
         text = self.target_text.get("1.0", tk.END)
         lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
         count = len(lines)
         self.target_count_label.config(text=f"共 {count} 个目标用户")
-    
+
     def load_forward_posts(self):
         """加载转发链接列表"""
         try:
             if not os.path.exists(self.forward_posts_file):
                 return
-            
+
             with open(self.forward_posts_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
+
             urls = data.get("urls", [])
             hide_source = data.get("hide_source", False)
-            
+
             if urls:
                 self.forward_urls_text.delete("1.0", tk.END)
                 self.forward_urls_text.insert("1.0", "\n".join(urls))
                 self.update_forward_count()
-            
+
             self.hide_source.set(hide_source)
-            
+
             if urls:
                 self.log(f"✅ 自动加载 {len(urls)} 条转发链接")
         except Exception as e:
             self.log(f"⚠️ 加载转发链接失败: {e}")
-    
+
     def save_forward_posts(self):
         """保存转发链接列表"""
         try:
             text = self.forward_urls_text.get("1.0", tk.END)
-            lines = [line.strip() for line in text.strip().split('\n') 
+            lines = [line.strip() for line in text.strip().split('\n')
                     if line.strip() and line.strip().startswith('http')]
-            
+
             data = {
                 "urls": lines,
                 "hide_source": self.hide_source.get()
             }
-            
+
             with open(self.forward_posts_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             self.log(f"⚠️ 保存转发链接失败: {e}")
-    
+
     def update_forward_count(self):
         """更新转发贴子数量"""
         text = self.forward_urls_text.get("1.0", tk.END)
-        lines = [line.strip() for line in text.strip().split('\n') 
+        lines = [line.strip() for line in text.strip().split('\n')
                 if line.strip() and line.strip().startswith('http')]
         count = len(lines)
         self.forward_count_label.config(text=f"共 {count} 条贴子")
-    
+
     def load_message_text(self):
         """加载文本消息内容"""
         try:
             if not os.path.exists(self.message_text_file):
                 return
-            
+
             with open(self.message_text_file, "r", encoding="utf-8") as f:
                 data = json.load(f)
-            
+
             text = data.get("text", "")
-            
+
             if text:
                 self.message_text.delete("1.0", tk.END)
                 self.message_text.insert("1.0", text)
                 self.log(f"✅ 自动加载文本消息")
         except Exception as e:
             self.log(f"⚠️ 加载文本消息失败: {e}")
-    
+
     def save_message_text(self):
         """保存文本消息内容"""
         try:
             text = self.message_text.get("1.0", tk.END).strip()
-            
+
             data = {"text": text}
-            
+
             with open(self.message_text_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             self.log(f"⚠️ 保存文本消息失败: {e}")
 
     # ==================== 代理管理功能 ====================
-    
+
     def import_proxy_file(self):
         """从文件导入代理"""
         from tkinter import filedialog
-        
+
         filename = filedialog.askopenfilename(
             title="选择代理文件",
             filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
         )
-        
+
         if filename:
             try:
                 with open(filename, "r", encoding="utf-8") as f:
@@ -3869,18 +3879,18 @@ class TGMassDM:
                     self.log(f"✅ 已导入代理文件: {filename}")
             except Exception as e:
                 self.log(f"❌ 导入代理文件失败: {e}")
-    
+
     def add_proxies(self):
         """添加代理到列表"""
         content = self.proxy_input.get("1.0", tk.END).strip()
-        
+
         if not content:
             messagebox.showwarning("警告", "请先输入或导入代理")
             return
-        
+
         lines = [line.strip() for line in content.split("\n") if line.strip()]
         added = 0
-        
+
         for line in lines:
             # 解析代理格式
             proxy_info = self.parse_proxy(line)
@@ -3889,16 +3899,16 @@ class TGMassDM:
                 if not any(p["proxy"] == proxy_info["proxy"] for p in self.proxies):
                     self.proxies.append(proxy_info)
                     added += 1
-        
+
         self.refresh_proxy_tree()
         self.save_proxies()  # 自动保存
         self.log(f"✅ 添加了 {added} 个代理到列表")
         self.proxy_input.delete("1.0", tk.END)
-    
+
     def parse_proxy(self, line):
-        """解析代理格式，使用用户选择的默认协议"""
+        """解析代理格式,使用用户选择的默认协议"""
         import re
-        
+
         # 支持的格式:
         # http://ip:port
         # http://user:pass@ip:port
@@ -3906,12 +3916,12 @@ class TGMassDM:
         # socks5://user:pass@ip:port
         # ip:port (使用默认协议)
         # user:pass@ip:port (使用默认协议)
-        
+
         line = line.strip()
         if not line:
             return None
-        
-        # 匹配完整格式（明确指定协议）
+
+        # 匹配完整格式(明确指定协议)
         match = re.match(r'^(https?|socks[45])://(.+)$', line)
         if match:
             proxy_type = match.group(1)
@@ -3923,8 +3933,8 @@ class TGMassDM:
                 "ping": 0,
                 "selected": False
             }
-        
-        # 匹配 ip:port 或 user:pass@ip:port（没有协议前缀）
+
+        # 匹配 ip:port 或 user:pass@ip:port(没有协议前缀)
         # 使用用户选择的默认协议
         if ':' in line:
             default_protocol = self.default_proxy_protocol.get()
@@ -3935,20 +3945,20 @@ class TGMassDM:
                 "ping": 0,
                 "selected": False
             }
-        
+
         return None
-    
+
     def refresh_proxy_tree(self):
         """刷新代理列表显示"""
         # 清空树
         for item in self.proxy_tree.get_children():
             self.proxy_tree.delete(item)
-        
+
         # 重新填充
         for proxy in self.proxies:
             check = "☑" if proxy["selected"] else "☐"
             ping_display = f"{proxy['ping']}" if proxy['ping'] > 0 else "-"
-            
+
             self.proxy_tree.insert("", tk.END, values=(
                 check,
                 proxy["proxy"],
@@ -3956,21 +3966,21 @@ class TGMassDM:
                 proxy["status"],
                 ping_display
             ))
-        
+
         # 更新统计
         self.update_proxy_stats()
-    
+
     def update_proxy_stats(self):
         """更新代理统计"""
         total = len(self.proxies)
         available = sum(1 for p in self.proxies if p["status"] == "可用")
         unavailable = sum(1 for p in self.proxies if p["status"] == "不可用")
         unchecked = sum(1 for p in self.proxies if p["status"] == "未检测")
-        
+
         self.proxy_stats.config(
             text=f"总计: {total} | 可用: {available} | 不可用: {unavailable} | 未检测: {unchecked}"
         )
-    
+
     def toggle_proxy_selection(self, event):
         """双击切换代理选择"""
         item = self.proxy_tree.selection()
@@ -3979,47 +3989,47 @@ class TGMassDM:
             self.proxies[index]["selected"] = not self.proxies[index]["selected"]
             self.refresh_proxy_tree()
             self.save_proxies()  # 自动保存选择状态
-    
+
     def check_all_proxies(self):
         """批量检测所有代理"""
         if not self.proxies:
             messagebox.showwarning("警告", "代理列表为空")
             return
-        
-        self.log(f"🔍 开始检测 {len(self.proxies)} 个代理... (并发检测，速度更快)")
-        
+
+        self.log(f"🔍 开始检测 {len(self.proxies)} 个代理... (并发检测,速度更快)")
+
         # 使用异步检测
         import threading
         thread = threading.Thread(target=self._check_proxies_thread, daemon=True)
         thread.start()
-    
+
     def _check_proxies_thread(self):
-        """代理检测线程（使用线程池并发）"""
+        """代理检测线程(使用线程池并发)"""
         import requests
         import time
         import urllib3
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        
+
         # 禁用 SSL 警告
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        
+
         def check_single_proxy(index, proxy):
             """检测单个代理"""
             try:
-                # 测试 URL（使用简单的 HTTP 网站）
+                # 测试 URL(使用简单的 HTTP 网站)
                 test_url = "http://httpbin.org/ip"
-                
+
                 # 构造代理字典
                 proxies = {
                     "http": proxy["proxy"],
                     "https": proxy["proxy"]
                 }
-                
-                # 测试连接（缩短超时时间）
+
+                # 测试连接(缩短超时时间)
                 start_time = time.time()
                 response = requests.get(test_url, proxies=proxies, timeout=5)  # 5秒超时
                 end_time = time.time()
-                
+
                 if response.status_code == 200:
                     ping = int((end_time - start_time) * 1000)
                     proxy["status"] = "可用"
@@ -4029,24 +4039,24 @@ class TGMassDM:
                     proxy["status"] = "不可用"
                     proxy["ping"] = 0
                     return (index, False, f"❌ [{index+1}/{len(self.proxies)}] {proxy['proxy'][:60]}... - HTTP {response.status_code}")
-            
+
             except Exception as e:
                 proxy["status"] = "不可用"
                 proxy["ping"] = 0
                 error_msg = str(e)[:80]
                 return (index, False, f"❌ [{index+1}/{len(self.proxies)}] {proxy['proxy'][:60]}... - {error_msg}")
-        
-        # 使用线程池并发检测（50个线程）
+
+        # 使用线程池并发检测(50个线程)
         with ThreadPoolExecutor(max_workers=50) as executor:
             futures = {executor.submit(check_single_proxy, i, proxy): i for i, proxy in enumerate(self.proxies)}
-            
+
             for future in as_completed(futures):
                 index, success, message = future.result()
                 self.root.after(0, lambda msg=message: self.log(msg))
                 self.root.after(0, self.refresh_proxy_tree)
-        
+
         self.root.after(0, lambda: self.log(f"✅ 代理检测完成"))
-    
+
     def select_available_proxies(self):
         """选中所有可用代理"""
         for proxy in self.proxies:
@@ -4055,45 +4065,45 @@ class TGMassDM:
         self.refresh_proxy_tree()
         self.save_proxies()  # 自动保存
         self.log(f"✅ 已选中所有可用代理")
-    
+
     def delete_unavailable_proxies(self):
         """删除所有不可用代理"""
         before = len(self.proxies)
         self.proxies = [p for p in self.proxies if p["status"] != "不可用"]
         after = len(self.proxies)
         deleted = before - after
-        
+
         self.refresh_proxy_tree()
         self.save_proxies()  # 自动保存
         self.log(f"✅ 删除了 {deleted} 个不可用代理")
-    
+
     def clear_all_proxies(self):
         """清空所有代理"""
         if not self.proxies:
             return
-        
-        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.proxies)} 个代理吗？"):
+
+        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.proxies)} 个代理吗?"):
             self.proxies = []
             self.refresh_proxy_tree()
             self.save_proxies()  # 自动保存
             self.log(f"✅ 已清空代理列表")
-    
+
     def export_available_proxies(self):
         """导出可用代理到文件"""
         from tkinter import filedialog
-        
+
         available = [p for p in self.proxies if p["status"] == "可用"]
-        
+
         if not available:
             messagebox.showwarning("警告", "没有可用代理")
             return
-        
+
         filename = filedialog.asksaveasfilename(
             title="保存可用代理",
             defaultextension=".txt",
             filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
         )
-        
+
         if filename:
             try:
                 with open(filename, "w", encoding="utf-8") as f:
@@ -4102,28 +4112,28 @@ class TGMassDM:
                 self.log(f"✅ 导出了 {len(available)} 个可用代理到: {filename}")
             except Exception as e:
                 self.log(f"❌ 导出代理失败: {e}")
-    
+
     def parse_proxy_for_telethon(self, proxy_url):
         """将代理 URL 转换为 Telethon 所需的格式
         返回: (proxy_config, connection_type)
         """
         import re
         from telethon import connection
-        
+
         # 解析代理 URL
         # 格式: http://ip:port 或 http://user:pass@ip:port
         # 格式: socks5://ip:port 或 socks5://user:pass@ip:port
-        
+
         match = re.match(r'^(https?|socks[45])://(?:(.+):(.+)@)?(.+):(\d+)$', proxy_url)
         if not match:
             return None, None
-        
+
         proxy_type = match.group(1)
         username = match.group(2)
         password = match.group(3)
         addr = match.group(4)
         port = int(match.group(5))
-        
+
         # Telethon 代理格式
         if proxy_type in ['socks4', 'socks5']:
             import socks
@@ -4136,7 +4146,7 @@ class TGMassDM:
             proxy = (addr, port, username, password)
             # HTTP 代理必须使用 ConnectionHttp
             return proxy, connection.ConnectionHttp
-    
+
     def save_proxies(self):
         """保存代理列表到文件"""
         try:
@@ -4145,7 +4155,7 @@ class TGMassDM:
                 json.dump(self.proxies, f, ensure_ascii=False, indent=2)
         except Exception as e:
             self.log(f"⚠️ 保存代理列表失败: {e}")
-    
+
     def load_proxies(self):
         """从文件加载代理列表"""
         try:
