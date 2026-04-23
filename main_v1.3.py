@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.69.0"
+VERSION = "v1.70.0"
 
 # 隐私保护说明：
 # 代理信息不会保存到 JSON 文件中
@@ -3712,18 +3712,12 @@ class TGMassDM:
                     # 原因：等待后立即重试还是会触发限制，进入无限循环
                     # 应该让其他账号尝试，或者该账号休息一段时间
                     
+                    # FloodWait 不计入连续失败（是账号问题，不是用户问题）
+                    
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
                         self.root.after(0, self.update_progress)
-                    
-                    # 检查是否连续失败太多次
-                    consecutive_fails += 1
-                    if consecutive_fails >= 5:
-                        self.log(f"  ⚠️ [{account_name}] 连续失败 {consecutive_fails} 次，该账号可能被限制")
-                        self.log(f"      建议停止使用此账号或等待一段时间")
-                        # 可以选择自动停止该账号
-                        # break
                     
                     continue  # 跳过该用户，继续下一个
 
@@ -3849,6 +3843,18 @@ class TGMassDM:
                             self.root.after(0, lambda: self.remove_successful_target(target))
                         continue  # 跳过该用户,继续下一个
 
+                    # 检测"无法在此聊天中写入"错误(用户禁止陌生人发消息)
+                    if "can't write in this chat" in error_str or "you can't write" in error_str:
+                        self.log(f"  ⚠️ [{account_name}] 用户禁止陌生人发消息: @{username} - 已从列表删除")
+                        consecutive_fails -= 1  # 不计入连续失败
+                        async with self.send_lock:
+                            self.total_failed += 1
+                            self.account_stats[account_name]["failed"] += 1
+                            self.root.after(0, self.update_progress)
+                            # 从 UI 目标列表中删除
+                            self.root.after(0, lambda: self.remove_successful_target(target))
+                        continue  # 跳过该用户,继续下一个
+
                     # 检测账号封禁错误
                     if "key is not registered" in error_str or "authkeyunregistered" in error_str:
                         self.log(f"  🚫 [{account_name}] 账号已封禁 (The key is not registered)")
@@ -3882,15 +3888,14 @@ class TGMassDM:
                         self.log(f"  ⏳ [{account_name}] 触发频率限制（{wait_seconds}秒）")
                         self.log(f"      目标用户 @{username} 标记为失败，跳过")
                         
-                        # 不要等待和重试，直接标记为失败
+                        # FloodWait 不计入连续失败（是账号问题，不是用户问题）
+                        consecutive_fails -= 1
+                        
+                        # 标记为失败
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
-                        
-                        consecutive_fails += 1
-                        if consecutive_fails >= 5:
-                            self.log(f"  ⚠️ [{account_name}] 连续失败 {consecutive_fails} 次，该账号可能被限制")
                         
                         continue
 
