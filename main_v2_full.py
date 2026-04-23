@@ -4146,6 +4146,7 @@ class TGMassDM:
             
             phone = account.get("phone", "")
             session_file = account.get("path", "")  # 使用 path 字段，不是 session
+            proxy = account.get("proxy", "")  # 读取账号的代理配置
             
             if not session_file:
                 self.log(f"❌ 账号 {phone} 没有session文件路径")
@@ -4168,7 +4169,7 @@ class TGMassDM:
             
             # 在新线程中打开浏览器（避免阻塞UI）
             def open_browser():
-                driver = web_login.open_telegram_web(session_file)
+                driver = web_login.open_telegram_web(session_file, proxy=proxy)
                 if driver:
                     # 保持浏览器打开，直到用户关闭
                     # driver会在用户关闭浏览器时自动释放

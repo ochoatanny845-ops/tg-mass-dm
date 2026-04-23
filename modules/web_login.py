@@ -149,7 +149,7 @@ class TelegramWebLogin:
             self.log(f"❌ 读取session失败: {str(e)}")
             raise
     
-    async def open_telegram_web_async(self, session_file, headless=False, keep_open=True):
+    async def open_telegram_web_async(self, session_file, headless=False, keep_open=True, proxy=None):
         """
         打开Telegram Web并自动登录（异步版本）
         
@@ -157,6 +157,7 @@ class TelegramWebLogin:
             session_file: .session 文件路径
             headless: 是否无头模式
             keep_open: 是否保持浏览器打开
+            proxy: 代理地址，格式：socks5://user:pass@host:port 或 http://host:port
         
         Returns:
             WebDriver 实例 或 None
@@ -183,6 +184,11 @@ class TelegramWebLogin:
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--incognito')
+            
+            # 配置代理
+            if proxy:
+                self.log(f"🔗 使用代理: {proxy}")
+                chrome_options.add_argument(f'--proxy-server={proxy}')
             
             # 启动Chrome（优先使用本地驱动，避免网络下载卡住）
             self.log("🌐 正在启动浏览器...")
@@ -338,7 +344,7 @@ class TelegramWebLogin:
             traceback.print_exc()
             return None
     
-    def open_telegram_web(self, session_file, headless=False, keep_open=True):
+    def open_telegram_web(self, session_file, headless=False, keep_open=True, proxy=None):
         """
         打开Telegram Web并自动登录（同步包装）
         
@@ -346,6 +352,7 @@ class TelegramWebLogin:
             session_file: .session 文件路径
             headless: 是否无头模式
             keep_open: 是否保持浏览器打开
+            proxy: 代理地址，格式：socks5://user:pass@host:port 或 http://host:port
         
         Returns:
             WebDriver 实例 或 None
@@ -355,7 +362,7 @@ class TelegramWebLogin:
         asyncio.set_event_loop(loop)
         try:
             return loop.run_until_complete(
-                self.open_telegram_web_async(session_file, headless, keep_open)
+                self.open_telegram_web_async(session_file, headless, keep_open, proxy)
             )
         finally:
             loop.close()
