@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.55.1"
+VERSION = "v1.55.2"
 
 import os
 import sys
@@ -1867,13 +1867,6 @@ class TGMassDM:
         # 禁用所有操作按钮
         self.stop_btn.config(state=tk.NORMAL)
         self.start_btn.config(state=tk.DISABLED)
-        
-        # 禁用删除按钮（防止检测时删除文件）
-        try:
-            self.delete_selected_btn.config(state=tk.DISABLED)
-            self.delete_invalid_btn.config(state=tk.DISABLED)
-        except:
-            pass
 
         thread = threading.Thread(target=self.run_check_accounts, args=(selected_accounts,))
         thread.start()
@@ -1889,13 +1882,6 @@ class TGMassDM:
             self.is_running = False
             self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
             self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
-            
-            # 恢复删除按钮
-            try:
-                self.root.after(0, lambda: self.delete_selected_btn.config(state=tk.NORMAL))
-                self.root.after(0, lambda: self.delete_invalid_btn.config(state=tk.NORMAL))
-            except:
-                pass
 
     async def check_single_account(self, account, index, total):
         """检测单个账号(并发调用)"""
