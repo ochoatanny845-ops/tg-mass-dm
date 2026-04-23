@@ -1252,7 +1252,6 @@ class TGMassDM:
                 "forward_urls": self.forward_urls_text.get("1.0", tk.END).strip(),
                 "targets": self.target_text.get("1.0", tk.END).strip(),
                 "scrape_limit": self.scrape_limit.get(),
-                "filter_active": self.filter_active.get(),
                 "filter_bot": self.filter_bot.get(),
                 "filter_username": self.filter_username.get()
             }
@@ -1311,7 +1310,6 @@ class TGMassDM:
             self.target_text.insert("1.0", config.get("targets", ""))
 
             self.scrape_limit.set(config.get("scrape_limit", 500))
-            self.filter_active.set(config.get("filter_active", True))
             self.filter_bot.set(config.get("filter_bot", True))
             self.filter_username.set(config.get("filter_username", False))
 
