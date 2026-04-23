@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.49.2"
+VERSION = "v1.50.0"
 
 import os
 import sys
@@ -70,6 +70,7 @@ class TGMassDM:
         self.load_targets()  # 加载目标用户
         self.load_forward_posts()  # 加载转发链接
         self.load_message_text()  # 加载文本消息
+        self.load_proxies()  # 加载代理列表
 
     def setup_ui(self):
         """设置界面"""
@@ -3761,6 +3762,7 @@ class TGMassDM:
                     added += 1
         
         self.refresh_proxy_tree()
+        self.save_proxies()  # 自动保存
         self.log(f"✅ 添加了 {added} 个代理到列表")
         self.proxy_input.delete("1.0", tk.END)
     
@@ -3845,6 +3847,7 @@ class TGMassDM:
             index = self.proxy_tree.index(item[0])
             self.proxies[index]["selected"] = not self.proxies[index]["selected"]
             self.refresh_proxy_tree()
+            self.save_proxies()  # 自动保存选择状态
     
     def check_all_proxies(self):
         """批量检测所有代理"""
@@ -3919,6 +3922,7 @@ class TGMassDM:
             if proxy["status"] == "可用":
                 proxy["selected"] = True
         self.refresh_proxy_tree()
+        self.save_proxies()  # 自动保存
         self.log(f"✅ 已选中所有可用代理")
     
     def delete_unavailable_proxies(self):
@@ -3929,6 +3933,7 @@ class TGMassDM:
         deleted = before - after
         
         self.refresh_proxy_tree()
+        self.save_proxies()  # 自动保存
         self.log(f"✅ 删除了 {deleted} 个不可用代理")
     
     def clear_all_proxies(self):
@@ -3939,6 +3944,7 @@ class TGMassDM:
         if messagebox.askyesno("确认", f"确定要清空所有 {len(self.proxies)} 个代理吗？"):
             self.proxies = []
             self.refresh_proxy_tree()
+            self.save_proxies()  # 自动保存
             self.log(f"✅ 已清空代理列表")
     
     def export_available_proxies(self):
@@ -3994,6 +4000,27 @@ class TGMassDM:
             proxy = (addr, port, username, password)
         
         return proxy
+    
+    def save_proxies(self):
+        """保存代理列表到文件"""
+        try:
+            proxy_file = "proxies.json"
+            with open(proxy_file, "w", encoding="utf-8") as f:
+                json.dump(self.proxies, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            self.log(f"⚠️ 保存代理列表失败: {e}")
+    
+    def load_proxies(self):
+        """从文件加载代理列表"""
+        try:
+            proxy_file = "proxies.json"
+            if os.path.exists(proxy_file):
+                with open(proxy_file, "r", encoding="utf-8") as f:
+                    self.proxies = json.load(f)
+                    self.refresh_proxy_tree()
+                    self.log(f"✅ 自动加载了 {len(self.proxies)} 个代理")
+        except Exception as e:
+            self.log(f"⚠️ 加载代理列表失败: {e}")
 
 
 def main():
