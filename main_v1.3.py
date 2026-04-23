@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.47.1"
+VERSION = "v1.48.0"
 
 import os
 import sys
@@ -106,10 +106,9 @@ class TGMassDM:
                        borderwidth=2,
                        padding=6)
         
-        # 设置代理管理按钮样式（居中）
+        # 设置代理管理按钮样式（左对齐）
         style.configure('Proxy.TButton',
-                       anchor='center',
-                       justify='center')
+                       anchor='w')  # 'w' = west = 左对齐
 
         # 创建四个功能标签页
         self.setup_tab_accounts()
@@ -3869,8 +3868,8 @@ class TGMassDM:
         
         for i, proxy in enumerate(self.proxies):
             try:
-                # 测试 URL
-                test_url = "https://www.google.com"
+                # 测试 URL（使用国内可访问的网站）
+                test_url = "http://www.baidu.com"
                 
                 # 构造代理字典
                 proxies = {
@@ -3880,23 +3879,24 @@ class TGMassDM:
                 
                 # 测试连接
                 start_time = time.time()
-                response = requests.get(test_url, proxies=proxies, timeout=10)
+                response = requests.get(test_url, proxies=proxies, timeout=10, verify=False)
                 end_time = time.time()
                 
                 if response.status_code == 200:
                     ping = int((end_time - start_time) * 1000)
                     proxy["status"] = "可用"
                     proxy["ping"] = ping
-                    self.root.after(0, lambda: self.log(f"✅ [{i+1}/{len(self.proxies)}] {proxy['proxy']} - 可用 ({ping}ms)"))
+                    self.root.after(0, lambda i=i, p=proxy, ms=ping: self.log(f"✅ [{i+1}/{len(self.proxies)}] {p['proxy']} - 可用 ({ms}ms)"))
                 else:
                     proxy["status"] = "不可用"
                     proxy["ping"] = 0
-                    self.root.after(0, lambda: self.log(f"❌ [{i+1}/{len(self.proxies)}] {proxy['proxy']} - 不可用"))
+                    self.root.after(0, lambda i=i, p=proxy, code=response.status_code: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy']} - HTTP {code}"))
             
             except Exception as e:
                 proxy["status"] = "不可用"
                 proxy["ping"] = 0
-                self.root.after(0, lambda p=proxy: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy']} - 超时/错误"))
+                error_msg = str(e)[:50]  # 截取前50个字符
+                self.root.after(0, lambda i=i, p=proxy, err=error_msg: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy']} - {err}"))
             
             # 刷新显示
             self.root.after(0, self.refresh_proxy_tree)
