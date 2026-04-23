@@ -2925,9 +2925,16 @@ class TGMassDM:
 
     def update_progress(self):
         """更新私信进度显示(顶部三色标签)"""
-        total = getattr(self, 'total_sent', 0) + getattr(self, 'total_failed', 0)
-        success = getattr(self, 'total_sent', 0)
-        failed = getattr(self, 'total_failed', 0)
+        # 优先从发送模块读取实时数据（发送过程中）
+        if hasattr(self, 'message_sender') and hasattr(self.message_sender, 'total_sent'):
+            total = self.message_sender.total_sent + self.message_sender.total_failed
+            success = self.message_sender.total_sent
+            failed = self.message_sender.total_failed
+        else:
+            # 后备：从主程序读取（发送完成后）
+            total = getattr(self, 'total_sent', 0) + getattr(self, 'total_failed', 0)
+            success = getattr(self, 'total_sent', 0)
+            failed = getattr(self, 'total_failed', 0)
 
         # 始终显示进度(运行中和停止后都显示)
         if hasattr(self, 'progress_total_label'):
