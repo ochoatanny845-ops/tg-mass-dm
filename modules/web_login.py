@@ -70,16 +70,16 @@ class TelegramWebLogin:
     
     async def convert_to_gramjs_session(self, session_file):
         """
-        将Telethon session转换为GramJS StringSession格式
+        将Telethon session转换为Telegram Web localStorage格式
         
         Args:
             session_file: .session 文件路径
         
         Returns:
-            str: GramJS格式的session字符串
+            dict: localStorage格式的数据 {dc_id, auth_key_hex, user_id}
         """
         try:
-            self.log("🔄 正在转换session为GramJS格式...")
+            self.log("🔄 正在读取session数据...")
             
             # 去掉.session后缀（Telethon会自动添加）
             session_name = str(session_file).replace('.session', '')
@@ -94,17 +94,43 @@ class TelegramWebLogin:
                 await client.disconnect()
                 raise ValueError("Session未授权或已过期，请重新登录")
             
-            # 导出为StringSession
-            string_session = StringSession.save(client.session)
+            # 获取用户信息
+            me = await client.get_me()
+            user_id = me.id
+            
+            # 读取session的auth_key和dc_id
+            import sqlite3
+            conn = sqlite3.connect(session_file)
+            cursor = conn.cursor()
+            cursor.execute("SELECT dc_id, auth_key FROM sessions")
+            row = cursor.fetchone()
+            conn.close()
+            
+            if not row:
+                await client.disconnect()
+                raise ValueError("Session文件损坏，无法读取auth_key")
+            
+            dc_id, auth_key_bytes = row
+            
+            # 转换为16进制字符串（Telegram Web格式）
+            auth_key_hex = auth_key_bytes.hex()
+            
+            # 计算auth_key_fingerprint（前8个字节的hex）
+            fingerprint = auth_key_bytes[:4].hex()
             
             await client.disconnect()
             
-            self.log(f"✅ 成功转换为GramJS格式")
+            self.log(f"✅ 成功读取session: DC{dc_id}, User ID: {user_id}")
             
-            return string_session
+            return {
+                'dc_id': dc_id,
+                'auth_key_hex': auth_key_hex,
+                'fingerprint': fingerprint,
+                'user_id': user_id
+            }
             
         except Exception as e:
-            self.log(f"❌ 转换session失败: {str(e)}")
+            self.log(f"❌ 读取session失败: {str(e)}")
             raise
     
     async def open_telegram_web_async(self, session_file, headless=False, keep_open=True):
@@ -128,8 +154,8 @@ class TelegramWebLogin:
             if not os.path.exists(session_file):
                 raise FileNotFoundError(f"Session文件不存在: {session_file}")
             
-            # 转换为GramJS session
-            gramjs_session = await self.convert_to_gramjs_session(session_file)
+            # 读取session数据
+            session_data = await self.convert_to_gramjs_session(session_file)
             
             # 配置Chrome选项
             chrome_options = Options()
@@ -196,26 +222,37 @@ class TelegramWebLogin:
             driver.get("https://web.telegram.org/a/")
             time.sleep(2)
             
-            # 注入GramJS session
-            self.log("🔑 正在注入GramJS认证数据...")
+            # 注入Telegram Web localStorage（真实格式）
+            self.log("🔑 正在注入认证数据...")
             
-            # GramJS使用特定的localStorage key
+            dc_id = session_data['dc_id']
+            auth_key_hex = session_data['auth_key_hex']
+            fingerprint = session_data['fingerprint']
+            user_id = session_data['user_id']
+            
+            # 使用真实的localStorage格式（从已登录的Telegram Web获取）
             script = f"""
             // 清除旧session
             localStorage.clear();
             
-            // 注入GramJS session（参考GramJS官方格式）
-            const sessionData = {{
-                session: '{gramjs_session}',
-                apiId: {self.api_id},
-                apiHash: '{self.api_hash}'
+            // 核心认证数据（Telegram Web真实格式）
+            localStorage.setItem('dc', '{dc_id}');
+            localStorage.setItem('dc{dc_id}_auth_key', '{auth_key_hex}');
+            localStorage.setItem('auth_key_fingerprint', '{fingerprint}');
+            
+            // 用户认证信息
+            const userAuth = {{
+                dcID: {dc_id},
+                id: "{user_id}"
             }};
+            localStorage.setItem('user_auth', JSON.stringify(userAuth));
             
-            // GramJS在localStorage中的key（可能是 'GramJs:apiCache' 或其他）
-            localStorage.setItem('GramJs:sessionData', JSON.stringify(sessionData));
-            localStorage.setItem('GramJs:session', '{gramjs_session}');
+            // 其他必要字段
+            localStorage.setItem('k_build', '626');
+            localStorage.setItem('kz_version', 'K');
+            localStorage.setItem('number_of_accounts', '0');
             
-            console.log('[TG-Login] Injected GramJS session');
+            console.log('[TG-Login] Injected auth data: DC{dc_id}, User {user_id}');
             """
             driver.execute_script(script)
             
@@ -235,8 +272,11 @@ class TelegramWebLogin:
                     
                     qr_elements = driver.find_elements("xpath", "//*[contains(@class, 'qr')]")
                     if qr_elements:
-                        self.log("⚠️ GramJS方案可能不适用当前Telegram Web版本")
-                        self.log("💡 建议使用Telegram Desktop或等待更新")
+                        self.log("⚠️ 注入可能失败，但浏览器已打开")
+                        self.log("💡 可能原因：")
+                        self.log("   1. auth_key已过期")
+                        self.log("   2. DC服务器变更")
+                        self.log("   3. 需要重新登录")
                     else:
                         self.log("✅ 第二次注入成功！")
                 else:
