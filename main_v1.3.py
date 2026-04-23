@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.48.0"
+VERSION = "v1.48.1"
 
 import os
 import sys
@@ -3868,8 +3868,9 @@ class TGMassDM:
         
         for i, proxy in enumerate(self.proxies):
             try:
-                # 测试 URL（使用国内可访问的网站）
-                test_url = "http://www.baidu.com"
+                # 测试 URL（使用稳定的国际网站）
+                # 不用 Google（可能被墙），用 Cloudflare
+                test_url = "https://1.1.1.1"  # Cloudflare DNS，全球可访问
                 
                 # 构造代理字典
                 proxies = {
@@ -3895,7 +3896,7 @@ class TGMassDM:
             except Exception as e:
                 proxy["status"] = "不可用"
                 proxy["ping"] = 0
-                error_msg = str(e)[:50]  # 截取前50个字符
+                error_msg = str(e)[:80]  # 截取前80个字符，显示更多错误信息
                 self.root.after(0, lambda i=i, p=proxy, err=error_msg: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy']} - {err}"))
             
             # 刷新显示
