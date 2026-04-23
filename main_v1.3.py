@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.46.1"
+VERSION = "v1.46.2"
 
 import os
 import sys
@@ -779,13 +779,38 @@ class TGMassDM:
         paned = ttk.PanedWindow(tab4, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
-        # ========== 左侧:导入和操作 ==========
-        left = ttk.Frame(paned)
-        paned.add(left, weight=1)
+        # ========== 左侧:导入和操作（带滚动条）==========
+        left_container = ttk.Frame(paned)
+        paned.add(left_container, weight=1)
+        
+        # 创建 Canvas 和 Scrollbar
+        left_canvas = tk.Canvas(left_container, highlightthickness=0)
+        left_scrollbar = ttk.Scrollbar(left_container, orient=tk.VERTICAL, command=left_canvas.yview)
+        left_scrollable = ttk.Frame(left_canvas)
+        
+        # 配置 Canvas
+        left_scrollable.bind(
+            "<Configure>",
+            lambda e: left_canvas.configure(scrollregion=left_canvas.bbox("all"))
+        )
+        
+        left_canvas.create_window((0, 0), window=left_scrollable, anchor=tk.NW)
+        left_canvas.configure(yscrollcommand=left_scrollbar.set)
+        
+        # 绑定鼠标滚轮
+        def _on_mousewheel(event):
+            left_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        left_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        left_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        left_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 使用 left_scrollable 作为内容容器（替代原来的 left）
+        left = left_scrollable
 
         # 导入代理
         import_frame = ttk.LabelFrame(left, text="📥 导入代理", padding="10")
-        import_frame.pack(fill=tk.X, pady=(0, 10))  # 不使用 expand=True
+        import_frame.pack(fill=tk.X, pady=(0, 10))
 
         ttk.Label(import_frame, text="支持格式:").pack(anchor=tk.W)
         ttk.Label(import_frame, text="• http://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
@@ -793,11 +818,11 @@ class TGMassDM:
         ttk.Label(import_frame, text="• socks5://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
         ttk.Label(import_frame, text="• socks5://user:pass@ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
 
-        self.proxy_input = scrolledtext.ScrolledText(import_frame, height=6, font=("Consolas", 9))  # 减小高度
-        self.proxy_input.pack(fill=tk.BOTH, pady=(5, 0))  # 不使用 expand=True
+        self.proxy_input = scrolledtext.ScrolledText(import_frame, height=6, font=("Consolas", 9))
+        self.proxy_input.pack(fill=tk.BOTH, pady=(5, 0))
 
         btn_frame1 = ttk.Frame(import_frame)
-        btn_frame1.pack(fill=tk.X, pady=(5, 0))  # 减小间距
+        btn_frame1.pack(fill=tk.X, pady=(5, 0))
         ttk.Button(btn_frame1, text="📂 从文件导入", width=15,
                   command=self.import_proxy_file).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame1, text="➕ 添加到列表", width=15,
@@ -807,7 +832,7 @@ class TGMassDM:
 
         # 批量操作
         action_frame = ttk.LabelFrame(left, text="⚙️ 批量操作", padding="10")
-        action_frame.pack(fill=tk.X, pady=(10, 0))  # 添加上边距
+        action_frame.pack(fill=tk.X, pady=(10, 0))
 
         ttk.Button(action_frame, text="🔍 检测所有代理", width=20,
                   command=self.check_all_proxies).pack(fill=tk.X, pady=2)
