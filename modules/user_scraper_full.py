@@ -373,21 +373,29 @@ class UserScraper:
                         # 先获取基本用户作为input
                         input_user = await client.get_input_entity(msg.sender_id)
                         full_result = await client(GetFullUserRequest(input_user))
-                        user = full_result.users[0] if full_result.users else None
-                        if not user:
-                            raise Exception("No user in full_result")
+                        
+                        # 调试：查看返回类型
+                        if filter_stats["unique_users"] == 1:
+                            self.log(f"       GetFullUserRequest returned: {type(full_result)}, has users: {hasattr(full_result, 'users')}, has full_user: {hasattr(full_result, 'full_user')}")
+                        
+                        # full_result 应该是 users.UserFull
+                        # 包含 .users (基本User对象列表) 和 .full_user (UserFull详情)
+                        if hasattr(full_result, 'users') and full_result.users:
+                            user = full_result.users[0]
+                        else:
+                            user = await client.get_entity(msg.sender_id)
                         used_full_request = True
                     except Exception as e:
                         # 后备：基本get_entity
                         if filter_stats["unique_users"] <= 5:
-                            self.log(f"       GetFullUserRequest failed: {str(e)[:50]}")
+                            self.log(f"       GetFullUserRequest failed: {str(e)[:80]}")
                         user = await client.get_entity(msg.sender_id)
                         used_full_request = False
                     
                     # 调试：检查premium字段（前5个用户）
                     if filter_stats["unique_users"] <= 5:
                         premium_val = getattr(user, 'premium', None)
-                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_val}, used_full={used_full_request}, type={type(user).__name__}")
+                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_val}, used_full={used_full_request}")
                     
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
