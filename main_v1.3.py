@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.36.0"
+VERSION = "v1.37.0"
 
 import os
 import sys
@@ -3053,18 +3053,10 @@ class TGMassDM:
                         # 文本消息模式
                         message = self.message_text.get("1.0", tk.END).strip()
                         message = message.replace("{username}", username)
+                        # 注意：{firstname} 变量需要获取用户信息，可能导致 Constructor ID 错误
+                        # 如果消息模板包含 {firstname}，建议改用 {username}
 
-                        # 尝试获取用户信息（替换 {firstname}）
-                        try:
-                            user = await client.get_entity(username)
-                            if user and hasattr(user, 'first_name'):
-                                message = message.replace("{firstname}", user.first_name or "")
-                        except Exception as ge:
-                            # 忽略获取用户信息失败，继续发送
-                            # self.log(f"  ⚠️ [{account_name}] 无法获取用户信息: @{username}，继续发送")
-                            pass
-
-                        # 发送文本消息并确认
+                        # 直接发送文本消息（不获取用户信息，避免 Constructor ID 错误）
                         sent_msg = await client.send_message(username, message)
 
                         # 验证发送成功(检查返回的消息对象)
@@ -3190,14 +3182,6 @@ class TGMassDM:
                     error_type = type(e).__name__
                     consecutive_fails += 1
 
-                    # 忽略 Constructor ID 解析错误（消息可能已发送成功）
-                    if "constructor id" in error_str or "could not find a matching" in error_str:
-                        self.log(f"  ⚠️ [{account_name}] API 解析警告: @{username}")
-                        self.log(f"      消息可能已发送，忽略此错误")
-                        # 不计入失败，继续下一个
-                        consecutive_fails -= 1  # 回退失败计数
-                        continue
-                    
                     # 检测账号封禁错误
                     if "key is not registered" in error_str or "authkeyunregistered" in error_str:
                         self.log(f"  🚫 [{account_name}] 账号已封禁 (The key is not registered)")
