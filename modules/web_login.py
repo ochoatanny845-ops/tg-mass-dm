@@ -249,8 +249,7 @@ class TelegramWebLogin:
             
             # 使用真实的localStorage格式（从已登录的Telegram Web获取）
             script = f"""
-            // 清除旧session
-            localStorage.clear();
+            // 不清空！直接覆盖当前DC的数据
             
             // 核心认证数据（Telegram Web真实格式）
             localStorage.setItem('dc', '{dc_id}');
