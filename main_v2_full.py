@@ -1,4 +1,4 @@
-"""
+﻿"""
 TG 批量私信系统 - 完整版 v2.0
 模块化架构 + 完整UI
 """
@@ -788,9 +788,32 @@ class TGMassDM:
         paned = ttk.PanedWindow(tab3, orient=tk.HORIZONTAL)
         paned.pack(fill=tk.BOTH, expand=True)
 
-        # ========== 左侧:采集设置 ==========
-        left = ttk.Frame(paned)
-        paned.add(left, weight=1)
+        # ========== 左侧:采集设置（添加滚动） ==========
+        # 创建Canvas和滚动条
+        left_container = ttk.Frame(paned)
+        paned.add(left_container, weight=1)
+        
+        left_canvas = tk.Canvas(left_container, highlightthickness=0)
+        left_scrollbar = ttk.Scrollbar(left_container, orient=tk.VERTICAL, command=left_canvas.yview)
+        left_scrollable = ttk.Frame(left_canvas)
+        
+        left_scrollable.bind(
+            "<Configure>",
+            lambda e: left_canvas.configure(scrollregion=left_canvas.bbox("all"))
+        )
+        
+        left_canvas.create_window((0, 0), window=left_scrollable, anchor="nw")
+        left_canvas.configure(yscrollcommand=left_scrollbar.set)
+        
+        left_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        left_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 鼠标滚轮绑定
+        def _on_mousewheel(event):
+            left_canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        left_canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        # 使用left_scrollable代替left作为父容器
 
         # 采集来源
         source_frame = ttk.LabelFrame(left, text="📌 采集来源", padding="10")
