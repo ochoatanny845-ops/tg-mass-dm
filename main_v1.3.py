@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.67.0"
+VERSION = "v1.68.0"
 
 # 隐私保护说明：
 # 代理信息不会保存到 JSON 文件中
@@ -3822,24 +3822,28 @@ class TGMassDM:
                     error_type = type(e).__name__
                     consecutive_fails += 1
 
-                    # 检测 Premium 限制(跳过该用户,继续下一个)
+                    # 检测 Premium 限制(从列表删除,标记为失败)
                     if "privacy_premium_required" in error_str:
-                        self.log(f"  ⚠️ [{account_name}] 目标用户需要 Premium: @{username} - 跳过")
+                        self.log(f"  ⚠️ [{account_name}] 目标用户需要 Premium: @{username} - 已从列表删除")
                         consecutive_fails -= 1  # 不计入连续失败
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
+                            # 从 UI 目标列表中删除
+                            self.root.after(0, lambda: self.remove_successful_target(target))
                         continue  # 跳过该用户,继续下一个
 
-                    # 检测支付方式限制(跳过该用户,继续下一个)
+                    # 检测支付方式限制(从列表删除,标记为失败)
                     if "allow_payment_required" in error_str:
-                        self.log(f"  ⚠️ [{account_name}] 目标用户需要绑定支付: @{username} - 跳过")
+                        self.log(f"  ⚠️ [{account_name}] 目标用户需要绑定支付: @{username} - 已从列表删除")
                         consecutive_fails -= 1  # 不计入连续失败
                         async with self.send_lock:
                             self.total_failed += 1
                             self.account_stats[account_name]["failed"] += 1
                             self.root.after(0, self.update_progress)
+                            # 从 UI 目标列表中删除
+                            self.root.after(0, lambda: self.remove_successful_target(target))
                         continue  # 跳过该用户,继续下一个
 
                     # 检测账号封禁错误
