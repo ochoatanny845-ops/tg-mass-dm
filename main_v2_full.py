@@ -2563,7 +2563,7 @@ class TGMassDM:
                     
                     done, pending = await asyncio.wait(
                         [check_task, cancel_task],
-                        timeout=60,
+                        timeout=10,  # 超时时间：10秒
                         return_when=asyncio.FIRST_COMPLETED
                     )
                     
@@ -2583,7 +2583,7 @@ class TGMassDM:
                         # 超时
                         phone_number = Path(acc['path']).stem
                         acc["status"] = "⚠️ 检测超时"
-                        self.log(f"⏱️ [{idx+1}/{total}] {phone_number} - ⚠️ 检测超时（超过 60 秒）")
+                        self.log(f"⏱️ [{idx+1}/{total}] {phone_number} - ⚠️ 检测超时（超过 10 秒，跳过）")
                         self.root.after(0, self.refresh_account_tree)
                         
                 except asyncio.CancelledError:
