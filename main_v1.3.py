@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.62.0"
+VERSION = "v1.63.0"
 
 import os
 import sys
@@ -32,6 +32,19 @@ try:
 except ImportError:
     print("❌ 缺少 telethon 库,请运行: pip install telethon")
     sys.exit(1)
+
+
+# 随机emoji列表(用于随机添加到消息)
+RANDOM_EMOJIS = [
+    "🌵", "🦥", "🎈", "🌟", "💫", "⭐", "✨", "🎯", "🎪", "🎨",
+    "🎭", "🎬", "🎤", "🎧", "🎼", "🎹", "🥁", "🎷", "🎺", "🎸",
+    "🚀", "🛸", "🌈", "🌸", "🌺", "🌻", "🌷", "🌹", "🥀", "🌼",
+    "🦋", "🐝", "🐞", "🦗", "🕷️", "🦂", "🐢", "🐍", "🦎", "🦖",
+    "🦕", "🐙", "🦑", "🦐", "🦞", "🦀", "🐡", "🐠", "🐟", "🐬",
+    "🐳", "🐋", "🦈", "🐊", "🐅", "🐆", "🦓", "🦍", "🦧", "🐘",
+    "🦛", "🦏", "🐪", "🐫", "🦒", "🦘", "🦬", "🐃", "🐂", "🐄",
+    "🐎", "🐖", "🐏", "🐑", "🦙", "🐐", "🦌", "🐕", "🐩", "🦮",
+]
 
 
 class TGMassDM:
@@ -717,7 +730,20 @@ class TGMassDM:
         option_frame = ttk.LabelFrame(row2_frame, text="🔧 其他选项", padding="10")
         option_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
-        # 删除了"遇到限制自动切换账号"和"发送失败自动重试"选项
+        # 消息置顶
+        pin_frame = ttk.Frame(option_frame)
+        pin_frame.pack(fill=tk.X, pady=2)
+        
+        ttk.Label(pin_frame, text="消息置顶(秒):").pack(side=tk.LEFT)
+        self.pin_delay = tk.IntVar(value=0)
+        ttk.Spinbox(pin_frame, from_=0, to=60, textvariable=self.pin_delay,
+                   width=5).pack(side=tk.LEFT, padx=(10, 0))
+        ttk.Label(pin_frame, text="(0=不置顶)").pack(side=tk.LEFT, padx=(5, 0))
+
+        # 随机emoji
+        self.random_emoji = tk.BooleanVar(value=False)
+        ttk.Checkbutton(option_frame, text="随机符号emoji",
+                       variable=self.random_emoji).pack(anchor=tk.W, pady=2)
 
     def setup_tab_scraper(self):
         """功能3: 采集用户"""
@@ -1041,6 +1067,8 @@ class TGMassDM:
                 "ignore_privacy_limit": self.ignore_privacy_limit.get(),
                 "interval_min": self.interval_min.get(),
                 "interval_max": self.interval_max.get(),
+                "pin_delay": self.pin_delay.get(),
+                "random_emoji": self.random_emoji.get(),
                 "send_type": self.send_type.get(),
                 "hide_source": self.hide_source.get(),
                 "message_text": self.message_text.get("1.0", tk.END).strip(),
@@ -1091,6 +1119,8 @@ class TGMassDM:
             self.ignore_privacy_limit.set(config.get("ignore_privacy_limit", 10))
             self.interval_min.set(config.get("interval_min", 3))
             self.interval_max.set(config.get("interval_max", 8))
+            self.pin_delay.set(config.get("pin_delay", 0))
+            self.random_emoji.set(config.get("random_emoji", False))
             self.send_type.set(config.get("send_type", "text"))
             self.hide_source.set(config.get("hide_source", False))
 
@@ -3492,6 +3522,19 @@ class TGMassDM:
 
                                         hide_text = "(隐藏来源)" if self.hide_source.get() else "(显示来源)"
                                         self.log(f"  ✅ [{account_name}] 转发成功: @{username} {hide_text} (msg_id: {sent_msg.id})")
+                                        
+                                        # 如果启用消息置顶
+                                        pin_delay = self.pin_delay.get()
+                                        if pin_delay > 0:
+                                            self.log(f"      等待 {pin_delay} 秒后置顶消息...")
+                                            await asyncio.sleep(pin_delay)
+                                            
+                                            if not self.stop_flag:
+                                                try:
+                                                    await client.pin_message(username, sent_msg.id, notify=False)
+                                                    self.log(f"      ✅ 消息已置顶")
+                                                except Exception as pin_error:
+                                                    self.log(f"      ⚠️ 置顶失败: {str(pin_error)}")
                                     else:
                                         raise Exception("无法获取原始消息")
                                 else:
@@ -3546,6 +3589,15 @@ class TGMassDM:
                         # 注意:{firstname} 变量需要获取用户信息,可能导致 Constructor ID 错误
                         # 如果消息模板包含 {firstname},建议改用 {username}
 
+                        # 如果启用随机emoji,添加到消息
+                        if self.random_emoji.get():
+                            emoji = random.choice(RANDOM_EMOJIS)
+                            # 随机决定emoji放在前面还是后面
+                            if random.choice([True, False]):
+                                message = f"{emoji}{message}"
+                            else:
+                                message = f"{message}{emoji}"
+
                         # 直接发送文本消息(不获取用户信息,避免 Constructor ID 错误)
                         sent_msg = await client.send_message(username, message)
 
@@ -3554,6 +3606,19 @@ class TGMassDM:
                             raise Exception("发送失败,未收到消息ID")
 
                         self.log(f"  ✅ [{account_name}] 发送成功: @{username} (msg_id: {sent_msg.id})")
+
+                        # 如果启用消息置顶
+                        pin_delay = self.pin_delay.get()
+                        if pin_delay > 0:
+                            self.log(f"      等待 {pin_delay} 秒后置顶消息...")
+                            await asyncio.sleep(pin_delay)
+                            
+                            if not self.stop_flag:
+                                try:
+                                    await client.pin_message(username, sent_msg.id, notify=False)
+                                    self.log(f"      ✅ 消息已置顶")
+                                except Exception as pin_error:
+                                    self.log(f"      ⚠️ 置顶失败: {str(pin_error)}")
 
                     account_sent += 1
                     account_failed_count = 0  # 重置失败计数(发送成功)
