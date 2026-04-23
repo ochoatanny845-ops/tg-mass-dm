@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.57.1"
+VERSION = "v1.58.0"
 
 import os
 import sys
@@ -25,7 +25,7 @@ warnings.filterwarnings("ignore", message=".*Task exception was never retrieved.
 logging.getLogger('telethon').setLevel(logging.CRITICAL)  # 只显示严重错误
 
 try:
-    from telethon import TelegramClient, errors
+    from telethon import TelegramClient, errors, functions
     from telethon.tl.types import InputPeerUser, User
     from telethon.tl.functions.messages import GetDialogsRequest
     from telethon.tl.types import InputPeerEmpty, UserStatusOnline, UserStatusRecently
@@ -3699,6 +3699,32 @@ class TGMassDM:
                             self.root.after(0, self.update_progress)
                         # 直接跳过,不等待
                         continue  # 跳过后续处理,继续下一个用户
+
+                    # 检测 "Cannot find any entity" 错误（用户不存在或需要 Premium）
+                    if "cannot find any entity" in error_str:
+                        # 尝试获取更详细的信息
+                        try:
+                            # 尝试搜索用户
+                            search_result = await client(functions.contacts.SearchRequest(
+                                q=username,
+                                limit=1
+                            ))
+                            
+                            if search_result and search_result.users:
+                                # 用户存在，可能是隐私设置或需要 Premium
+                                self.log(f"  ⚠️ [{account_name}] 用户需要 Premium 或付费才能发送: @{username}")
+                            else:
+                                # 用户不存在
+                                self.log(f"  ❌ [{account_name}] 用户不存在: @{username}")
+                        except:
+                            # 搜索失败，简单提示
+                            self.log(f"  ❌ [{account_name}] 无法发送: @{username} (用户不存在/需要Premium/隐私限制)")
+                        
+                        async with self.send_lock:
+                            self.total_failed += 1
+                            self.account_stats[account_name]["failed"] += 1
+                            self.root.after(0, self.update_progress)
+                        continue
 
                     self.log(f"  ❌ [{account_name}] 发送失败: @{username}")
                     self.log(f"      {str(e)}")
