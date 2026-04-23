@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.31.0"
+VERSION = "v1.32.0"
 
 import os
 import sys
@@ -1876,6 +1876,7 @@ class TGMassDM:
                     if any(keyword in response for keyword in GEO_RESTRICTED_KEYWORDS):
                         account["status"] = "✅ 无限制（地理受限）"
                         self.log(f"{log_prefix} {phone_number} - ✅ 无限制（地理受限）")
+                        self.root.after(0, self.refresh_account_tree)
                     
                     # 2. 冻结（包含所有冻结场景）
                     elif any(keyword in response for keyword in FROZEN_KEYWORDS):
@@ -1887,11 +1888,13 @@ class TGMassDM:
                         else:
                             account["status"] = "🚫 冻结"
                             self.log(f"{log_prefix} {phone_number} - 🚫 冻结")
+                        self.root.after(0, self.refresh_account_tree)
                     
                     # 3. 永久双向限制
                     elif any(keyword in response for keyword in PERMANENT_LIMITED_KEYWORDS):
                         account["status"] = "⚠️ 永久双向限制"
                         self.log(f"{log_prefix} {phone_number} - ⚠️ 永久双向限制")
+                        self.root.after(0, self.refresh_account_tree)
                     
                     # 4. 临时限制（有到期时间）
                     elif any(keyword in response for keyword in TEMP_LIMITED_KEYWORDS):
@@ -1910,16 +1913,19 @@ class TGMassDM:
                         else:
                             account["status"] = "⚠️ 临时垃圾邮件"
                             self.log(f"{log_prefix} {phone_number} - ⚠️ 临时垃圾邮件")
+                        self.root.after(0, self.refresh_account_tree)
                     
                     # 5. 无限制
                     elif any(keyword in response for keyword in NORMAL_KEYWORDS):
                         account["status"] = "✅ 无限制"
                         self.log(f"{log_prefix} {phone_number} - ✅ 无限制")
+                        self.root.after(0, self.refresh_account_tree)
                     
                     # 6. 未知
                     else:
                         account["status"] = "⚠️ 未知状态"
                         self.log(f"{log_prefix} {phone_number} - ⚠️ 未知状态")
+                        self.root.after(0, self.refresh_account_tree)
                         # self.log(f"     SpamBot 回复: {response[:100]}")  # 调试日志已隐藏
                     
                     self.root.after(0, self.refresh_account_tree)
@@ -3100,6 +3106,10 @@ class TGMassDM:
                             self.log(f"  🚫 [{account_name}] SpamBot 检测到限制，停止该账号")
                             account["status"] = "⚠️ 双向限制"
                             account["selected"] = False
+                            
+                            # 实时更新账号列表显示
+                            self.root.after(0, self.refresh_account_tree)
+                            
                             has_spam_restriction = True
                             break
                         else:
