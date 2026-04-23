@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.52.1"
+VERSION = "v1.52.2"
 
 import os
 import sys
@@ -40,6 +40,25 @@ class TGMassDM:
         self.root.title(f"TG 批量私信系统 {VERSION}")
         self.root.geometry("1200x800")
         self.root.minsize(900, 600)  # 设置最小窗口尺寸
+        
+        # 设置异步异常处理器，禁止打印 AuthKeyDuplicatedError
+        def custom_exception_handler(loop, context):
+            exception = context.get('exception')
+            if exception:
+                # 只抑制 AuthKeyDuplicatedError，其他异常仍然记录
+                if 'AuthKeyDuplicatedError' not in str(exception):
+                    # 默认处理其他异常
+                    loop.default_exception_handler(context)
+            else:
+                loop.default_exception_handler(context)
+        
+        # 获取或创建事件循环
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        loop.set_exception_handler(custom_exception_handler)
 
         # Telegram API 配置
         self.api_id = 2040
