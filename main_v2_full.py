@@ -622,7 +622,7 @@ class TGMassDM:
                        value="forward", command=self.on_send_type_change).pack(anchor=tk.W, pady=2)
 
         # 文本消息框
-        self.text_msg_frame = ttk.LabelFrame(left_scrollable, text="✉️ 文本消息", padding="10")
+        self.text_msg_frame = ttk.LabelFrame(left, text="✉️ 文本消息", padding="10")
         self.text_msg_frame.pack(fill=tk.X, pady=(0, 10))
 
         self.message_text = scrolledtext.ScrolledText(self.text_msg_frame, height=6,
@@ -634,7 +634,7 @@ class TGMassDM:
         self.message_text.bind("<<Modified>>", self.on_message_text_change)
 
         # 转发贴子框(默认隐藏)
-        self.forward_msg_frame = ttk.LabelFrame(left_scrollable, text="🔗 转发贴子", padding="10")
+        self.forward_msg_frame = ttk.LabelFrame(left, text="🔗 转发贴子", padding="10")
         # 不 pack,等切换时显示
 
         ttk.Label(self.forward_msg_frame, text="贴子链接 (每行一条,自动随机选择):").pack(anchor=tk.W)
@@ -661,7 +661,7 @@ class TGMassDM:
         self.messaging_left = left
 
         # 目标用户
-        target_frame = ttk.LabelFrame(left_scrollable, text="👥 目标用户", padding="10")
+        target_frame = ttk.LabelFrame(left, text="👥 目标用户", padding="10")
         target_frame.pack(fill=tk.X, pady=(0, 10))
 
         # 保存目标框引用
