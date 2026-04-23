@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.53.4"
+VERSION = "v1.54.0"
 
 import os
 import sys
@@ -324,6 +324,30 @@ class TGMassDM:
         self.save_config()
         self.root.destroy()
 
+    def mask_proxy(self, proxy):
+        """对代理信息中的账号密码打码"""
+        import re
+        
+        # 匹配格式: protocol://user:pass@ip:port 或 user:pass@ip:port
+        # 将 user:pass 替换为 ***:***
+        
+        # 先尝试匹配 protocol://user:pass@ip:port
+        pattern1 = r'((?:socks5|socks4|http)://)([^:]+):([^@]+)@(.+)'
+        match1 = re.match(pattern1, proxy)
+        if match1:
+            protocol, user, password, rest = match1.groups()
+            return f"{protocol}***:***@{rest}"
+        
+        # 再尝试匹配 user:pass@ip:port
+        pattern2 = r'([^:]+):([^@]+)@(.+)'
+        match2 = re.match(pattern2, proxy)
+        if match2:
+            user, password, rest = match2.groups()
+            return f"***:***@{rest}"
+        
+        # 如果都不匹配，直接返回（可能是 ip:port 格式，无账号密码）
+        return proxy
+
     def refresh_account_tree(self):
         """刷新账号列表显示"""
         # 清空树
@@ -338,11 +362,10 @@ class TGMassDM:
             # 提取姓名(first_name)
             first_name = acc.get("first_name", "-")
 
-            # 代理状态(显示实际使用的代理)
+            # 代理状态（显示实际使用的代理，账号密码打码）
             proxy_used = acc.get("proxy_used", "")
             if proxy_used:
-                # 截取代理地址前50个字符
-                proxy_display = proxy_used[:50] + "..." if len(proxy_used) > 50 else proxy_used
+                proxy_display = self.mask_proxy(proxy_used)
             else:
                 proxy_display = "直连"
 
@@ -1969,7 +1992,9 @@ class TGMassDM:
                         proxy = random.choice(available_proxies)
                         proxy_config, connection_type = self.parse_proxy_for_telethon(proxy["proxy"])
                         proxy_used = proxy["proxy"]  # 记录使用的代理
-                        self.log(f"{log_prefix} {phone_number} - 🌐 使用代理: {proxy['proxy'][:60]}...")
+                        # 打码显示代理信息
+                        proxy_masked = self.mask_proxy(proxy["proxy"])
+                        self.log(f"{log_prefix} {phone_number} - 🌐 使用代理: {proxy_masked}")
                     else:
                         proxy_used = None  # 没有可用代理
                         if self.proxies:
