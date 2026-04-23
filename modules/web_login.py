@@ -142,16 +142,54 @@ class TelegramWebLogin:
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--incognito')
             
-            # 启动Chrome
+            # 启动Chrome（优先使用本地驱动，避免网络下载卡住）
             self.log("🌐 正在启动浏览器...")
             
-            try:
-                from webdriver_manager.chrome import ChromeDriverManager
-                from selenium.webdriver.chrome.service import Service
-                service = Service(ChromeDriverManager().install())
-                driver = webdriver.Chrome(service=service, options=chrome_options)
-            except:
-                driver = webdriver.Chrome(options=chrome_options)
+            # 尝试多种方式启动Chrome
+            driver = None
+            
+            # 方式1：尝试本地ChromeDriver路径
+            local_paths = [
+                "C:\\chromedriver\\chromedriver.exe",
+                "chromedriver.exe",
+                os.path.join(os.getcwd(), "chromedriver.exe"),
+            ]
+            
+            for path in local_paths:
+                if os.path.exists(path):
+                    try:
+                        from selenium.webdriver.chrome.service import Service
+                        service = Service(path)
+                        driver = webdriver.Chrome(service=service, options=chrome_options)
+                        self.log(f"✅ 使用本地驱动: {path}")
+                        break
+                    except Exception as e:
+                        self.log(f"⚠️ 本地驱动失败 ({path}): {str(e)}")
+                        continue
+            
+            # 方式2：使用系统PATH中的chromedriver
+            if not driver:
+                try:
+                    driver = webdriver.Chrome(options=chrome_options)
+                    self.log("✅ 使用系统PATH中的驱动")
+                except Exception as e:
+                    self.log(f"⚠️ 系统驱动失败: {str(e)}")
+            
+            # 方式3：使用webdriver-manager（可能网络下载，最后尝试）
+            if not driver:
+                try:
+                    self.log("⏳ 尝试自动下载驱动（可能较慢）...")
+                    from webdriver_manager.chrome import ChromeDriverManager
+                    from selenium.webdriver.chrome.service import Service
+                    service = Service(ChromeDriverManager().install())
+                    driver = webdriver.Chrome(service=service, options=chrome_options)
+                    self.log("✅ 自动下载驱动成功")
+                except Exception as e:
+                    self.log(f"❌ 自动下载失败: {str(e)}")
+                    raise Exception("无法启动Chrome浏览器，请手动下载ChromeDriver")
+            
+            if not driver:
+                raise Exception("所有启动方式都失败了")
             
             # 打开Telegram Web
             self.log("📱 正在打开 Telegram Web...")
