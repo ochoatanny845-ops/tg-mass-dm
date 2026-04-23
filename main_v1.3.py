@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.40.0"
+VERSION = "v1.41.0"
 
 import os
 import sys
@@ -3004,9 +3004,17 @@ class TGMassDM:
                                     
                                     message_id = int(message_id_str)
 
-                                    # 获取原始消息
-                                    channel = await client.get_entity(channel_username)
-                                    message_obj = await client.get_messages(channel, ids=message_id)
+                                    # 获取原始消息（可能失败：未加入频道/频道不存在）
+                                    try:
+                                        channel = await client.get_entity(channel_username)
+                                        message_obj = await client.get_messages(channel, ids=message_id)
+                                    except ValueError as channel_error:
+                                        # 频道不存在或未加入
+                                        error_msg = str(channel_error).lower()
+                                        if "no user" in error_msg or "no channel" in error_msg:
+                                            raise ValueError(f"频道不存在或账号未加入频道: @{channel_username}")
+                                        else:
+                                            raise
 
                                     if message_obj:
                                         # 根据勾选状态决定转发方式
@@ -3040,10 +3048,14 @@ class TGMassDM:
                                 consecutive_fails += 1
                                 
                                 # 区分不同的错误类型
-                                if "no user" in error_msg.lower() or "no channel" in error_msg.lower():
+                                if "账号未加入频道" in error_msg:
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
-                                    self.log(f"      频道不存在或无权访问: {forward_url}")
-                                    self.log(f"      请检查频道名是否正确，或是否已加入该频道")
+                                    self.log(f"      {error_msg}")
+                                    self.log(f"      解决方案: 在 Telegram 中打开 {forward_url.rsplit('/', 1)[0]} 并加入频道")
+                                elif "no user" in error_msg.lower() or "no channel" in error_msg.lower():
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
+                                    self.log(f"      频道不存在: {forward_url}")
+                                    self.log(f"      请检查频道名是否正确")
                                 else:
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                     self.log(f"      链接格式错误: {forward_url}")
