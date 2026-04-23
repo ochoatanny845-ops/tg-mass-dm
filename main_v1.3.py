@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.56.1"
+VERSION = "v1.57.0"
 
 import os
 import sys
@@ -1199,23 +1199,8 @@ class TGMassDM:
                     else:
                         account["2fa"] = ""
 
-                    # 提取状态(只有未检测时才使用JSON状态)
-                    spamblock = json_data.get('spamblock') or ''
-                    spamblock = str(spamblock).lower()
-
-                    # 检查是否已检测过(有last_login或status不是"未检测")
-                    # 如果已检测,不覆盖状态
-                    if account.get("status") == "未检测":
-                        if spamblock == 'free':
-                            account["status"] = "✅ 无限制"
-                        elif spamblock == 'permanent':
-                            account["status"] = "⚠️ 永久双向限制"
-                        elif spamblock == 'temporary':
-                            account["status"] = "⚠️ 临时限制"
-                        elif spamblock == 'frozen':
-                            account["status"] = "🚫 冻结"
-                        elif spamblock == 'banned':
-                            account["status"] = "🚫 封禁"
+                    # 不从 JSON 读取状态，导入时始终显示"未检测"
+                    # 用户需要重新检测账号以获取最新状态
 
                 self.accounts.append(account)
 
