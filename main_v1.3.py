@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.49.1"
+VERSION = "v1.49.2"
 
 import os
 import sys
@@ -196,12 +196,10 @@ class TGMassDM:
             self.start_btn.pack_forget()
             self.stop_btn.pack_forget()
         else:  # 其他页面 - 显示按钮
-            # 获取 control_frame 的第一个子控件位置
-            control_frame = self.start_btn.master
-            
-            # 重新打包按钮（如果已隐藏）
+            # 检查按钮是否已经显示
             if not self.start_btn.winfo_ismapped():
-                self.start_btn.pack(side=tk.LEFT, padx=5, before=control_frame.winfo_children()[0])
+                # 重新打包按钮（放在 progress_container 之前）
+                self.start_btn.pack(side=tk.LEFT, padx=5, before=self.progress_total_label.master)
                 self.stop_btn.pack(side=tk.LEFT, padx=5, after=self.start_btn)
         
         if current_tab == 1:  # 私信广告页面
