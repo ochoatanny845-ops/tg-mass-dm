@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.41.0"
+VERSION = "v1.42.0"
 
 import os
 import sys
@@ -2999,8 +2999,8 @@ class TGMassDM:
                                     message_id_str = parts[-1].split("?")[0].split("#")[0]
                                     
                                     # 调试日志
-                                    # self.log(f"  🔍 [{account_name}] 解析链接: {forward_url}")
-                                    # self.log(f"      频道: {channel_username}, 消息ID: {message_id_str}")
+                                    self.log(f"  🔍 [{account_name}] 解析链接: {forward_url}")
+                                    self.log(f"      频道: {channel_username}, 消息ID: {message_id_str}")
                                     
                                     message_id = int(message_id_str)
 
@@ -3051,7 +3051,9 @@ class TGMassDM:
                                 if "账号未加入频道" in error_msg:
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                     self.log(f"      {error_msg}")
-                                    self.log(f"      解决方案: 在 Telegram 中打开 {forward_url.rsplit('/', 1)[0]} 并加入频道")
+                                    self.log(f"      可能原因: 这是一个私有频道")
+                                    self.log(f"      解决方案1: 使用 /c/ 格式链接（右键消息→复制链接）")
+                                    self.log(f"      解决方案2: 确保账号已加入该频道")
                                 elif "no user" in error_msg.lower() or "no channel" in error_msg.lower():
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                     self.log(f"      频道不存在: {forward_url}")
