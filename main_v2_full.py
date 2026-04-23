@@ -850,39 +850,29 @@ class TGMassDM:
                        variable=self.scrape_source, value="dialogs",
                        command=self.on_scrape_source_change).pack(anchor=tk.W, pady=2)
 
-        # 目标链接（仅"从群列表采集"时显示）
-        self.link_frame = ttk.LabelFrame(left_scrollable, text="🔗 目标链接", padding="10")
-        self.link_frame.pack(fill=tk.X, pady=(0, 10))
-
-        ttk.Label(self.link_frame, text="输入群组/频道链接或用户名:").pack(anchor=tk.W)
-        self.scrape_link = ttk.Entry(self.link_frame, font=("微软雅黑", 10))
-        self.scrape_link.pack(fill=tk.X, pady=5)
-        self.scrape_link.insert(0, "https://t.me/group_name 或 @group_name")
-
-        ttk.Button(self.link_frame, text="➕ 添加到列表", width=15,
-                  command=self.add_scrape_target).pack(anchor=tk.W)
-
-        # 目标列表
-        self.targets_frame = ttk.LabelFrame(left_scrollable, text="📋 采集目标列表", padding="10")
+        # 目标列表（仅"从群列表采集"时显示）- 直接编辑
+        self.targets_frame = ttk.LabelFrame(left_scrollable, text="📋 采集目标列表（每行一个链接或用户名）", padding="10")
         self.targets_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        ttk.Label(self.targets_frame, text="💡 提示：直接在下方输入，每行一个链接或用户名", 
+                 foreground="gray", font=("微软雅黑", 9)).pack(anchor=tk.W, pady=(0, 5))
 
-        list_frame = ttk.Frame(self.targets_frame)
-        list_frame.pack(fill=tk.BOTH, expand=True)
-
-        self.scrape_targets = tk.Listbox(list_frame, font=("微软雅黑", 10), height=8)
-        self.scrape_targets.pack(fill=tk.BOTH, expand=True, side=tk.LEFT)
-
-        targets_scroll = ttk.Scrollbar(list_frame, orient=tk.VERTICAL,
-                                       command=self.scrape_targets.yview)
-        targets_scroll.pack(side=tk.RIGHT, fill=tk.Y)
-        self.scrape_targets.config(yscrollcommand=targets_scroll.set)
-
+        # 使用 ScrolledText 代替 Listbox，更方便编辑
+        self.scrape_targets_text = scrolledtext.ScrolledText(
+            self.targets_frame, 
+            font=("微软雅黑", 10), 
+            height=8,
+            wrap=tk.WORD
+        )
+        self.scrape_targets_text.pack(fill=tk.BOTH, expand=True)
+        
+        # 添加示例文本
+        self.scrape_targets_text.insert("1.0", "https://t.me/group_name\n@channel_name\n")
+        
         btn_frame = ttk.Frame(self.targets_frame)
         btn_frame.pack(fill=tk.X, pady=(5, 0))
-        ttk.Button(btn_frame, text="🗑️ 删除选中", width=12,
-                  command=self.remove_scrape_target).pack(side=tk.LEFT, padx=2)
         ttk.Button(btn_frame, text="🧹 清空列表", width=12,
-                  command=self.clear_scrape_targets).pack(side=tk.LEFT, padx=2)
+                  command=lambda: self.scrape_targets_text.delete("1.0", tk.END)).pack(side=tk.LEFT, padx=2)
 
         # 过滤选项
         filter_frame = ttk.LabelFrame(left_scrollable, text="🔍 过滤条件", padding="10")
@@ -2987,47 +2977,11 @@ class TGMassDM:
         source = self.scrape_source.get()
         
         if source == "list":
-            # 显示链接输入和目标列表
-            self.link_frame.pack(fill=tk.X, pady=(0, 10))
+            # 显示目标列表
             self.targets_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         else:
-            # 隐藏链接输入和目标列表
-            self.link_frame.pack_forget()
+            # 隐藏目标列表
             self.targets_frame.pack_forget()
-
-    def add_scrape_target(self):
-        """添加采集目标"""
-        link = self.scrape_link.get().strip()
-
-        if not link or link.startswith("https://t.me/") and len(link) <= 15:
-            messagebox.showwarning("提示", "请输入有效的群组/频道链接或用户名")
-            return
-
-        # 检查是否已存在
-        existing = [self.scrape_targets.get(i) for i in range(self.scrape_targets.size())]
-        if link in existing:
-            messagebox.showinfo("提示", "该目标已存在")
-            return
-
-        self.scrape_targets.insert(tk.END, link)
-        self.log(f"➕ 添加采集目标: {link}")
-
-    def remove_scrape_target(self):
-        """删除选中的采集目标"""
-        selection = self.scrape_targets.curselection()
-        if not selection:
-            messagebox.showwarning("提示", "请先选择要删除的目标")
-            return
-
-        for index in reversed(selection):
-            self.scrape_targets.delete(index)
-
-        self.log("🗑️ 已删除选中的采集目标")
-
-    def clear_scrape_targets(self):
-        """清空采集目标列表"""
-        self.scrape_targets.delete(0, tk.END)
-        self.log("🧹 已清空采集目标列表")
 
     def toggle_collected_user(self, event):
         """双击切换采集用户选择"""
@@ -3407,7 +3361,10 @@ class TGMassDM:
         
         # 根据不同来源获取目标
         if source == "list":
-            targets = [self.scrape_targets.get(i) for i in range(self.scrape_targets.size())]
+            # 从文本框获取目标列表
+            text = self.scrape_targets_text.get("1.0", tk.END)
+            targets = [line.strip() for line in text.strip().split('\n') 
+                      if line.strip() and not line.strip().startswith('#')]
             if not targets:
                 messagebox.showerror("错误", "请添加采集目标")
                 return
