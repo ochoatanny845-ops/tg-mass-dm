@@ -3363,11 +3363,47 @@ class TGMassDM:
         if source == "list":
             # 从文本框获取目标列表
             text = self.scrape_targets_text.get("1.0", tk.END)
-            targets = [line.strip() for line in text.strip().split('\n') 
-                      if line.strip() and not line.strip().startswith('#')]
-            if not targets:
+            raw_targets = [line.strip() for line in text.strip().split('\n') 
+                          if line.strip() and not line.strip().startswith('#')]
+            
+            if not raw_targets:
                 messagebox.showerror("错误", "请添加采集目标")
                 return
+            
+            # 验证和去重
+            targets = []
+            seen = set()
+            invalid_count = 0
+            
+            for target in raw_targets:
+                # 基本验证：必须是链接或@开头的用户名
+                is_valid = (
+                    target.startswith('https://t.me/') or 
+                    target.startswith('http://t.me/') or
+                    target.startswith('@')
+                )
+                
+                if not is_valid:
+                    self.log(f"  ⚠️ 跳过无效格式: {target}")
+                    invalid_count += 1
+                    continue
+                
+                # 去重
+                if target in seen:
+                    self.log(f"  ⚠️ 跳过重复项: {target}")
+                    continue
+                
+                seen.add(target)
+                targets.append(target)
+            
+            if not targets:
+                messagebox.showerror("错误", "没有有效的采集目标")
+                return
+            
+            if invalid_count > 0:
+                self.log(f"⚠️ 已跳过 {invalid_count} 个无效目标")
+            
+            self.log(f"✅ 有效目标: {len(targets)} 个")
             source_text = f"{len(targets)} 个群组/频道"
         elif source == "joined":
             targets = ["joined_groups"]  # 特殊标记
