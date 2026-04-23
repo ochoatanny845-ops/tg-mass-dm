@@ -4118,11 +4118,11 @@ class TGMassDM:
             from modules.web_login import TelegramWebLogin
             
             phone = account.get("phone", "")
-            session_file = account.get("session", "")
+            session_file = account.get("path", "")  # 使用 path 字段，不是 session
             
             if not session_file:
-                self.log(f"❌ 账号 {phone} 没有session文件")
-                messagebox.showerror("错误", "该账号没有session文件")
+                self.log(f"❌ 账号 {phone} 没有session文件路径")
+                messagebox.showerror("错误", "该账号没有session文件路径")
                 return
             
             if not os.path.exists(session_file):
