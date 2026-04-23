@@ -364,14 +364,21 @@ class UserScraper:
                 user_ids.add(msg.sender_id)
                 filter_stats["unique_users"] += 1
                 
-                # 获取完整用户信息（msg.sender可能不包含username等信息）
+                # 获取完整用户信息
                 try:
-                    user = await client.get_entity(msg.sender_id)
+                    # 方法1：尝试获取完整用户（包含premium等字段）
+                    try:
+                        from telethon.tl.functions.users import GetFullUserRequest
+                        full_result = await client(GetFullUserRequest(msg.sender_id))
+                        user = full_result.users[0]  # 完整用户对象
+                    except:
+                        # 后备：基本get_entity
+                        user = await client.get_entity(msg.sender_id)
                     
-                    # 调试：检查premium字段
-                    if filter_stats["unique_users"] <= 5:  # 只打印前5个
-                        premium_status = getattr(user, 'premium', None)
-                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_status}, type={type(user)}")
+                    # 调试：检查premium字段（前5个用户）
+                    if filter_stats["unique_users"] <= 5:
+                        premium_val = getattr(user, 'premium', None)
+                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_val}, premium==True:{premium_val is True}")
                     
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
@@ -382,7 +389,8 @@ class UserScraper:
                         filter_stats["no_username"] += 1
                         continue
                     
-                    if config.get("filter_premium", False) and not user.premium:
+                    # Premium过滤：premium=True才是会员，None/False都不是
+                    if config.get("filter_premium", False) and not getattr(user, 'premium', False):
                         filter_stats["no_premium"] += 1
                         continue
                     
