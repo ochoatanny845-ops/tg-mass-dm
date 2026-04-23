@@ -510,6 +510,7 @@ class TGMassDM:
         select_menu.add_command(label="⚠️ 选中永久双向限制", command=lambda: self.select_by_status("permanent"))
         select_menu.add_command(label="⚠️ 选中临时限制", command=lambda: self.select_by_status("temporary"))
         select_menu.add_command(label="🚫 选中封禁", command=lambda: self.select_by_status("banned"))
+        select_menu.add_command(label="⏱️ 选中检测超时", command=lambda: self.select_by_status("timeout"))
         select_menu.add_command(label="📝 选中未检测", command=lambda: self.select_by_status("unchecked"))
         select_menu.add_command(label="❓ 选中未知/检测失败", command=lambda: self.select_by_status("unknown"))
 
@@ -1604,6 +1605,7 @@ class TGMassDM:
             "permanent": ["⚠️ 永久双向限制", "permanent"],
             "temporary": ["⚠️ 临时限制", "temporary"],
             "banned": ["🚫 封禁", "banned"],
+            "timeout": ["⚠️ 检测超时"],
             "unchecked": ["", None, "未检测"],
             "unknown": [
                 "⚠️ 未知状态",
@@ -1645,6 +1647,11 @@ class TGMassDM:
                 if any(status_text in str(acc_status) for status_text in allowed_statuses):
                     account["selected"] = True
                     count += 1
+            # 处理检测超时状态
+            elif status_filter == "timeout":
+                if any(status_text in str(acc_status) for status_text in allowed_statuses):
+                    account["selected"] = True
+                    count += 1
             # 处理其他状态
             else:
                 if acc_status in allowed_statuses:
@@ -1660,6 +1667,7 @@ class TGMassDM:
             "permanent": "永久双向限制",
             "temporary": "临时限制",
             "banned": "封禁",
+            "timeout": "检测超时",
             "unchecked": "未检测",
             "unknown": "未知/检测失败"
         }
