@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.54.3"
+VERSION = "v1.55.0"
 
 import os
 import sys
@@ -2451,8 +2451,25 @@ class TGMassDM:
 
             self.log(f"🔄 批次 {batch_num}/{total_batches}: 检测 {len(batch)} 个账号...")
 
-            # 并发检测一批
-            tasks = [self.check_single_account(acc, i+j, total) for j, acc in enumerate(batch)]
+            # 并发检测一批（每个账号带超时保护）
+            async def check_with_timeout(acc, idx, total):
+                try:
+                    await asyncio.wait_for(
+                        self.check_single_account(acc, idx, total),
+                        timeout=60  # 每个账号最多 60 秒
+                    )
+                except asyncio.TimeoutError:
+                    phone_number = Path(acc['path']).stem
+                    acc["status"] = "⚠️ 检测超时"
+                    self.log(f"⏱️ [{idx+1}/{total}] {phone_number} - ⚠️ 检测超时（超过 60 秒）")
+                    self.root.after(0, self.refresh_account_tree)
+                except Exception as e:
+                    phone_number = Path(acc['path']).stem
+                    acc["status"] = "⚠️ 检测异常"
+                    self.log(f"❌ [{idx+1}/{total}] {phone_number} - ⚠️ 检测异常: {type(e).__name__}")
+                    self.root.after(0, self.refresh_account_tree)
+            
+            tasks = [check_with_timeout(acc, i+j, total) for j, acc in enumerate(batch)]
             await asyncio.gather(*tasks)
 
             # 检查停止标志（批次完成后）
