@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.48.2"
+VERSION = "v1.49.0"
 
 import os
 import sys
@@ -3854,7 +3854,7 @@ class TGMassDM:
             messagebox.showwarning("警告", "代理列表为空")
             return
         
-        self.log(f"🔍 开始检测 {len(self.proxies)} 个代理...")
+        self.log(f"🔍 开始检测 {len(self.proxies)} 个代理... (并发检测，速度更快)")
         
         # 使用异步检测
         import threading
@@ -3862,19 +3862,20 @@ class TGMassDM:
         thread.start()
     
     def _check_proxies_thread(self):
-        """代理检测线程"""
+        """代理检测线程（使用线程池并发）"""
         import requests
         import time
         import urllib3
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         
         # 禁用 SSL 警告
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
-        for i, proxy in enumerate(self.proxies):
+        def check_single_proxy(index, proxy):
+            """检测单个代理"""
             try:
                 # 测试 URL（使用简单的 HTTP 网站）
-                # 不用 HTTPS，避免 SSL 问题
-                test_url = "http://httpbin.org/ip"  # 返回 IP 的简单服务
+                test_url = "http://httpbin.org/ip"
                 
                 # 构造代理字典
                 proxies = {
@@ -3882,29 +3883,35 @@ class TGMassDM:
                     "https": proxy["proxy"]
                 }
                 
-                # 测试连接
+                # 测试连接（缩短超时时间）
                 start_time = time.time()
-                response = requests.get(test_url, proxies=proxies, timeout=10)
+                response = requests.get(test_url, proxies=proxies, timeout=5)  # 5秒超时
                 end_time = time.time()
                 
                 if response.status_code == 200:
                     ping = int((end_time - start_time) * 1000)
                     proxy["status"] = "可用"
                     proxy["ping"] = ping
-                    self.root.after(0, lambda i=i, p=proxy, ms=ping: self.log(f"✅ [{i+1}/{len(self.proxies)}] {p['proxy'][:60]}... - 可用 ({ms}ms)"))
+                    return (index, True, f"✅ [{index+1}/{len(self.proxies)}] {proxy['proxy'][:60]}... - 可用 ({ping}ms)")
                 else:
                     proxy["status"] = "不可用"
                     proxy["ping"] = 0
-                    self.root.after(0, lambda i=i, p=proxy, code=response.status_code: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy'][:60]}... - HTTP {code}"))
+                    return (index, False, f"❌ [{index+1}/{len(self.proxies)}] {proxy['proxy'][:60]}... - HTTP {response.status_code}")
             
             except Exception as e:
                 proxy["status"] = "不可用"
                 proxy["ping"] = 0
-                error_msg = str(e)[:80]  # 截取前80个字符
-                self.root.after(0, lambda i=i, p=proxy, err=error_msg: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy'][:60]}... - {err}"))
+                error_msg = str(e)[:80]
+                return (index, False, f"❌ [{index+1}/{len(self.proxies)}] {proxy['proxy'][:60]}... - {error_msg}")
+        
+        # 使用线程池并发检测（10个线程）
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            futures = {executor.submit(check_single_proxy, i, proxy): i for i, proxy in enumerate(self.proxies)}
             
-            # 刷新显示
-            self.root.after(0, self.refresh_proxy_tree)
+            for future in as_completed(futures):
+                index, success, message = future.result()
+                self.root.after(0, lambda msg=message: self.log(msg))
+                self.root.after(0, self.refresh_proxy_tree)
         
         self.root.after(0, lambda: self.log(f"✅ 代理检测完成"))
     
