@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.39.0"
+VERSION = "v1.40.0"
 
 import os
 import sys
@@ -1900,6 +1900,8 @@ class TGMassDM:
                         else:
                             account["status"] = "🚫 冻结"
                             self.log(f"{log_prefix} {phone_number} - 🚫 冻结")
+                        # 显示 SpamBot 原始回复（调试用）
+                        self.log(f"      SpamBot 回复: {response[:200]}")
                         self.root.after(0, self.refresh_account_tree)
                     
                     # 3. 永久双向限制
@@ -1937,8 +1939,9 @@ class TGMassDM:
                     else:
                         account["status"] = "⚠️ 未知状态"
                         self.log(f"{log_prefix} {phone_number} - ⚠️ 未知状态")
+                        # 显示 SpamBot 原始回复（调试用）
+                        self.log(f"      SpamBot 回复: {response[:200]}")
                         self.root.after(0, self.refresh_account_tree)
-                        # self.log(f"     SpamBot 回复: {response[:100]}")  # 调试日志已隐藏
                     
                     self.root.after(0, self.refresh_account_tree)
                 else:
