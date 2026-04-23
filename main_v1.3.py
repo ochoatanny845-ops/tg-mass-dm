@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.61.0"
+VERSION = "v1.61.1"
 
 import os
 import sys
@@ -712,13 +712,7 @@ class TGMassDM:
         option_frame = ttk.LabelFrame(row2_frame, text="🔧 其他选项", padding="10")
         option_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(5, 0))
 
-        self.auto_switch = tk.BooleanVar(value=True)
-        ttk.Checkbutton(option_frame, text="遇到限制自动切换账号",
-                       variable=self.auto_switch).pack(anchor=tk.W, pady=2)
-
-        self.auto_retry = tk.BooleanVar(value=False)
-        ttk.Checkbutton(option_frame, text="发送失败自动重试",
-                       variable=self.auto_retry).pack(anchor=tk.W, pady=2)
+        # 删除了"遇到限制自动切换账号"和"发送失败自动重试"选项
 
     def setup_tab_scraper(self):
         """功能3: 采集用户"""
@@ -1041,8 +1035,6 @@ class TGMassDM:
                 "total_limit": self.total_limit.get(),
                 "interval_min": self.interval_min.get(),
                 "interval_max": self.interval_max.get(),
-                "auto_switch": self.auto_switch.get(),
-                "auto_retry": self.auto_retry.get(),
                 "send_type": self.send_type.get(),
                 "hide_source": self.hide_source.get(),
                 "message_text": self.message_text.get("1.0", tk.END).strip(),
@@ -1092,8 +1084,6 @@ class TGMassDM:
             self.total_limit.set(config.get("total_limit", 1000))
             self.interval_min.set(config.get("interval_min", 3))
             self.interval_max.set(config.get("interval_max", 8))
-            self.auto_switch.set(config.get("auto_switch", True))
-            self.auto_retry.set(config.get("auto_retry", False))
             self.send_type.set(config.get("send_type", "text"))
             self.hide_source.set(config.get("hide_source", False))
 
@@ -3170,7 +3160,6 @@ class TGMassDM:
             f"将使用 {len(selected_accounts)} 个账号\n"
             f"向 {len(targets)} 个用户发送消息\n\n"
             f"并发: {self.thread_count.get()} 线程\n"
-            f"自动切换: {'是' if self.auto_switch.get() else '否'}\n\n"
             f"是否继续?"
         )
 
