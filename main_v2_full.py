@@ -1004,6 +1004,25 @@ class TGMassDM:
         right = ttk.Frame(paned)
         paned.add(right, weight=2)
 
+        # 操作按钮（放在顶部）
+        action_frame = ttk.Frame(right)
+        action_frame.pack(fill=tk.X, pady=(0, 5))
+
+        ttk.Button(action_frame, text="✅ 全选", width=10,
+                  command=self.select_all_collected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(action_frame, text="❌ 清空", width=10,
+                  command=self.deselect_all_collected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(action_frame, text="📤 导出到私信", width=15,
+                  command=self.export_to_messaging).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="💾 保存JSON", width=12,
+                  command=self.save_collected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(action_frame, text="📄 导出TXT", width=12,
+                  command=self.export_usernames_txt).pack(side=tk.LEFT, padx=2)
+
+        self.collected_stats = ttk.Label(action_frame, text="已采集 0 个用户,已选 0 个",
+                                         font=("微软雅黑", 9))
+        self.collected_stats.pack(side=tk.RIGHT, padx=10)
+
         # 结果列表
         result_frame = ttk.LabelFrame(right, text="📊 采集结果", padding="10")
         result_frame.pack(fill=tk.BOTH, expand=True)
@@ -1031,25 +1050,6 @@ class TGMassDM:
 
         # 双击切换选择
         self.result_tree.bind("<Double-1>", self.toggle_collected_user)
-
-        # 操作按钮
-        action_frame = ttk.Frame(right)
-        action_frame.pack(fill=tk.X, pady=(10, 0))
-
-        ttk.Button(action_frame, text="✅ 全选", width=10,
-                  command=self.select_all_collected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(action_frame, text="❌ 清空", width=10,
-                  command=self.deselect_all_collected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(action_frame, text="📤 导出到私信广告", width=18,
-                  command=self.export_to_messaging).pack(side=tk.LEFT, padx=5)
-        ttk.Button(action_frame, text="💾 保存为JSON", width=15,
-                  command=self.save_collected).pack(side=tk.LEFT, padx=2)
-        ttk.Button(action_frame, text="📄 导出TXT", width=12,
-                  command=self.export_usernames_txt).pack(side=tk.LEFT, padx=2)
-
-        self.collected_stats = ttk.Label(action_frame, text="已采集 0 个用户,已选 0 个",
-                                         font=("微软雅黑", 9))
-        self.collected_stats.pack(side=tk.RIGHT, padx=10)
 
     def setup_tab_proxy(self):
         """功能4: 代理管理"""
