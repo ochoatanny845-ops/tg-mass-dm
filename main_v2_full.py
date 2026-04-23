@@ -3078,7 +3078,7 @@ class TGMassDM:
         self.log(f"📤 已导出 {len(selected)} 个用户到私信广告")
 
     def save_collected(self):
-        """保存采集结果"""
+        """保存采集结果到JSON（手动导出选中用户）"""
         selected = [user for user in self.collected_users if user.get("selected", False)]
 
         if not selected:
@@ -3087,8 +3087,8 @@ class TGMassDM:
 
         filename = filedialog.asksaveasfilename(
             title="保存用户列表",
-            defaultextension=".txt",
-            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
+            defaultextension=".json",
+            filetypes=[("JSON文件", "*.json"), ("所有文件", "*.*")]
         )
 
         if not filename:
@@ -3096,14 +3096,28 @@ class TGMassDM:
 
         try:
             with open(filename, "w", encoding="utf-8") as f:
-                for user in selected:
-                    f.write(f"{user['username']}\n")
+                json.dump(selected, f, ensure_ascii=False, indent=2)
 
-            self.log(f"💾 已保存 {len(selected)} 个用户到文件")
+            self.log(f"💾 已保存 {len(selected)} 个用户到JSON")
             messagebox.showinfo("成功", f"已保存 {len(selected)} 个用户")
 
         except Exception as e:
             messagebox.showerror("错误", f"保存失败: {str(e)}")
+    
+    def auto_save_collected(self):
+        """自动保存采集结果到collected_users.json（后台静默）"""
+        if not self.collected_users:
+            return
+        
+        try:
+            filename = "collected_users.json"
+            with open(filename, "w", encoding="utf-8") as f:
+                json.dump(self.collected_users, f, ensure_ascii=False, indent=2)
+            
+            self.log(f"💾 已自动保存 {len(self.collected_users)} 个用户到 {filename}")
+        
+        except Exception as e:
+            self.log(f"⚠️ 自动保存失败: {str(e)}")
     
     def export_usernames_txt(self):
         """导出用户名到TXT（仅用户名，不含昵称）"""
@@ -3555,7 +3569,7 @@ class TGMassDM:
             # 更新采集结果
             if users:
                 self.collected_users.extend(users)
-                self.save_collected()
+                self.auto_save_collected()  # 自动静默保存
             
             self.update_collected_stats()
 
