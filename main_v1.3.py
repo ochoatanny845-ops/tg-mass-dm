@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.64.0"
+VERSION = "v1.64.1"
 
 import os
 import sys
@@ -1247,8 +1247,10 @@ class TGMassDM:
                     # 提取代理信息
                     proxy = json_data.get('proxy')
                     if proxy:
-                        account["proxy"] = proxy
-                        account["proxy_used"] = proxy
+                        # 确保 proxy 是字符串类型
+                        proxy_str = str(proxy) if proxy is not None else ""
+                        account["proxy"] = proxy_str
+                        account["proxy_used"] = proxy_str
                     else:
                         account["proxy_used"] = ""
 
@@ -1286,7 +1288,7 @@ class TGMassDM:
                     'status': acc.get('status', '未检测'),
                     'username': acc.get('username', '-'),
                     'first_name': acc.get('first_name', '-'),
-                    'proxy_used': acc.get('proxy_used', ''),
+                    'proxy_used': str(acc.get('proxy_used', '')) if acc.get('proxy_used') else '',
                 }
 
             # 清空现有账号
@@ -1407,7 +1409,8 @@ class TGMassDM:
                     # 提取代理信息
                     proxy = json_data.get('proxy')
                     if proxy:
-                        account["proxy"] = proxy
+                        # 确保 proxy 是字符串类型
+                        account["proxy"] = str(proxy) if proxy is not None else "直连"
 
                     # 提取 2FA 状态(检测 twoFA 和 passwordFA)
                     twofa = json_data.get('twoFA')
