@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.53.3"
+VERSION = "v1.53.4"
 
 import os
 import sys
@@ -3325,17 +3325,19 @@ class TGMassDM:
 
                                     message_id = int(message_id_str)
 
-                                    # 获取原始消息(可能失败:未加入频道/频道不存在)
+                                    # 获取原始消息(可能失败:未加入频道/频道不存在/被封禁)
                                     try:
                                         channel = await client.get_entity(channel_username)
                                         message_obj = await client.get_messages(channel, ids=message_id)
                                     except ValueError as channel_error:
-                                        # 频道不存在或未加入
+                                        # 频道相关错误
                                         error_msg = str(channel_error).lower()
                                         if "no user" in error_msg or "no channel" in error_msg:
-                                            raise ValueError(f"频道不存在或账号未加入频道: @{channel_username}")
+                                            raise ValueError(f"账号无法访问频道 @{channel_username} (可能被封禁或未加入)")
                                         else:
-                                            raise
+                                            raise ValueError(f"获取频道失败: {channel_error}")
+                                    except Exception as e:
+                                        raise ValueError(f"访问频道时出错: {e}")
 
                                     if message_obj:
                                         # 根据勾选状态决定转发方式
@@ -3369,20 +3371,19 @@ class TGMassDM:
                                 consecutive_fails += 1
 
                                 # 区分不同的错误类型
-                                if "账号未加入频道" in error_msg:
+                                if "账号无法访问频道" in error_msg:
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
+                                    self.log(f"      {error_msg}")
+                                    self.log(f"      可能原因: 账号被频道封禁、未加入频道、或权限不足")
+                                elif "账号未加入频道" in error_msg:
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                     self.log(f"      {error_msg}")
                                     self.log(f"      可能原因: 这是一个私有频道")
                                     self.log(f"      解决方案1: 使用 /c/ 格式链接(右键消息→复制链接)")
                                     self.log(f"      解决方案2: 确保账号已加入该频道")
-                                elif "no user" in error_msg.lower() or "no channel" in error_msg.lower():
-                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
-                                    self.log(f"      频道不存在: {forward_url}")
-                                    self.log(f"      请检查频道名是否正确")
                                 else:
                                     self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
-                                    self.log(f"      链接格式错误: {forward_url}")
-                                    self.log(f"      错误详情: {error_msg}")
+                                    self.log(f"      {error_msg}")
 
                                 async with self.send_lock:
                                     self.total_failed += 1
