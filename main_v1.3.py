@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.52.2"
+VERSION = "v1.52.3"
 
 import os
 import sys
@@ -1969,6 +1969,18 @@ class TGMassDM:
                     else:
                         client = TelegramClient(path, self.api_id, self.api_hash)
                     
+                    # 设置异常处理器，抑制 AuthKeyDuplicatedError 堆栈
+                    def suppress_auth_error(loop, context):
+                        exception = context.get('exception')
+                        if exception and 'AuthKeyDuplicatedError' not in str(exception):
+                            loop.default_exception_handler(context)
+                    
+                    try:
+                        loop = asyncio.get_running_loop()
+                        loop.set_exception_handler(suppress_auth_error)
+                    except RuntimeError:
+                        pass
+                    
                     # 尝试连接（会触发代理超时）
                     await client.connect()
                     break  # 连接成功，跳出重试循环
@@ -1986,6 +1998,18 @@ class TGMassDM:
                                     client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
                             else:
                                 client = TelegramClient(path, self.api_id, self.api_hash)
+                            
+                            # 设置异常处理器
+                            def suppress_auth_error(loop, context):
+                                exception = context.get('exception')
+                                if exception and 'AuthKeyDuplicatedError' not in str(exception):
+                                    loop.default_exception_handler(context)
+                            try:
+                                loop = asyncio.get_running_loop()
+                                loop.set_exception_handler(suppress_auth_error)
+                            except RuntimeError:
+                                pass
+                            
                             await client.connect()
                             break
                         except Exception as retry_error:
