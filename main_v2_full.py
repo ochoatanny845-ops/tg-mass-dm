@@ -1251,9 +1251,25 @@ class TGMassDM:
                 "message_text": self.message_text.get("1.0", tk.END).strip(),
                 "forward_urls": self.forward_urls_text.get("1.0", tk.END).strip(),
                 "targets": self.target_text.get("1.0", tk.END).strip(),
+                
+                # 采集设置
+                "scrape_mode": self.scrape_mode.get(),
+                "scrape_source": self.scrape_source.get(),
                 "scrape_limit": self.scrape_limit.get(),
+                "message_limit": self.message_limit.get(),
+                "groups_per_account": self.groups_per_account.get(),
+                "scrape_threads": self.scrape_threads.get(),
+                
+                # 过滤条件
                 "filter_bot": self.filter_bot.get(),
-                "filter_username": self.filter_username.get()
+                "filter_username": self.filter_username.get(),
+                "filter_premium": self.filter_premium.get() if hasattr(self, 'filter_premium') else False,
+                "filter_photo": self.filter_photo.get() if hasattr(self, 'filter_photo') else False,
+                "filter_online_time": self.filter_online_time.get() if hasattr(self, 'filter_online_time') else False,
+                "online_days": self.online_days.get() if hasattr(self, 'online_days') else 3,
+                "include_recently": self.include_recently.get() if hasattr(self, 'include_recently') else False,
+                "include_online": self.include_online.get() if hasattr(self, 'include_online') else False,
+                "auto_leave": self.auto_leave.get() if hasattr(self, 'auto_leave') else False
             }
 
             with open(self.config_file, "w", encoding="utf-8") as f:
@@ -1309,9 +1325,31 @@ class TGMassDM:
             self.target_text.delete("1.0", tk.END)
             self.target_text.insert("1.0", config.get("targets", ""))
 
-            self.scrape_limit.set(config.get("scrape_limit", 500))
+            # 采集设置
+            self.scrape_mode.set(config.get("scrape_mode", "default"))
+            self.scrape_source.set(config.get("scrape_source", "list"))
+            self.scrape_limit.set(config.get("scrape_limit", 0))
+            self.message_limit.set(config.get("message_limit", 3000))
+            self.groups_per_account.set(config.get("groups_per_account", 5))
+            self.scrape_threads.set(config.get("scrape_threads", 5))
+            
+            # 过滤条件
             self.filter_bot.set(config.get("filter_bot", True))
             self.filter_username.set(config.get("filter_username", False))
+            if hasattr(self, 'filter_premium'):
+                self.filter_premium.set(config.get("filter_premium", False))
+            if hasattr(self, 'filter_photo'):
+                self.filter_photo.set(config.get("filter_photo", False))
+            if hasattr(self, 'filter_online_time'):
+                self.filter_online_time.set(config.get("filter_online_time", False))
+            if hasattr(self, 'online_days'):
+                self.online_days.set(config.get("online_days", 3))
+            if hasattr(self, 'include_recently'):
+                self.include_recently.set(config.get("include_recently", False))
+            if hasattr(self, 'include_online'):
+                self.include_online.set(config.get("include_online", False))
+            if hasattr(self, 'auto_leave'):
+                self.auto_leave.set(config.get("auto_leave", False))
 
             # 更新目标用户计数
             targets = [line.strip() for line in config.get("targets", "").split("\n") if line.strip()]
