@@ -299,6 +299,7 @@ class UserScraper:
         try:
             # 使用消息数量限制（如果设置）或时间范围
             message_limit = config.get("message_limit", 0)
+            days = None  # 初始化days变量
             
             if message_limit > 0:
                 # 按数量限制
@@ -419,7 +420,10 @@ class UserScraper:
             
             # 显示过滤统计
             self.log(f"    📊 过滤统计:")
-            self.log(f"       总消息数: {filter_stats['total_messages']} (最近 {days} 天)")
+            if days is not None:
+                self.log(f"       总消息数: {filter_stats['total_messages']} (最近 {days} 天)")
+            else:
+                self.log(f"       总消息数: {filter_stats['total_messages']}")
             self.log(f"       有发送者: {filter_stats['has_sender']}")
             self.log(f"       唯一用户: {filter_stats['unique_users']}")
             if filter_stats['bot'] > 0:
