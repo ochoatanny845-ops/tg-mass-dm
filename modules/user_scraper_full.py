@@ -367,18 +367,21 @@ class UserScraper:
                 # 获取完整用户信息
                 try:
                     # 方法1：尝试获取完整用户（包含premium等字段）
+                    used_full_request = False
                     try:
                         from telethon.tl.functions.users import GetFullUserRequest
                         full_result = await client(GetFullUserRequest(msg.sender_id))
                         user = full_result.users[0]  # 完整用户对象
-                    except:
+                        used_full_request = True
+                    except Exception as e:
                         # 后备：基本get_entity
                         user = await client.get_entity(msg.sender_id)
+                        used_full_request = False
                     
                     # 调试：检查premium字段（前5个用户）
                     if filter_stats["unique_users"] <= 5:
                         premium_val = getattr(user, 'premium', None)
-                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_val}, premium==True:{premium_val is True}")
+                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_val}, used_full={used_full_request}, type={type(user).__name__}")
                     
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
