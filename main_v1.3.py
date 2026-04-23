@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.54.2"
+VERSION = "v1.54.3"
 
 import os
 import sys
@@ -2404,9 +2404,12 @@ class TGMassDM:
             except:
                 pass  # 忽略 JSON 保存错误
 
-            # 确保断开连接
+            # 确保断开连接并释放文件锁
             try:
-                await client.disconnect()
+                if client.is_connected():
+                    await client.disconnect()
+                # 等待一小段时间让文件锁完全释放
+                await asyncio.sleep(0.1)
             except:
                 pass  # 忽略断开连接时的错误
 
@@ -2418,10 +2421,12 @@ class TGMassDM:
             self.log(f"     追踪: {traceback.format_exc()[:200]}")
             self.root.after(0, self.refresh_account_tree)
 
-            # 确保断开连接
+            # 确保断开连接并释放文件锁
             try:
-                if 'client' in locals():
+                if 'client' in locals() and client.is_connected():
                     await client.disconnect()
+                # 等待一小段时间让文件锁完全释放
+                await asyncio.sleep(0.1)
             except:
                 pass  # 忽略断开连接时的错误
 
@@ -2494,9 +2499,9 @@ class TGMassDM:
 
         self.root.after(0, self.update_account_stats)
 
-        # 等待所有客户端断开连接
-        self.log("⏳ 等待所有连接断开...")
-        await asyncio.sleep(2)
+        # 等待所有客户端断开连接并释放文件锁
+        self.log("⏳ 等待所有连接断开并释放文件...")
+        await asyncio.sleep(3)
 
         # 清理所有异步任务
         await self.cleanup_async_tasks()
