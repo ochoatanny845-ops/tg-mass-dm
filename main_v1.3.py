@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.50.1"
+VERSION = "v1.51.0"
 
 import os
 import sys
@@ -833,6 +833,19 @@ class TGMassDM:
         ttk.Label(import_frame, text="• http://user:pass@ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
         ttk.Label(import_frame, text="• socks5://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
         ttk.Label(import_frame, text="• socks5://user:pass@ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
+        ttk.Label(import_frame, text="• user:pass@ip:port (自动识别协议)", font=("Consolas", 9)).pack(anchor=tk.W)
+        
+        # 协议类型选择
+        protocol_frame = ttk.Frame(import_frame)
+        protocol_frame.pack(fill=tk.X, pady=(5, 5))
+        ttk.Label(protocol_frame, text="默认协议:").pack(side=tk.LEFT, padx=(0, 5))
+        self.default_proxy_protocol = tk.StringVar(value="socks5")
+        ttk.Radiobutton(protocol_frame, text="SOCKS5", variable=self.default_proxy_protocol, 
+                       value="socks5").pack(side=tk.LEFT, padx=5)
+        ttk.Radiobutton(protocol_frame, text="HTTP", variable=self.default_proxy_protocol, 
+                       value="http").pack(side=tk.LEFT, padx=5)
+        ttk.Label(protocol_frame, text="(无协议前缀时使用)", 
+                 font=("微软雅黑", 8), foreground="gray").pack(side=tk.LEFT, padx=5)
 
         self.proxy_input = scrolledtext.ScrolledText(import_frame, height=6, font=("Consolas", 9))
         self.proxy_input.pack(fill=tk.BOTH, pady=(5, 0))
@@ -3780,7 +3793,7 @@ class TGMassDM:
         self.proxy_input.delete("1.0", tk.END)
     
     def parse_proxy(self, line):
-        """解析代理格式"""
+        """解析代理格式，使用用户选择的默认协议"""
         import re
         
         # 支持的格式:
@@ -3788,14 +3801,14 @@ class TGMassDM:
         # http://user:pass@ip:port
         # socks5://ip:port
         # socks5://user:pass@ip:port
-        # ip:port (默认 http)
-        # user:pass@ip:port (默认 http)
+        # ip:port (使用默认协议)
+        # user:pass@ip:port (使用默认协议)
         
         line = line.strip()
         if not line:
             return None
         
-        # 匹配完整格式
+        # 匹配完整格式（明确指定协议）
         match = re.match(r'^(https?|socks[45])://(.+)$', line)
         if match:
             proxy_type = match.group(1)
@@ -3808,11 +3821,13 @@ class TGMassDM:
                 "selected": False
             }
         
-        # 匹配 ip:port 或 user:pass@ip:port
+        # 匹配 ip:port 或 user:pass@ip:port（没有协议前缀）
+        # 使用用户选择的默认协议
         if ':' in line:
+            default_protocol = self.default_proxy_protocol.get()
             return {
-                "proxy": f"http://{line}",
-                "type": "http",
+                "proxy": f"{default_protocol}://{line}",
+                "type": default_protocol,
                 "status": "未检测",
                 "ping": 0,
                 "selected": False
