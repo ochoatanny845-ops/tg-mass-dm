@@ -368,6 +368,11 @@ class UserScraper:
                 try:
                     user = await client.get_entity(msg.sender_id)
                     
+                    # 调试：检查premium字段
+                    if filter_stats["unique_users"] <= 5:  # 只打印前5个
+                        premium_status = getattr(user, 'premium', None)
+                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_status}, type={type(user)}")
+                    
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
                         filter_stats["bot"] += 1
