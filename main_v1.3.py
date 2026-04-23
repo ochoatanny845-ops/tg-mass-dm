@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.48.1"
+VERSION = "v1.48.2"
 
 import os
 import sys
@@ -3865,12 +3865,16 @@ class TGMassDM:
         """代理检测线程"""
         import requests
         import time
+        import urllib3
+        
+        # 禁用 SSL 警告
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
         for i, proxy in enumerate(self.proxies):
             try:
-                # 测试 URL（使用稳定的国际网站）
-                # 不用 Google（可能被墙），用 Cloudflare
-                test_url = "https://1.1.1.1"  # Cloudflare DNS，全球可访问
+                # 测试 URL（使用简单的 HTTP 网站）
+                # 不用 HTTPS，避免 SSL 问题
+                test_url = "http://httpbin.org/ip"  # 返回 IP 的简单服务
                 
                 # 构造代理字典
                 proxies = {
@@ -3880,24 +3884,24 @@ class TGMassDM:
                 
                 # 测试连接
                 start_time = time.time()
-                response = requests.get(test_url, proxies=proxies, timeout=10, verify=False)
+                response = requests.get(test_url, proxies=proxies, timeout=10)
                 end_time = time.time()
                 
                 if response.status_code == 200:
                     ping = int((end_time - start_time) * 1000)
                     proxy["status"] = "可用"
                     proxy["ping"] = ping
-                    self.root.after(0, lambda i=i, p=proxy, ms=ping: self.log(f"✅ [{i+1}/{len(self.proxies)}] {p['proxy']} - 可用 ({ms}ms)"))
+                    self.root.after(0, lambda i=i, p=proxy, ms=ping: self.log(f"✅ [{i+1}/{len(self.proxies)}] {p['proxy'][:60]}... - 可用 ({ms}ms)"))
                 else:
                     proxy["status"] = "不可用"
                     proxy["ping"] = 0
-                    self.root.after(0, lambda i=i, p=proxy, code=response.status_code: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy']} - HTTP {code}"))
+                    self.root.after(0, lambda i=i, p=proxy, code=response.status_code: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy'][:60]}... - HTTP {code}"))
             
             except Exception as e:
                 proxy["status"] = "不可用"
                 proxy["ping"] = 0
-                error_msg = str(e)[:80]  # 截取前80个字符，显示更多错误信息
-                self.root.after(0, lambda i=i, p=proxy, err=error_msg: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy']} - {err}"))
+                error_msg = str(e)[:80]  # 截取前80个字符
+                self.root.after(0, lambda i=i, p=proxy, err=error_msg: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy'][:60]}... - {err}"))
             
             # 刷新显示
             self.root.after(0, self.refresh_proxy_tree)
