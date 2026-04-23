@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.38.0"
+VERSION = "v1.39.0"
 
 import os
 import sys
@@ -3033,10 +3033,19 @@ class TGMassDM:
                                 else:
                                     raise Exception("链接格式错误")
                             except ValueError as ve:
-                                self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
-                                self.log(f"      链接格式错误: {forward_url}")
-                                self.log(f"      错误详情: {str(ve)}")
+                                error_msg = str(ve)
                                 consecutive_fails += 1
+                                
+                                # 区分不同的错误类型
+                                if "no user" in error_msg.lower() or "no channel" in error_msg.lower():
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
+                                    self.log(f"      频道不存在或无权访问: {forward_url}")
+                                    self.log(f"      请检查频道名是否正确，或是否已加入该频道")
+                                else:
+                                    self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
+                                    self.log(f"      链接格式错误: {forward_url}")
+                                    self.log(f"      错误详情: {error_msg}")
+                                
                                 async with self.send_lock:
                                     self.total_failed += 1
                                     self.account_stats[account_name]["failed"] += 1  # 账号统计
