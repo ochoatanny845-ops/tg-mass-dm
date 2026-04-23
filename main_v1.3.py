@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.34.0"
+VERSION = "v1.35.0"
 
 import os
 import sys
@@ -2975,10 +2975,19 @@ class TGMassDM:
                         if "t.me/" in forward_url:
                             try:
                                 # 提取频道/群组和消息ID
+                                # 支持格式: https://t.me/channel/123 或 https://t.me/channel/123?query
                                 parts = forward_url.split("/")
                                 if len(parts) >= 2:
                                     channel_username = parts[-2]
-                                    message_id = int(parts[-1])
+                                    
+                                    # 提取消息ID（去除查询参数）
+                                    message_id_str = parts[-1].split("?")[0].split("#")[0]
+                                    
+                                    # 调试日志
+                                    # self.log(f"  🔍 [{account_name}] 解析链接: {forward_url}")
+                                    # self.log(f"      频道: {channel_username}, 消息ID: {message_id_str}")
+                                    
+                                    message_id = int(message_id_str)
 
                                     # 获取原始消息
                                     channel = await client.get_entity(channel_username)
@@ -3011,12 +3020,15 @@ class TGMassDM:
                                         raise Exception("无法获取原始消息")
                                 else:
                                     raise Exception("链接格式错误")
-                            except ValueError:
+                            except ValueError as ve:
                                 self.log(f"  ❌ [{account_name}] 转发失败: @{username}")
                                 self.log(f"      链接格式错误: {forward_url}")
+                                self.log(f"      错误详情: {str(ve)}")
+                                consecutive_fails += 1
                                 async with self.send_lock:
                                     self.total_failed += 1
                                     self.account_stats[account_name]["failed"] += 1  # 账号统计
+                                    self.root.after(0, self.update_progress)
                                 continue
                             except Exception as e:
                                 error_str = str(e).lower()
