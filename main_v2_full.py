@@ -37,12 +37,12 @@ except ImportError:
     print("❌ 缺少 telethon 库,请运行: pip install telethon")
     sys.exit(1)
 
-# 导入模块
+# 导入完整版模块
 try:
     import config
-    from modules.user_scraper import UserScraper
-    from modules.message_sender import MessageSender
-    from modules.account_manager import AccountManager
+    from modules.user_scraper_full import UserScraper
+    from modules.message_sender_full import MessageSender
+    from modules.account_manager_full import AccountManager
     from modules.proxy_manager import ProxyManager
 except ImportError as e:
     print(f"❌ 导入模块失败: {e}")
@@ -97,7 +97,8 @@ class TGMassDM:
         self.user_scraper = UserScraper(
             self.api_id,
             self.api_hash,
-            self.log
+            self.log,
+            self.root  # 传入 root 用于 UI 更新
         )
         
         self.message_sender = MessageSender(
@@ -3353,20 +3354,45 @@ class TGMassDM:
         loop.run_until_complete(self.send_messages_async(selected_accounts))
 
     async def send_messages_async(self, selected_accounts):
-        """异步发送消息（使用模块）"""
+        """异步发送消息（使用完整模块）"""
         try:
-            # 获取消息URL
-            message_url = self.forward_link.get().strip()
+            # 获取发送类型
+            send_type = self.send_type.get()
             
             # 构建配置
             config_dict = {
-                "parallel_threads": self.thread_count.get(),
-                "start_delay": self.thread_interval.get(),
+                "send_type": send_type,
+                "thread_count": self.thread_count.get(),
+                "thread_interval": self.thread_interval.get(),
                 "send_delay_min": self.send_delay_min.get(),
                 "send_delay_max": self.send_delay_max.get(),
-                "consecutive_fails_threshold": 10,
-                "ignore_mutual": False
+                "per_account_limit": self.per_account_limit.get(),
+                "total_limit": self.total_limit.get()
             }
+            
+            # 根据发送类型添加不同配置
+            if send_type == "forward":
+                # 转发模式
+                forward_text = self.forward_urls_text.get("1.0", tk.END)
+                forward_urls = [line.strip() for line in forward_text.strip().split('\n')
+                               if line.strip() and line.strip().startswith('http')]
+                
+                if not forward_urls:
+                    self.log("❌ 请添加转发链接")
+                    return
+                
+                config_dict["forward_urls"] = forward_urls
+                config_dict["hide_source"] = self.hide_source.get()
+                config_dict["pin_delay"] = self.pin_delay.get()
+            else:
+                # 文本模式
+                message_text = self.message_text.get("1.0", tk.END).strip()
+                
+                if not message_text:
+                    self.log("❌ 请输入文本消息")
+                    return
+                
+                config_dict["message_text"] = message_text
             
             # 回调函数
             def on_update():
@@ -3375,17 +3401,24 @@ class TGMassDM:
             def on_remove_target(target):
                 self.remove_successful_target(target)
             
+            def is_running():
+                return self.is_running
+            
+            def set_running(value):
+                self.is_running = value
+            
             callbacks = {
                 "on_update": on_update,
-                "on_remove_target": on_remove_target
+                "on_remove_target": on_remove_target,
+                "is_running": is_running,
+                "set_running": set_running
             }
             
-            # 调用模块发送
+            # 调用完整模块发送
             self.message_sender.stop_flag = False
             result = await self.message_sender.send_messages(
                 selected_accounts,
-                self.targets,
-                message_url,
+                self.targets,  # 共享列表，会被修改
                 config_dict,
                 callbacks
             )
@@ -3393,80 +3426,10 @@ class TGMassDM:
             if result:
                 self.total_sent = result["success"]
                 self.total_failed = result["failed"]
-                self.account_stats = result["account_stats"]
-                
-                # 显示统计
-                self.log(f"\n" + "="*50)
-                self.log(f"✅ 任务完成!")
-                self.log(f"📊 总计: {self.total_sent + self.total_failed} 条")
-                self.log(f"✅ 成功: {self.total_sent} 条")
-                self.log(f"❌ 失败: {self.total_failed} 条")
-                
-                total = self.total_sent + self.total_failed
-                if total > 0:
-                    success_rate = (self.total_sent / total * 100)
-                    self.log(f"📈 成功率: {success_rate:.1f}%")
-                
-                self.log("="*50)
+                self.account_stats = result.get("account_stats", {})
         
         except Exception as e:
             self.log(f"❌ 发送错误: {type(e).__name__}: {str(e)}")
-
-        # 显示总体统计
-        self.log(f"\n" + "="*50)
-        self.log(f"✅ 任务完成!")
-        self.log(f"📊 总计: {self.total_sent + self.total_failed} 条")
-        self.log(f"✅ 成功: {self.total_sent} 条")
-        self.log(f"❌ 失败: {self.total_failed} 条")
-
-        # 计算成功率并给出建议
-        total = self.total_sent + self.total_failed
-        if total > 0:
-            success_rate = (self.total_sent / total * 100)
-            self.log(f"📈 成功率: {success_rate:.1f}%")
-
-            # 根据成功率给出建议
-            if success_rate < 10:
-                self.log(f"\n⚠️ 成功率过低 ({success_rate:.1f}%),建议检查:")
-                self.log(f"   1. 大量账号已被封禁 → 删除封禁账号")
-                self.log(f"   2. 转发链接无效 → 检查链接是否正确")
-                self.log(f"   3. 目标用户名错误 → 检查用户名列表")
-            elif success_rate < 30:
-                self.log(f"\n⚠️ 成功率较低 ({success_rate:.1f}%),建议:")
-                self.log(f"   1. 检查部分账号是否被封禁")
-                self.log(f"   2. 增加发送间隔(避免请求限制)")
-            elif success_rate < 60:
-                self.log(f"\n💡 成功率中等 ({success_rate:.1f}%),可优化:")
-                self.log(f"   1. 调整发送间隔")
-                self.log(f"   2. 检查目标用户质量")
-            else:
-                self.log(f"\n✅ 成功率良好 ({success_rate:.1f}%)")
-
-        self.log("="*50)
-
-        # 显示每个账号的统计
-        if self.account_stats:
-            self.log(f"\n📈 各账号发送统计:")
-            invalid_accounts = []
-            for account_name, stats in sorted(self.account_stats.items()):
-                success = stats.get("sent", 0)
-                failed = stats.get("failed", 0)
-                total_acc = success + failed
-                success_rate_acc = (success / total_acc * 100) if total_acc > 0 else 0
-                self.log(f"  📱 {account_name}: ✅ {success} 条 | ❌ {failed} 条 | 成功率 {success_rate_acc:.1f}%")
-
-                # 收集成功率为0的账号
-                if total_acc > 0 and success == 0:
-                    invalid_accounts.append(account_name)
-
-            # 如果有封禁/失效账号,给出提示
-            if invalid_accounts:
-                self.log(f"\n🚫 以下账号已被封禁或失效(成功率0%):")
-                for acc in invalid_accounts[:5]:  # 最多显示5个
-                    self.log(f"   • {acc}")
-                if len(invalid_accounts) > 5:
-                    self.log(f"   ... 还有 {len(invalid_accounts) - 5} 个账号")
-                self.log(f"💡 建议:在「账号管理」中删除这些账号,避免浪费时间")
 
         self.log("="*50)
 
@@ -4151,7 +4114,7 @@ class TGMassDM:
         loop.run_until_complete(self.scrape_users_async(accounts, targets, source))
 
     async def scrape_users_async(self, accounts, targets, source):
-        """异步采集用户（使用模块）"""
+        """异步采集用户（使用完整模块）"""
         try:
             # 构建配置
             config_dict = {
@@ -4165,25 +4128,32 @@ class TGMassDM:
                 "include_online": self.include_online.get(),
                 "filter_bot": self.filter_bot.get(),
                 "filter_username": self.filter_username.get(),
-                "filter_premium": self.filter_premium.get(),
-                "filter_photo": self.filter_photo.get(),
-                "filter_admin": self.filter_admin.get(),
+                "filter_premium": self.filter_premium.get() if hasattr(self, 'filter_premium') else False,
+                "filter_photo": self.filter_photo.get() if hasattr(self, 'filter_photo') else False,
+                "filter_admin": self.filter_admin.get() if hasattr(self, 'filter_admin') else False,
                 "auto_leave": self.auto_leave.get()
             }
             
-            # 调用模块采集
+            # UI回调函数
+            ui_callbacks = {
+                "insert_row": lambda u: self.result_tree.insert("", tk.END, values=(
+                    "",
+                    u["username"],
+                    u["name"],
+                    u["source"]
+                )),
+                "is_running": lambda: self.is_running
+            }
+            
+            # 调用完整模块采集
             self.user_scraper.stop_flag = False
-            users = await self.user_scraper.scrape(accounts, targets, config_dict)
+            self.user_scraper.collected_users = []  # 重置
+            users = await self.user_scraper.scrape(accounts, targets, config_dict, ui_callbacks)
             
             # 更新采集结果
             if users:
                 self.collected_users.extend(users)
                 self.save_collected_users()
-            
-            self.log(f"\n" + "="*50)
-            self.log(f"✅ 采集完成!")
-            self.log(f"📊 总共采集 {len(users)} 个用户")
-            self.log("="*50)
             
             self.update_collected_stats()
 
