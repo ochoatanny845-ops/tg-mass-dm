@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.68.0"
+VERSION = "v1.69.0"
 
 # 隐私保护说明：
 # 代理信息不会保存到 JSON 文件中
@@ -3706,23 +3706,26 @@ class TGMassDM:
                     wait_seconds = e.seconds if hasattr(e, 'seconds') else 60
                     
                     self.log(f"  ⏳ [{account_name}] 触发频率限制，需要等待 {wait_seconds} 秒")
-                    self.log(f"      目标用户 @{username} 将在等待后重试")
+                    self.log(f"      目标用户 @{username} 标记为失败，跳过")
                     
-                    # 静默等待（不显示倒计时，避免刷屏）
-                    await asyncio.sleep(wait_seconds)
+                    # 不要等待和重试，直接标记为失败
+                    # 原因：等待后立即重试还是会触发限制，进入无限循环
+                    # 应该让其他账号尝试，或者该账号休息一段时间
                     
-                    if not self.stop_flag:
-                        self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
-                        # 将当前用户放回队列开头，重新尝试
-                        async with self.send_lock:
-                            self.targets.insert(0, target)
-                        continue  # 重新循环，会再次获取这个用户
-                    else:
-                        # 被停止，标记为失败
-                        async with self.send_lock:
-                            self.total_failed += 1
-                            self.account_stats[account_name]["failed"] += 1
-                            self.root.after(0, self.update_progress)
+                    async with self.send_lock:
+                        self.total_failed += 1
+                        self.account_stats[account_name]["failed"] += 1
+                        self.root.after(0, self.update_progress)
+                    
+                    # 检查是否连续失败太多次
+                    consecutive_fails += 1
+                    if consecutive_fails >= 5:
+                        self.log(f"  ⚠️ [{account_name}] 连续失败 {consecutive_fails} 次，该账号可能被限制")
+                        self.log(f"      建议停止使用此账号或等待一段时间")
+                        # 可以选择自动停止该账号
+                        # break
+                    
+                    continue  # 跳过该用户，继续下一个
 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
@@ -3876,25 +3879,20 @@ class TGMassDM:
                         wait_match = re.search(r'(\d+)', error_str)
                         wait_seconds = int(wait_match.group(1)) if wait_match else 60
                         
-                        self.log(f"  ⏳ [{account_name}] 触发频率限制，需要等待 {wait_seconds} 秒")
-                        self.log(f"      目标用户 @{username} 将在等待后重试")
+                        self.log(f"  ⏳ [{account_name}] 触发频率限制（{wait_seconds}秒）")
+                        self.log(f"      目标用户 @{username} 标记为失败，跳过")
                         
-                        # 静默等待（不显示倒计时，避免刷屏）
-                        await asyncio.sleep(wait_seconds)
+                        # 不要等待和重试，直接标记为失败
+                        async with self.send_lock:
+                            self.total_failed += 1
+                            self.account_stats[account_name]["failed"] += 1
+                            self.root.after(0, self.update_progress)
                         
-                        if not self.stop_flag:
-                            self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
-                            # 将当前用户放回队列开头
-                            async with self.send_lock:
-                                self.targets.insert(0, target)
-                            continue  # 重新尝试
-                        else:
-                            # 被停止，标记为失败
-                            async with self.send_lock:
-                                self.total_failed += 1
-                                self.account_stats[account_name]["failed"] += 1
-                                self.root.after(0, self.update_progress)
-                            continue
+                        consecutive_fails += 1
+                        if consecutive_fails >= 5:
+                            self.log(f"  ⚠️ [{account_name}] 连续失败 {consecutive_fails} 次，该账号可能被限制")
+                        
+                        continue
 
                     # 检测 "Cannot find any entity" 错误（用户不存在或需要 Premium）
                     if "cannot find any entity" in error_str:
