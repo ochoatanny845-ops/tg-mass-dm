@@ -4122,7 +4122,7 @@ class TGMassDM:
             self.log(f"⚠️ 加载代理列表失败: {e}")
     
     def login_telegram_web(self, account):
-        """打开Telegram Web并自动登录"""
+        """打开Telegram Web并自动登录（GramJS方案）"""
         try:
             from modules.web_login import TelegramWebLogin
             
@@ -4139,10 +4139,14 @@ class TGMassDM:
                 messagebox.showerror("错误", f"Session文件不存在:\n{session_file}")
                 return
             
-            self.log(f"🌐 正在为账号 {phone} 打开 Telegram Web...")
+            self.log(f"🌐 正在为账号 {phone} 打开 Telegram Web (GramJS方案)...")
             
-            # 创建Web登录实例
-            web_login = TelegramWebLogin(logger=self.log)
+            # 创建Web登录实例（传入API ID和Hash）
+            web_login = TelegramWebLogin(
+                api_id=self.api_id,
+                api_hash=self.api_hash,
+                logger=self.log
+            )
             
             # 在新线程中打开浏览器（避免阻塞UI）
             def open_browser():
@@ -4158,7 +4162,7 @@ class TGMassDM:
         except ImportError:
             self.log("❌ 缺少依赖库")
             messagebox.showerror("缺少依赖", 
-                               "请先安装依赖库:\n\npip install selenium webdriver-manager")
+                               "请先安装依赖库:\n\npip install selenium webdriver-manager telethon")
         except Exception as e:
             self.log(f"❌ 打开Web版失败: {str(e)}")
             messagebox.showerror("错误", f"打开Web版失败:\n{str(e)}")

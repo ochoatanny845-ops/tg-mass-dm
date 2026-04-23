@@ -1,20 +1,19 @@
 """
-Telegram Web 自动登录模块
-从 Telethon session 提取 auth_key 并注入到浏览器
+Telegram Web 自动登录模块 - GramJS方案
+从 Telethon session 转换为 GramJS StringSession 并注入到浏览器
 
 独立模块，可单独运行:
-    python modules/web_login.py <session_file>
+    python modules/web_login.py <session_file> --api-id <id> --api-hash <hash>
 
 也可作为库导入:
     from modules.web_login import TelegramWebLogin
-    login = TelegramWebLogin()
-    driver = login.open_telegram_web("session_file.session")
+    login = TelegramWebLogin(api_id, api_hash)
+    await login.open_telegram_web_async("session.session")
 """
 
-import sqlite3
-import base64
 import os
 import time
+import asyncio
 from pathlib import Path
 
 try:
@@ -24,17 +23,28 @@ try:
 except ImportError:
     SELENIUM_AVAILABLE = False
 
+try:
+    from telethon import TelegramClient
+    from telethon.sessions import StringSession
+    TELETHON_AVAILABLE = True
+except ImportError:
+    TELETHON_AVAILABLE = False
+
 
 class TelegramWebLogin:
-    """Telegram Web 自动登录类"""
+    """Telegram Web 自动登录类（使用GramJS格式）"""
     
-    def __init__(self, logger=None):
+    def __init__(self, api_id, api_hash, logger=None):
         """
         初始化
         
         Args:
+            api_id: Telegram API ID（必需）
+            api_hash: Telegram API Hash（必需）
             logger: 日志函数，如果为None则使用print
         """
+        self.api_id = api_id
+        self.api_hash = api_hash
         self.logger = logger
     
     def log(self, message):
@@ -45,14 +55,12 @@ class TelegramWebLogin:
             print(message)
     
     def check_dependencies(self):
-        """
-        检查依赖是否安装
-        
-        Returns:
-            tuple: (是否成功, 消息)
-        """
+        """检查依赖是否安装"""
         if not SELENIUM_AVAILABLE:
             return False, "未安装 selenium 库\n请运行: pip install selenium webdriver-manager"
+        
+        if not TELETHON_AVAILABLE:
+            return False, "未安装 telethon 库\n请运行: pip install telethon"
         
         try:
             from webdriver_manager.chrome import ChromeDriverManager
@@ -60,54 +68,48 @@ class TelegramWebLogin:
         except ImportError:
             return False, "未安装 webdriver-manager 库\n请运行: pip install webdriver-manager"
     
-    def extract_session_data(self, session_file):
+    async def convert_to_gramjs_session(self, session_file):
         """
-        从 Telethon session 文件提取认证数据
-        
-        Session文件结构（SQLite）：
-        - 表: sessions
-        - 字段: dc_id, server_address, port, auth_key
+        将Telethon session转换为GramJS StringSession格式
         
         Args:
             session_file: .session 文件路径
         
         Returns:
-            dict: {'dc_id', 'auth_key', 'server', 'port'}
+            str: GramJS格式的session字符串
         """
         try:
-            if not os.path.exists(session_file):
-                raise FileNotFoundError(f"Session 文件不存在: {session_file}")
+            self.log("🔄 正在转换session为GramJS格式...")
             
-            conn = sqlite3.connect(session_file)
-            cursor = conn.cursor()
-            cursor.execute("SELECT dc_id, server_address, port, auth_key FROM sessions")
-            row = cursor.fetchone()
+            # 去掉.session后缀（Telethon会自动添加）
+            session_name = str(session_file).replace('.session', '')
             
-            if not row:
-                conn.close()
-                raise ValueError("Session 文件中没有认证数据（未登录或已过期）")
+            # 创建临时的Telethon client
+            client = TelegramClient(session_name, self.api_id, self.api_hash)
             
-            dc_id, server_address, port, auth_key = row
-            conn.close()
+            # 连接（不需要登录，只读取session）
+            await client.connect()
             
-            auth_key_b64 = base64.b64encode(auth_key).decode('utf-8')
+            if not await client.is_user_authorized():
+                await client.disconnect()
+                raise ValueError("Session未授权或已过期，请重新登录")
             
-            self.log(f"✅ 成功提取session数据: DC{dc_id} ({server_address}:{port})")
+            # 导出为StringSession
+            string_session = StringSession.save(client.session)
             
-            return {
-                'dc_id': dc_id,
-                'auth_key': auth_key_b64,
-                'server': server_address,
-                'port': port
-            }
+            await client.disconnect()
+            
+            self.log(f"✅ 成功转换为GramJS格式")
+            
+            return string_session
             
         except Exception as e:
-            self.log(f"❌ 提取session失败: {str(e)}")
+            self.log(f"❌ 转换session失败: {str(e)}")
             raise
     
-    def open_telegram_web(self, session_file, headless=False, keep_open=True):
+    async def open_telegram_web_async(self, session_file, headless=False, keep_open=True):
         """
-        打开Telegram Web并自动登录
+        打开Telegram Web并自动登录（异步版本）
         
         Args:
             session_file: .session 文件路径
@@ -123,9 +125,13 @@ class TelegramWebLogin:
                 self.log(f"❌ {msg}")
                 raise ImportError(msg)
             
-            self.log("📦 正在提取session数据...")
-            session_data = self.extract_session_data(session_file)
+            if not os.path.exists(session_file):
+                raise FileNotFoundError(f"Session文件不存在: {session_file}")
             
+            # 转换为GramJS session
+            gramjs_session = await self.convert_to_gramjs_session(session_file)
+            
+            # 配置Chrome选项
             chrome_options = Options()
             if headless:
                 chrome_options.add_argument('--headless')
@@ -136,6 +142,7 @@ class TelegramWebLogin:
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--incognito')
             
+            # 启动Chrome
             self.log("🌐 正在启动浏览器...")
             
             try:
@@ -146,65 +153,52 @@ class TelegramWebLogin:
             except:
                 driver = webdriver.Chrome(options=chrome_options)
             
-            self.log("📱 正在打开 Telegram Web...")
-            # 先打开一个空白页面，然后注入localStorage
+            # 打开Telegram Web
             self.log("📱 正在打开 Telegram Web...")
             driver.get("https://web.telegram.org/a/")
-            
-            # 等待页面初始化
             time.sleep(2)
             
-            self.log("🔑 正在注入认证数据...")
-            dc_id = session_data['dc_id']
-            auth_key = session_data['auth_key']
+            # 注入GramJS session
+            self.log("🔑 正在注入GramJS认证数据...")
             
-            # 注入localStorage（使用正确的格式）
-            # 参考：https://github.com/LonamiWebs/Telethon/issues/1967
+            # GramJS使用特定的localStorage key
             script = f"""
-            // 清除旧的登录状态
+            // 清除旧session
             localStorage.clear();
             
-            // 注入auth_key（主要认证信息）
-            localStorage.setItem('dc{dc_id}_auth_key', '{auth_key}');
-            localStorage.setItem('dc', '{dc_id}');
+            // 注入GramJS session（参考GramJS官方格式）
+            const sessionData = {{
+                session: '{gramjs_session}',
+                apiId: {self.api_id},
+                apiHash: '{self.api_hash}'
+            }};
             
-            // 注入server_salt（如果需要）
-            localStorage.setItem('dc{dc_id}_server_salt', '0'.repeat(16));
+            // GramJS在localStorage中的key（可能是 'GramJs:apiCache' 或其他）
+            localStorage.setItem('GramJs:sessionData', JSON.stringify(sessionData));
+            localStorage.setItem('GramJs:session', '{gramjs_session}');
             
-            // 标记user_auth（部分版本需要）
-            localStorage.setItem('user_auth', '{dc_id}');
-            
-            console.log('[TG-Login] Injected auth for DC' + {dc_id});
-            console.log('[TG-Login] Auth key length: ' + '{auth_key}'.length);
+            console.log('[TG-Login] Injected GramJS session');
             """
             driver.execute_script(script)
             
-            self.log("♻️ 第1次刷新页面...")
+            # 刷新页面让session生效
+            self.log("♻️ 正在刷新页面...")
             driver.refresh()
             time.sleep(4)
             
-            # 检查是否成功登录
+            # 检查登录状态
             try:
-                # 如果还有QR码，说明没登录成功
                 qr_elements = driver.find_elements("xpath", "//*[contains(@class, 'qr')]")
-                login_button = driver.find_elements("xpath", "//*[contains(text(), 'Log in')]")
-                
-                if qr_elements or login_button:
+                if qr_elements:
                     self.log("⚠️ 首次注入未生效，尝试第二次...")
-                    
-                    # 再次注入（有时需要多次）
                     driver.execute_script(script)
                     driver.refresh()
                     time.sleep(4)
                     
-                    # 再次检查
                     qr_elements = driver.find_elements("xpath", "//*[contains(@class, 'qr')]")
                     if qr_elements:
-                        self.log("⚠️ 注入可能失败，但浏览器已打开")
-                        self.log("💡 如果未自动登录，可能需要：")
-                        self.log("   1. Session文件版本太旧")
-                        self.log("   2. Auth key已过期")
-                        self.log("   3. 需要重新登录生成新session")
+                        self.log("⚠️ GramJS方案可能不适用当前Telegram Web版本")
+                        self.log("💡 建议使用Telegram Desktop或等待更新")
                     else:
                         self.log("✅ 第二次注入成功！")
                 else:
@@ -212,7 +206,6 @@ class TelegramWebLogin:
                     
             except Exception as check_error:
                 self.log(f"⚠️ 无法检查登录状态: {str(check_error)}")
-                self.log("💡 请手动查看浏览器窗口")
             
             if keep_open:
                 self.log("💡 浏览器将保持打开，手动关闭窗口即可退出")
@@ -228,6 +221,28 @@ class TelegramWebLogin:
             import traceback
             traceback.print_exc()
             return None
+    
+    def open_telegram_web(self, session_file, headless=False, keep_open=True):
+        """
+        打开Telegram Web并自动登录（同步包装）
+        
+        Args:
+            session_file: .session 文件路径
+            headless: 是否无头模式
+            keep_open: 是否保持浏览器打开
+        
+        Returns:
+            WebDriver 实例 或 None
+        """
+        # 在新事件循环中运行异步函数
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(
+                self.open_telegram_web_async(session_file, headless, keep_open)
+            )
+        finally:
+            loop.close()
 
 
 def main():
@@ -236,11 +251,13 @@ def main():
     import argparse
     
     parser = argparse.ArgumentParser(
-        description='Telegram Web 自动登录工具',
-        epilog='示例: python modules/web_login.py sessions/account1.session'
+        description='Telegram Web 自动登录工具（GramJS方案）',
+        epilog='示例: python modules/web_login.py account.session --api-id 12345 --api-hash abc123'
     )
     
     parser.add_argument('session_file', help='.session 文件路径')
+    parser.add_argument('--api-id', type=int, required=True, help='Telegram API ID')
+    parser.add_argument('--api-hash', required=True, help='Telegram API Hash')
     parser.add_argument('--headless', action='store_true', help='无头模式')
     parser.add_argument('--auto-close', action='store_true', help='5秒后自动关闭')
     
@@ -250,7 +267,7 @@ def main():
         print(f"❌ 文件不存在: {args.session_file}")
         sys.exit(1)
     
-    login = TelegramWebLogin()
+    login = TelegramWebLogin(args.api_id, args.api_hash)
     driver = login.open_telegram_web(
         session_file=args.session_file,
         headless=args.headless,
