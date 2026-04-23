@@ -459,7 +459,7 @@ class UserScraper:
         if config.get("filter_photo", False) and not user.photo:
             return False
         
-        # 在线时间过滤
+        # 在线时间过滤（修复：只在开启时过滤）
         if config.get("filter_online_time", False):
             online_days = config.get("online_days", 3)
             cutoff_time = datetime.now() - timedelta(days=online_days)
@@ -467,12 +467,13 @@ class UserScraper:
             if user.status:
                 # 当前在线
                 if isinstance(user.status, types.UserStatusOnline):
-                    if config.get("include_online", True):
-                        return True
+                    return True
                 # 最近在线（隐藏具体时间）
                 elif isinstance(user.status, types.UserStatusRecently):
                     if config.get("include_recently", True):
                         return True
+                    else:
+                        return False
                 # 离线，检查离线时间
                 elif isinstance(user.status, types.UserStatusOffline):
                     if hasattr(user.status, 'was_online'):
@@ -480,14 +481,21 @@ class UserScraper:
                             return True
                         else:
                             return False
-                # 一周内/一个月内/很久未上线（隐藏时间）
-                elif isinstance(user.status, (types.UserStatusLastWeek, types.UserStatusLastMonth, types.UserStatusEmpty)):
-                    # 这些状态无法精确判断，默认排除
+                    else:
+                        # 没有was_online字段，无法判断，默认通过
+                        return True
+                # 一周内/一个月内/很久未上线（隐藏时间）- 无法精确判断
+                elif isinstance(user.status, (types.UserStatusLastWeek, types.UserStatusLastMonth)):
+                    # 默认排除（太久未上线）
                     return False
+                elif isinstance(user.status, types.UserStatusEmpty):
+                    # 状态为空，无法判断，默认通过
+                    return True
             else:
-                # 没有状态信息，默认排除
-                return False
+                # 没有状态信息，默认通过
+                return True
         
+        # 所有过滤通过
         return True
     
     def stop(self):

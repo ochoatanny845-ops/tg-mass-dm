@@ -879,7 +879,7 @@ class TGMassDM:
         filter_frame.pack(fill=tk.X)
 
         # 在线时间过滤
-        self.filter_online_time = tk.BooleanVar(value=True)
+        self.filter_online_time = tk.BooleanVar(value=False)
         ttk.Checkbutton(filter_frame, text="按在线时间过滤",
                        variable=self.filter_online_time).pack(anchor=tk.W, pady=2)
 
