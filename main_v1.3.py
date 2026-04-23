@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.29.0"
+VERSION = "v1.30.0"
 
 import os
 import sys
@@ -2774,12 +2774,12 @@ class TGMassDM:
             # 根据成功率给出建议
             if success_rate < 10:
                 self.log(f"\n⚠️ 成功率过低 ({success_rate:.1f}%)，建议检查：")
-                self.log(f"   1. 大量账号 session 失效 → 重新登录")
+                self.log(f"   1. 大量账号已被封禁 → 删除封禁账号")
                 self.log(f"   2. 转发链接无效 → 检查链接是否正确")
                 self.log(f"   3. 目标用户名错误 → 检查用户名列表")
             elif success_rate < 30:
                 self.log(f"\n⚠️ 成功率较低 ({success_rate:.1f}%)，建议：")
-                self.log(f"   1. 检查部分账号是否失效")
+                self.log(f"   1. 检查部分账号是否被封禁")
                 self.log(f"   2. 增加发送间隔（避免请求限制）")
             elif success_rate < 60:
                 self.log(f"\n💡 成功率中等 ({success_rate:.1f}%)，可优化：")
@@ -2805,14 +2805,14 @@ class TGMassDM:
                 if total_acc > 0 and success == 0:
                     invalid_accounts.append(account_name)
             
-            # 如果有失效账号，给出提示
+            # 如果有封禁/失效账号，给出提示
             if invalid_accounts:
-                self.log(f"\n🚫 以下账号可能已失效（成功率0%）：")
+                self.log(f"\n🚫 以下账号已被封禁或失效（成功率0%）：")
                 for acc in invalid_accounts[:5]:  # 最多显示5个
                     self.log(f"   • {acc}")
                 if len(invalid_accounts) > 5:
                     self.log(f"   ... 还有 {len(invalid_accounts) - 5} 个账号")
-                self.log(f"💡 建议：在「账号管理」中重新登录这些账号")
+                self.log(f"💡 建议：在「账号管理」中删除这些账号，避免浪费时间")
 
         self.log("="*50)
 
@@ -3131,17 +3131,32 @@ class TGMassDM:
                         self.root.after(0, self.update_progress)
 
                 except errors.AuthKeyUnregisteredError as e:
-                    self.log(f"  ❌ [{account_name}] 账号未授权(死号): {str(e)}")
+                    self.log(f"  🚫 [{account_name}] 账号已封禁 (The key is not registered)")
+                    self.log(f"      此账号无法使用，已自动停止")
+                    account["status"] = "🚫 已封禁"
+                    account["selected"] = False  # 自动取消选择
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
                         self.root.after(0, self.update_progress)
-                    break  # 账号失效,切换账号
+                    break  # 账号已封禁，停止使用
 
                 except Exception as e:
                     error_str = str(e).lower()
                     consecutive_fails += 1
 
+                    # 检测账号封禁错误
+                    if "key is not registered" in error_str or "authkeyunregistered" in error_str:
+                        self.log(f"  🚫 [{account_name}] 账号已封禁 (The key is not registered)")
+                        self.log(f"      此账号无法使用，已自动停止")
+                        account["status"] = "🚫 已封禁"
+                        account["selected"] = False  # 自动取消选择
+                        async with self.send_lock:
+                            self.total_failed += 1
+                            self.account_stats[account_name]["failed"] += 1
+                            self.root.after(0, self.update_progress)
+                        break  # 账号已封禁，停止使用
+                    
                     # 检测 "Too many requests" 错误
                     if "too many requests" in error_str or "flood" in error_str:
                         self.log(f"  ❌ [{account_name}] 触发请求限制: @{username} - 跳过")
