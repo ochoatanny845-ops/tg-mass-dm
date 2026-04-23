@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.46.2"
+VERSION = "v1.47.0"
 
 import os
 import sys
@@ -186,6 +186,19 @@ class TGMassDM:
     def on_tab_changed(self, event):
         """标签页切换事件"""
         current_tab = self.notebook.index(self.notebook.select())
+        
+        # 根据标签页显示/隐藏开始停止按钮
+        if current_tab == 3:  # 代理管理页面 - 隐藏按钮
+            self.start_btn.pack_forget()
+            self.stop_btn.pack_forget()
+        else:  # 其他页面 - 显示按钮
+            # 获取 control_frame 的第一个子控件位置
+            control_frame = self.start_btn.master
+            
+            # 重新打包按钮（如果已隐藏）
+            if not self.start_btn.winfo_ismapped():
+                self.start_btn.pack(side=tk.LEFT, padx=5, before=control_frame.winfo_children()[0])
+                self.stop_btn.pack(side=tk.LEFT, padx=5, after=self.start_btn)
         
         if current_tab == 1:  # 私信广告页面
             # 延迟设置布局
@@ -834,15 +847,15 @@ class TGMassDM:
         action_frame = ttk.LabelFrame(left, text="⚙️ 批量操作", padding="10")
         action_frame.pack(fill=tk.X, pady=(10, 0))
 
-        ttk.Button(action_frame, text="🔍 检测所有代理", width=20,
+        ttk.Button(action_frame, text="🔍 检测所有代理",
                   command=self.check_all_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="✅ 选中可用代理", width=20,
+        ttk.Button(action_frame, text="✅ 选中可用代理",
                   command=self.select_available_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="🗑️ 删除不可用代理", width=20,
+        ttk.Button(action_frame, text="🗑️ 删除不可用代理",
                   command=self.delete_unavailable_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="🧹 清空所有代理", width=20,
+        ttk.Button(action_frame, text="🧹 清空所有代理",
                   command=self.clear_all_proxies).pack(fill=tk.X, pady=2)
-        ttk.Button(action_frame, text="💾 导出可用代理", width=20,
+        ttk.Button(action_frame, text="💾 导出可用代理",
                   command=self.export_available_proxies).pack(fill=tk.X, pady=2)
 
         # ========== 右侧:代理列表 ==========
