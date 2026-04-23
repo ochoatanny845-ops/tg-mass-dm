@@ -1707,7 +1707,7 @@ class TGMassDM:
         menu.post(x, y)
 
     def show_context_menu(self, event):
-        """显示右键菜单(复制手机号)"""
+        """显示右键菜单"""
         # 获取点击的行
         item = self.account_tree.identify_row(event.y)
         if not item:
@@ -1716,17 +1716,30 @@ class TGMassDM:
         # 选中该行
         self.account_tree.selection_set(item)
 
-        # 获取手机号
+        # 获取账号信息
         values = self.account_tree.item(item, "values")
         if len(values) < 3:
             return
 
-        phone = values[2]  # 第三列是手机号(第一列序号,第二列复选框)
+        phone = values[2]  # 第三列是手机号
+        
+        # 查找对应的账号对象
+        account = None
+        for acc in self.accounts:
+            if acc.get("phone") == phone:
+                account = acc
+                break
 
         # 创建菜单
         menu = tk.Menu(self.root, tearoff=0, font=("Microsoft YaHei UI", 10))
         menu.add_command(label=f"📋 复制手机号: {phone}",
                         command=lambda: self.copy_to_clipboard(phone))
+        
+        # 添加Web登录选项
+        if account:
+            menu.add_separator()
+            menu.add_command(label="🌐 登录Web版", 
+                            command=lambda: self.login_telegram_web(account))
 
         # 显示菜单
         menu.post(event.x_root, event.y_root)
@@ -4090,6 +4103,48 @@ class TGMassDM:
                     self.log(f"✅ 自动加载了 {len(self.proxies)} 个代理")
         except Exception as e:
             self.log(f"⚠️ 加载代理列表失败: {e}")
+    
+    def login_telegram_web(self, account):
+        """打开Telegram Web并自动登录"""
+        try:
+            from modules.web_login import TelegramWebLogin
+            
+            phone = account.get("phone", "")
+            session_file = account.get("session", "")
+            
+            if not session_file:
+                self.log(f"❌ 账号 {phone} 没有session文件")
+                messagebox.showerror("错误", "该账号没有session文件")
+                return
+            
+            if not os.path.exists(session_file):
+                self.log(f"❌ Session文件不存在: {session_file}")
+                messagebox.showerror("错误", f"Session文件不存在:\n{session_file}")
+                return
+            
+            self.log(f"🌐 正在为账号 {phone} 打开 Telegram Web...")
+            
+            # 创建Web登录实例
+            web_login = TelegramWebLogin(logger=self.log)
+            
+            # 在新线程中打开浏览器（避免阻塞UI）
+            def open_browser():
+                driver = web_login.open_telegram_web(session_file)
+                if driver:
+                    # 保持浏览器打开，直到用户关闭
+                    # driver会在用户关闭浏览器时自动释放
+                    pass
+            
+            thread = threading.Thread(target=open_browser, daemon=True)
+            thread.start()
+            
+        except ImportError:
+            self.log("❌ 缺少依赖库")
+            messagebox.showerror("缺少依赖", 
+                               "请先安装依赖库:\n\npip install selenium webdriver-manager")
+        except Exception as e:
+            self.log(f"❌ 打开Web版失败: {str(e)}")
+            messagebox.showerror("错误", f"打开Web版失败:\n{str(e)}")
 
 
 def main():
