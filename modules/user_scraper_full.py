@@ -364,9 +364,9 @@ class UserScraper:
                 user_ids.add(msg.sender_id)
                 filter_stats["unique_users"] += 1
                 
-                # 直接使用 msg.sender（避免额外API调用！）
+                # 获取完整用户信息（msg.sender可能不包含username等信息）
                 try:
-                    user = msg.sender
+                    user = await client.get_entity(msg.sender_id)
                     
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
