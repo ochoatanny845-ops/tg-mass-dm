@@ -364,20 +364,38 @@ class UserScraper:
                 user_ids.add(msg.sender_id)
                 filter_stats["unique_users"] += 1
                 
-                # 获取完整用户信息
+                # 获取完整用户信息（强制从服务器获取，不使用缓存）
                 try:
-                    # 直接使用get_entity，Premium信息应该在User对象中
-                    user = await client.get_entity(msg.sender_id)
+                    from telethon.tl.functions.users import GetUsersRequest
+                    from telethon.tl.types import InputUser
+                    
+                    # 方法：使用GetUsersRequest强制获取完整User对象
+                    try:
+                        # 创建InputUser
+                        input_user = InputUser(user_id=msg.sender_id, access_hash=0)
+                        # 获取完整用户
+                        users = await client(GetUsersRequest(id=[input_user]))
+                        user = users[0] if users else None
+                        
+                        if not user:
+                            raise Exception("No user returned")
+                            
+                    except Exception as e:
+                        # 后备：get_entity
+                        user = await client.get_entity(msg.sender_id)
                     
                     # 调试：检查premium字段（前5个用户）
                     if filter_stats["unique_users"] <= 5:
                         premium_val = getattr(user, 'premium', None)
-                        # 打印user对象的所有属性
-                        attrs = [attr for attr in dir(user) if not attr.startswith('_')]
-                        has_premium_attr = 'premium' in attrs
-                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}")
-                        self.log(f"              premium={premium_val}, has_premium_attr={has_premium_attr}")
-                        self.log(f"              user_flags={getattr(user, 'flags', 'NO_FLAGS')}, user_flags2={getattr(user, 'flags2', 'NO_FLAGS')}")
+                        flags_val = getattr(user, 'flags', 'NO_FLAGS')
+                        # 检查premium是否在flags中（第28位）
+                        if flags_val != 'NO_FLAGS' and isinstance(flags_val, int):
+                            premium_from_flags = bool(flags_val & (1 << 28))
+                            self.log(f"       DEBUG: user_id={user.id}, username={user.username}")
+                            self.log(f"              premium_attr={premium_val}, flags={flags_val}, premium_from_flags={premium_from_flags}")
+                        else:
+                            self.log(f"       DEBUG: user_id={user.id}, username={user.username}")
+                            self.log(f"              premium_attr={premium_val}, flags={flags_val}, NO VALID FLAGS!")
                     
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
