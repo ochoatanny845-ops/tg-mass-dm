@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.50.0"
+VERSION = "v1.50.1"
 
 import os
 import sys
@@ -1889,6 +1889,7 @@ class TGMassDM:
             # 创建 TelegramClient（可能失败）
             # 获取可用代理
             proxy_config = None
+            connection_type = None
             proxy_retry_count = 0
             max_proxy_retries = 3
             
@@ -1899,12 +1900,19 @@ class TGMassDM:
                     if available_proxies:
                         import random
                         proxy = random.choice(available_proxies)
-                        proxy_config = self.parse_proxy_for_telethon(proxy["proxy"])
-                        self.log(f"{log_prefix} {phone_number} - 🌐 使用代理: {proxy['proxy']}")
+                        proxy_config, connection_type = self.parse_proxy_for_telethon(proxy["proxy"])
+                        self.log(f"{log_prefix} {phone_number} - 🌐 使用代理: {proxy['proxy'][:60]}...")
                     
                     # 创建客户端（带或不带代理）
                     if proxy_config:
-                        client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
+                        if connection_type:
+                            # HTTP 代理需要指定连接类型
+                            client = TelegramClient(path, self.api_id, self.api_hash, 
+                                                  proxy=proxy_config, 
+                                                  connection=connection_type)
+                        else:
+                            # SOCKS 代理使用默认连接类型
+                            client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
                     else:
                         client = TelegramClient(path, self.api_id, self.api_hash)
                     
@@ -1917,7 +1925,12 @@ class TGMassDM:
                     if self.convert_session_file(path):
                         try:
                             if proxy_config:
-                                client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
+                                if connection_type:
+                                    client = TelegramClient(path, self.api_id, self.api_hash, 
+                                                          proxy=proxy_config, 
+                                                          connection=connection_type)
+                                else:
+                                    client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
                             else:
                                 client = TelegramClient(path, self.api_id, self.api_hash)
                             await client.connect()
@@ -3973,7 +3986,9 @@ class TGMassDM:
                 self.log(f"❌ 导出代理失败: {e}")
     
     def parse_proxy_for_telethon(self, proxy_url):
-        """将代理 URL 转换为 Telethon 所需的格式"""
+        """将代理 URL 转换为 Telethon 所需的格式
+        返回: (proxy_config, connection_type)
+        """
         import re
         from telethon import connection
         
@@ -3983,7 +3998,7 @@ class TGMassDM:
         
         match = re.match(r'^(https?|socks[45])://(?:(.+):(.+)@)?(.+):(\d+)$', proxy_url)
         if not match:
-            return None
+            return None, None
         
         proxy_type = match.group(1)
         username = match.group(2)
@@ -3995,11 +4010,14 @@ class TGMassDM:
         if proxy_type in ['socks4', 'socks5']:
             import socks
             proxy = (socks.SOCKS5 if proxy_type == 'socks5' else socks.SOCKS4, addr, port, True, username, password)
+            # SOCKS 代理使用默认连接类型
+            return proxy, None
         else:
-            # HTTP 代理
+            # HTTP/HTTPS 代理
+            # Telethon HTTP 代理格式: (addr, port, username, password)
             proxy = (addr, port, username, password)
-        
-        return proxy
+            # HTTP 代理必须使用 ConnectionHttp
+            return proxy, connection.ConnectionHttp
     
     def save_proxies(self):
         """保存代理列表到文件"""
