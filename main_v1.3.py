@@ -820,23 +820,38 @@ class TGMassDM:
         ttk.Radiobutton(mode_frame, text="💬 通过聊天记录采集（慢速，可采集隐藏成员群组）", 
                        variable=self.scrape_mode, value="messages").pack(anchor=tk.W, pady=2)
 
-        # 目标链接
-        link_frame = ttk.LabelFrame(left, text="🔗 目标链接", padding="10")
-        link_frame.pack(fill=tk.X, pady=(0, 10))
+        # 采集来源
+        source_frame = ttk.LabelFrame(left, text="📍 采集来源", padding="10")
+        source_frame.pack(fill=tk.X, pady=(0, 10))
 
-        ttk.Label(link_frame, text="输入群组/频道链接或用户名:").pack(anchor=tk.W)
-        self.scrape_link = ttk.Entry(link_frame, font=("微软雅黑", 10))
+        self.scrape_source = tk.StringVar(value="list")
+        ttk.Radiobutton(source_frame, text="📋 从群列表采集（需要输入链接）", 
+                       variable=self.scrape_source, value="list",
+                       command=self.on_scrape_source_change).pack(anchor=tk.W, pady=2)
+        ttk.Radiobutton(source_frame, text="👥 从已加入的群采集（无需链接）", 
+                       variable=self.scrape_source, value="joined",
+                       command=self.on_scrape_source_change).pack(anchor=tk.W, pady=2)
+        ttk.Radiobutton(source_frame, text="💬 从对话列表采集（有对话的用户）", 
+                       variable=self.scrape_source, value="dialogs",
+                       command=self.on_scrape_source_change).pack(anchor=tk.W, pady=2)
+
+        # 目标链接（仅"从群列表采集"时显示）
+        self.link_frame = ttk.LabelFrame(left, text="🔗 目标链接", padding="10")
+        self.link_frame.pack(fill=tk.X, pady=(0, 10))
+
+        ttk.Label(self.link_frame, text="输入群组/频道链接或用户名:").pack(anchor=tk.W)
+        self.scrape_link = ttk.Entry(self.link_frame, font=("微软雅黑", 10))
         self.scrape_link.pack(fill=tk.X, pady=5)
         self.scrape_link.insert(0, "https://t.me/group_name 或 @group_name")
 
-        ttk.Button(link_frame, text="➕ 添加到列表", width=15,
+        ttk.Button(self.link_frame, text="➕ 添加到列表", width=15,
                   command=self.add_scrape_target).pack(anchor=tk.W)
 
         # 目标列表
-        targets_frame = ttk.LabelFrame(left, text="📋 采集目标列表", padding="10")
-        targets_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.targets_frame = ttk.LabelFrame(left, text="📋 采集目标列表", padding="10")
+        self.targets_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
 
-        list_frame = ttk.Frame(targets_frame)
+        list_frame = ttk.Frame(self.targets_frame)
         list_frame.pack(fill=tk.BOTH, expand=True)
 
         self.scrape_targets = tk.Listbox(list_frame, font=("微软雅黑", 10), height=8)
@@ -847,7 +862,7 @@ class TGMassDM:
         targets_scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.scrape_targets.config(yscrollcommand=targets_scroll.set)
 
-        btn_frame = ttk.Frame(targets_frame)
+        btn_frame = ttk.Frame(self.targets_frame)
         btn_frame.pack(fill=tk.X, pady=(5, 0))
         ttk.Button(btn_frame, text="🗑️ 删除选中", width=12,
                   command=self.remove_scrape_target).pack(side=tk.LEFT, padx=2)
@@ -886,13 +901,44 @@ class TGMassDM:
 
         ttk.Separator(filter_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
 
+        # 用户类型过滤
+        ttk.Label(filter_frame, text="用户类型:").pack(anchor=tk.W, pady=(5, 2))
+
+        self.filter_admin = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filter_frame, text="仅采集群主/管理员",
+                       variable=self.filter_admin).pack(anchor=tk.W, pady=1, padx=(20, 0))
+
+        self.filter_premium = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filter_frame, text="仅采集 Premium 会员",
+                       variable=self.filter_premium).pack(anchor=tk.W, pady=1, padx=(20, 0))
+
+        # 其他过滤
+        ttk.Label(filter_frame, text="其他条件:").pack(anchor=tk.W, pady=(5, 2))
+
         self.filter_bot = tk.BooleanVar(value=True)
         ttk.Checkbutton(filter_frame, text="排除机器人账号",
-                       variable=self.filter_bot).pack(anchor=tk.W, pady=2)
+                       variable=self.filter_bot).pack(anchor=tk.W, pady=1, padx=(20, 0))
 
         self.filter_username = tk.BooleanVar(value=False)
         ttk.Checkbutton(filter_frame, text="仅采集有用户名的用户",
-                       variable=self.filter_username).pack(anchor=tk.W, pady=2)
+                       variable=self.filter_username).pack(anchor=tk.W, pady=1, padx=(20, 0))
+
+        self.filter_photo = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filter_frame, text="仅采集有头像的用户",
+                       variable=self.filter_photo).pack(anchor=tk.W, pady=1, padx=(20, 0))
+
+        self.filter_stories = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filter_frame, text="仅采集有动态的用户",
+                       variable=self.filter_stories).pack(anchor=tk.W, pady=1, padx=(20, 0))
+
+        ttk.Separator(filter_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
+
+        # 采集后操作
+        ttk.Label(filter_frame, text="采集后操作:").pack(anchor=tk.W, pady=(5, 2))
+
+        self.auto_leave = tk.BooleanVar(value=False)
+        ttk.Checkbutton(filter_frame, text="采集完成后自动退群",
+                       variable=self.auto_leave).pack(anchor=tk.W, pady=1, padx=(20, 0))
 
         ttk.Separator(filter_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
 
@@ -3082,6 +3128,19 @@ class TGMassDM:
 
     # ========== 采集用户功能 ==========
 
+    def on_scrape_source_change(self):
+        """采集来源切换时的UI更新"""
+        source = self.scrape_source.get()
+        
+        if source == "list":
+            # 显示链接输入和目标列表
+            self.link_frame.pack(fill=tk.X, pady=(0, 10))
+            self.targets_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        else:
+            # 隐藏链接输入和目标列表
+            self.link_frame.pack_forget()
+            self.targets_frame.pack_forget()
+
     def add_scrape_target(self):
         """添加采集目标"""
         link = self.scrape_link.get().strip()
@@ -4023,22 +4082,33 @@ class TGMassDM:
             messagebox.showerror("错误", "请先在「账号管理」中选择账号")
             return
 
-        # 获取采集目标
-        targets = [self.scrape_targets.get(i) for i in range(self.scrape_targets.size())]
-
-        if not targets:
-            messagebox.showerror("错误", "请添加采集目标")
-            return
+        # 获取采集来源
+        source = self.scrape_source.get()
+        
+        # 根据不同来源获取目标
+        if source == "list":
+            targets = [self.scrape_targets.get(i) for i in range(self.scrape_targets.size())]
+            if not targets:
+                messagebox.showerror("错误", "请添加采集目标")
+                return
+            source_text = f"{len(targets)} 个群组/频道"
+        elif source == "joined":
+            targets = ["joined_groups"]  # 特殊标记
+            source_text = "已加入的群组"
+        else:  # dialogs
+            targets = ["dialogs"]  # 特殊标记
+            source_text = "对话列表"
 
         # 确认采集
         mode_text = "💬 聊天记录模式" if self.scrape_mode.get() == "messages" else "🚀 默认模式"
         confirm = messagebox.askyesno(
             "确认采集",
             f"将使用 {len(selected_accounts)} 个账号\n"
-            f"从 {len(targets)} 个目标采集用户\n\n"
+            f"采集来源: {source_text}\n\n"
             f"采集模式: {mode_text}\n"
             f"并发线程: {self.scrape_threads.get()}\n"
-            f"采集限制: {self.scrape_limit.get()} 个\n\n"
+            f"采集限制: {self.scrape_limit.get()} 个\n"
+            f"自动退群: {'是' if self.auto_leave.get() else '否'}\n\n"
             f"是否继续?"
         )
 
@@ -4052,22 +4122,22 @@ class TGMassDM:
 
         self.log("🚀 开始采集任务...")
         self.log(f"📊 使用 {len(selected_accounts)} 个账号")
-        self.log(f"🎯 目标: {len(targets)} 个群组/频道")
+        self.log(f"🎯 采集来源: {source_text}")
         self.log(f"⚙️ 模式: {mode_text}")
         self.log(f"🔀 并发: {self.scrape_threads.get()} 线程")
 
         # 在新线程中运行
         thread = threading.Thread(target=self.run_scraping_task,
-                                  args=(selected_accounts, targets))
+                                  args=(selected_accounts, targets, source))
         thread.start()
 
-    def run_scraping_task(self, accounts, targets):
+    def run_scraping_task(self, accounts, targets, source):
         """运行采集任务"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.scrape_users_async(accounts, targets))
+        loop.run_until_complete(self.scrape_users_async(accounts, targets, source))
 
-    async def scrape_users_async(self, accounts, targets):
+    async def scrape_users_async(self, accounts, targets, source):
         """异步采集用户（多账号并发）"""
         from concurrent.futures import ThreadPoolExecutor
         from datetime import datetime, timedelta
