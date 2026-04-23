@@ -286,36 +286,44 @@ class UserScraper:
         }
         
         try:
-            # 获取时间范围（从在线时间过滤获取天数，如果没开启则默认7天）
+            # 获取时间范围（从在线时间过滤获取天数）
             if config.get("filter_online_time", False):
                 days = config.get("online_days", 3)
             else:
-                days = 7  # 默认获取7天的消息
+                days = 3  # 默认3天（之前是7天，太慢）
             
             from datetime import datetime, timedelta
             cutoff_time = datetime.now() - timedelta(days=days)
             
             self.log(f"    📨 获取最近 {days} 天的聊天记录...")
             
-            # 按时间范围获取所有消息（不限数量）
+            # 按时间范围获取消息（优化：减少进度提示频率）
             messages = []
+            last_progress = 0
             async for msg in client.iter_messages(entity, offset_date=cutoff_time):
                 messages.append(msg)
                 
-                # 显示进度（每1000条）
-                if len(messages) % 1000 == 0:
+                # 每5000条显示进度（之前1000条太频繁）
+                if len(messages) % 5000 == 0:
                     self.log(f"       已获取 {len(messages)} 条消息...")
+                    last_progress = len(messages)
                 
-                # 安全上限：最多50000条消息
-                if len(messages) >= 50000:
-                    self.log(f"       达到消息上限 (50000 条)，停止获取")
+                # 安全上限：最多30000条消息（之前50000太多）
+                if len(messages) >= 30000:
+                    self.log(f"       达到消息上限 (30000 条)，停止获取")
                     break
+            
+            # 显示最终消息数（如果不是5000的倍数）
+            if len(messages) % 5000 != 0 and len(messages) != last_progress:
+                self.log(f"       已获取 {len(messages)} 条消息...")
             
             filter_stats["total_messages"] = len(messages)
             
             self.log(f"    📊 分析 {len(messages)} 条消息（最近 {days} 天）")
             
             limit = config.get("limit", 500)
+            
+            self.log(f"    ⚡ 快速分析用户信息...")
             
             for msg in messages:
                 if self.stop_flag or (ui_callbacks and not ui_callbacks.get("is_running", lambda: True)()):
@@ -333,9 +341,9 @@ class UserScraper:
                 user_ids.add(msg.sender_id)
                 filter_stats["unique_users"] += 1
                 
-                # 获取完整用户信息
+                # 直接使用 msg.sender（避免额外API调用！）
                 try:
-                    user = await client.get_entity(msg.sender_id)
+                    user = msg.sender
                     
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
