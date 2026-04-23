@@ -976,9 +976,16 @@ class TGMassDM:
 
         limit_sub_frame = ttk.Frame(filter_frame)
         limit_sub_frame.pack(fill=tk.X, pady=(5, 0))
-        ttk.Label(limit_sub_frame, text="采集数量限制:").pack(side=tk.LEFT)
+        ttk.Label(limit_sub_frame, text="每个群组采集数量:").pack(side=tk.LEFT)
         self.scrape_limit = tk.IntVar(value=500)
         ttk.Spinbox(limit_sub_frame, from_=10, to=10000, textvariable=self.scrape_limit,
+                   width=8).pack(side=tk.LEFT, padx=(10, 0))
+        
+        groups_per_account_frame = ttk.Frame(filter_frame)
+        groups_per_account_frame.pack(fill=tk.X, pady=(5, 0))
+        ttk.Label(groups_per_account_frame, text="每个账号采集群组数:").pack(side=tk.LEFT)
+        self.groups_per_account = tk.IntVar(value=5)
+        ttk.Spinbox(groups_per_account_frame, from_=1, to=100, textvariable=self.groups_per_account,
                    width=8).pack(side=tk.LEFT, padx=(10, 0))
 
         # ========== 右侧:采集结果 ==========
@@ -3537,6 +3544,7 @@ class TGMassDM:
                 "mode": self.scrape_mode.get(),
                 "threads": self.scrape_threads.get(),
                 "limit": self.scrape_limit.get(),
+                "groups_per_account": self.groups_per_account.get(),
                 "filter_online_time": self.filter_online_time.get(),
                 "online_days": self.online_days.get(),
                 "include_recently": self.include_recently.get(),

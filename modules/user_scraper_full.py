@@ -461,7 +461,13 @@ class UserScraper:
             dialogs = await client.get_dialogs()
             groups = [d for d in dialogs if d.is_group or d.is_channel]
             
-            self.log(f"  📊 找到 {len(groups)} 个群组/频道")
+            # 限制每个账号采集的群组数量
+            groups_per_account = config.get("groups_per_account", 5)
+            if len(groups) > groups_per_account:
+                groups = groups[:groups_per_account]
+                self.log(f"  📊 找到 {len(dialogs)} 个群组，限制采集前 {groups_per_account} 个")
+            else:
+                self.log(f"  📊 找到 {len(groups)} 个群组/频道")
             
             all_users = []
             limit = config.get("limit", 500)
@@ -493,8 +499,9 @@ class UserScraper:
                         except:
                             pass
                     
-                    # 达到限制
+                    # 达到总限制
                     if len(all_users) >= limit:
+                        self.log(f"  ⚠️ 已达到采集总数限制 ({limit})，停止采集")
                         break
                 
                 except Exception as e:
