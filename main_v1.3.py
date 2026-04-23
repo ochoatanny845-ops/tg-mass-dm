@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.52.3"
+VERSION = "v1.53.0"
 
 import os
 import sys
@@ -2029,6 +2029,18 @@ class TGMassDM:
                         
                 except Exception as proxy_error:
                     error_str = str(proxy_error).lower()
+                    error_type = type(proxy_error).__name__.lower()
+                    
+                    # 检测 AuthKeyDuplicatedError，直接跳过不重试
+                    if "authkey" in error_type and "duplicated" in error_type:
+                        account["status"] = "⚠️ 重复登录"
+                        account["username"] = "-"
+                        account["first_name"] = "-"
+                        account["proxy_used"] = proxy_used if proxy_used else ""
+                        self.log(f"{log_prefix} {phone_number} - ⚠️ 账号多IP登录（Session在其他地方使用中）")
+                        self.root.after(0, self.refresh_account_tree)
+                        return  # 直接返回，不重试
+                    
                     # 检测代理超时或连接错误
                     if "timeout" in error_str or "connection" in error_str or "proxy" in error_str:
                         proxy_retry_count += 1
