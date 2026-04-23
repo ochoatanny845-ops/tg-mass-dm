@@ -370,11 +370,17 @@ class UserScraper:
                     used_full_request = False
                     try:
                         from telethon.tl.functions.users import GetFullUserRequest
-                        full_result = await client(GetFullUserRequest(msg.sender_id))
-                        user = full_result.users[0]  # 完整用户对象
+                        # 先获取基本用户作为input
+                        input_user = await client.get_input_entity(msg.sender_id)
+                        full_result = await client(GetFullUserRequest(input_user))
+                        user = full_result.users[0] if full_result.users else None
+                        if not user:
+                            raise Exception("No user in full_result")
                         used_full_request = True
                     except Exception as e:
                         # 后备：基本get_entity
+                        if filter_stats["unique_users"] <= 5:
+                            self.log(f"       GetFullUserRequest failed: {str(e)[:50]}")
                         user = await client.get_entity(msg.sender_id)
                         used_full_request = False
                     
