@@ -206,12 +206,6 @@ class TGMassDM:
                                    command=self.stop_task, state=tk.DISABLED)
         self.stop_btn.pack(side=tk.LEFT, padx=5)
 
-        # 导出按钮（采集页面）
-        ttk.Button(control_frame, text="📄 导出TXT", width=12,
-                  command=self.export_usernames_txt).pack(side=tk.LEFT, padx=5)
-        ttk.Button(control_frame, text="💾 保存JSON", width=12,
-                  command=self.save_collected).pack(side=tk.LEFT, padx=5)
-
         # 采集进度标签（仅采集页面显示）
         self.scrape_progress_label = ttk.Label(control_frame, text="", 
                                                font=("微软雅黑", 11),
@@ -1020,6 +1014,10 @@ class TGMassDM:
                   command=self.deselect_all_collected).pack(side=tk.LEFT, padx=2)
         ttk.Button(action_frame, text="📤 导出到私信", width=15,
                   command=self.export_to_messaging).pack(side=tk.LEFT, padx=5)
+        ttk.Button(action_frame, text="💾 保存JSON", width=12,
+                  command=self.save_collected).pack(side=tk.LEFT, padx=2)
+        ttk.Button(action_frame, text="📄 导出TXT", width=12,
+                  command=self.export_usernames_txt).pack(side=tk.LEFT, padx=2)
 
         self.collected_stats = ttk.Label(action_frame, text="已采集 0 个用户,已选 0 个",
                                          font=("微软雅黑", 9))
