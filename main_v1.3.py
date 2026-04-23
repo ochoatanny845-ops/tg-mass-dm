@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.70.0"
+VERSION = "v1.71.0"
 
 # 隐私保护说明：
 # 代理信息不会保存到 JSON 文件中
@@ -810,6 +810,16 @@ class TGMassDM:
         ttk.Radiobutton(source_frame, text="📢 从频道采集订阅者", variable=self.scrape_type,
                        value="channel").pack(anchor=tk.W, pady=2)
 
+        # 采集模式
+        mode_frame = ttk.LabelFrame(left, text="⚙️ 采集模式", padding="10")
+        mode_frame.pack(fill=tk.X, pady=(0, 10))
+
+        self.scrape_mode = tk.StringVar(value="default")
+        ttk.Radiobutton(mode_frame, text="🚀 默认采集（快速，仅未隐藏成员群组）", 
+                       variable=self.scrape_mode, value="default").pack(anchor=tk.W, pady=2)
+        ttk.Radiobutton(mode_frame, text="💬 通过聊天记录采集（慢速，可采集隐藏成员群组）", 
+                       variable=self.scrape_mode, value="messages").pack(anchor=tk.W, pady=2)
+
         # 目标链接
         link_frame = ttk.LabelFrame(left, text="🔗 目标链接", padding="10")
         link_frame.pack(fill=tk.X, pady=(0, 10))
@@ -848,9 +858,33 @@ class TGMassDM:
         filter_frame = ttk.LabelFrame(left, text="🔍 过滤条件", padding="10")
         filter_frame.pack(fill=tk.X)
 
-        self.filter_active = tk.BooleanVar(value=True)
-        ttk.Checkbutton(filter_frame, text="仅采集活跃用户(7天内发言)",
-                       variable=self.filter_active).pack(anchor=tk.W, pady=2)
+        # 在线时间过滤
+        self.filter_online_time = tk.BooleanVar(value=True)
+        ttk.Checkbutton(filter_frame, text="按在线时间过滤",
+                       variable=self.filter_online_time).pack(anchor=tk.W, pady=2)
+
+        online_frame = ttk.Frame(filter_frame)
+        online_frame.pack(fill=tk.X, padx=(20, 0), pady=(0, 5))
+        ttk.Label(online_frame, text="最近").pack(side=tk.LEFT)
+        self.online_days = tk.IntVar(value=3)
+        ttk.Spinbox(online_frame, from_=1, to=30, textvariable=self.online_days,
+                   width=5).pack(side=tk.LEFT, padx=(5, 5))
+        ttk.Label(online_frame, text="天内在线").pack(side=tk.LEFT)
+
+        # 隐藏在线时间的用户
+        hidden_frame = ttk.Frame(filter_frame)
+        hidden_frame.pack(fill=tk.X, padx=(20, 0), pady=(0, 5))
+        ttk.Label(hidden_frame, text="隐藏在线时间的用户:").pack(anchor=tk.W)
+
+        self.include_recently = tk.BooleanVar(value=True)
+        ttk.Checkbutton(filter_frame, text="  包含「最近在线」",
+                       variable=self.include_recently).pack(anchor=tk.W, pady=1, padx=(40, 0))
+
+        self.include_online = tk.BooleanVar(value=True)
+        ttk.Checkbutton(filter_frame, text="  包含「当前在线」",
+                       variable=self.include_online).pack(anchor=tk.W, pady=1, padx=(40, 0))
+
+        ttk.Separator(filter_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
 
         self.filter_bot = tk.BooleanVar(value=True)
         ttk.Checkbutton(filter_frame, text="排除机器人账号",
@@ -860,12 +894,22 @@ class TGMassDM:
         ttk.Checkbutton(filter_frame, text="仅采集有用户名的用户",
                        variable=self.filter_username).pack(anchor=tk.W, pady=2)
 
+        ttk.Separator(filter_frame, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
+
+        # 并发设置
+        thread_sub_frame = ttk.Frame(filter_frame)
+        thread_sub_frame.pack(fill=tk.X, pady=(5, 0))
+        ttk.Label(thread_sub_frame, text="并发线程数:").pack(side=tk.LEFT)
+        self.scrape_threads = tk.IntVar(value=5)
+        ttk.Spinbox(thread_sub_frame, from_=1, to=100, textvariable=self.scrape_threads,
+                   width=8).pack(side=tk.LEFT, padx=(10, 0))
+
         limit_sub_frame = ttk.Frame(filter_frame)
-        limit_sub_frame.pack(fill=tk.X, pady=(10, 0))
+        limit_sub_frame.pack(fill=tk.X, pady=(5, 0))
         ttk.Label(limit_sub_frame, text="采集数量限制:").pack(side=tk.LEFT)
         self.scrape_limit = tk.IntVar(value=500)
         ttk.Spinbox(limit_sub_frame, from_=10, to=10000, textvariable=self.scrape_limit,
-                   width=12).pack(side=tk.LEFT, padx=(10, 0))
+                   width=8).pack(side=tk.LEFT, padx=(10, 0))
 
         # ========== 右侧:采集结果 ==========
         right = ttk.Frame(paned)
@@ -3987,10 +4031,13 @@ class TGMassDM:
             return
 
         # 确认采集
+        mode_text = "💬 聊天记录模式" if self.scrape_mode.get() == "messages" else "🚀 默认模式"
         confirm = messagebox.askyesno(
             "确认采集",
             f"将使用 {len(selected_accounts)} 个账号\n"
             f"从 {len(targets)} 个目标采集用户\n\n"
+            f"采集模式: {mode_text}\n"
+            f"并发线程: {self.scrape_threads.get()}\n"
             f"采集限制: {self.scrape_limit.get()} 个\n\n"
             f"是否继续?"
         )
@@ -4004,90 +4051,63 @@ class TGMassDM:
         self.is_running = True
 
         self.log("🚀 开始采集任务...")
+        self.log(f"📊 使用 {len(selected_accounts)} 个账号")
+        self.log(f"🎯 目标: {len(targets)} 个群组/频道")
+        self.log(f"⚙️ 模式: {mode_text}")
+        self.log(f"🔀 并发: {self.scrape_threads.get()} 线程")
 
         # 在新线程中运行
         thread = threading.Thread(target=self.run_scraping_task,
-                                  args=(selected_accounts[0], targets))
+                                  args=(selected_accounts, targets))
         thread.start()
 
-    def run_scraping_task(self, account, targets):
+    def run_scraping_task(self, accounts, targets):
         """运行采集任务"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        loop.run_until_complete(self.scrape_users_async(account, targets))
+        loop.run_until_complete(self.scrape_users_async(accounts, targets))
 
-    async def scrape_users_async(self, account, targets):
-        """异步采集用户"""
+    async def scrape_users_async(self, accounts, targets):
+        """异步采集用户（多账号并发）"""
+        from concurrent.futures import ThreadPoolExecutor
+        from datetime import datetime, timedelta
+        
         try:
-            client = TelegramClient(account["path"], self.api_id, self.api_hash)
-            await client.connect()
-
-            me = await client.get_me()
-            self.log(f"✅ 使用账号: @{me.username or me.phone}")
-
+            # 创建线程池
+            max_workers = min(self.scrape_threads.get(), len(accounts))
+            executor = ThreadPoolExecutor(max_workers=max_workers)
+            
             collected_count = 0
-
-            for target in targets:
+            tasks = []
+            
+            # 为每个目标分配账号（轮换）
+            for i, target in enumerate(targets):
                 if not self.is_running:
                     break
-
-                self.log(f"\n📌 采集目标: {target}")
-
+                
+                account = accounts[i % len(accounts)]
+                # 提交任务到线程池
+                future = executor.submit(self.scrape_single_target_sync, account, target, i+1, len(targets))
+                tasks.append(future)
+            
+            # 等待所有任务完成
+            for future in tasks:
+                if not self.is_running:
+                    break
                 try:
-                    # 获取群组/频道实体
-                    entity = await client.get_entity(target)
-
-                    # 获取成员
-                    participants = await client.get_participants(entity, limit=self.scrape_limit.get())
-
-                    for user in participants:
-                        if not self.is_running:
-                            break
-
-                        # 应用过滤条件
-                        if self.filter_bot.get() and user.bot:
-                            continue
-
-                        if self.filter_username.get() and not user.username:
-                            continue
-
-                        # 添加到结果
-                        user_data = {
-                            "username": f"@{user.username}" if user.username else f"user_{user.id}",
-                            "name": f"{user.first_name or ''} {user.last_name or ''}".strip() or "未知",
-                            "source": target,
-                            "selected": False
-                        }
-
-                        # 检查是否已存在
-                        if not any(u["username"] == user_data["username"] for u in self.collected_users):
-                            self.collected_users.append(user_data)
-
-                            self.result_tree.insert("", tk.END, values=(
-                                "",
-                                user_data["username"],
-                                user_data["name"],
-                                user_data["source"]
-                            ))
-
-                            collected_count += 1
-
-                            if collected_count >= self.scrape_limit.get():
-                                self.log(f"⚠️ 达到采集上限 ({self.scrape_limit.get()})")
-                                break
-
-                    self.log(f"✅ 从 {target} 采集 {len(participants)} 个用户")
-
+                    users = future.result()
+                    if users:
+                        collected_count += len(users)
                 except Exception as e:
-                    self.log(f"❌ 采集失败: {target} - {type(e).__name__}")
-
-            await client.disconnect()
-
+                    self.log(f"❌ 任务失败: {str(e)[:50]}")
+            
+            executor.shutdown(wait=True)
+            
             self.log(f"\n" + "="*50)
             self.log(f"✅ 采集完成!")
             self.log(f"📊 总共采集 {collected_count} 个用户")
             self.log("="*50)
-
+            
             self.update_collected_stats()
 
         except Exception as e:
@@ -4096,6 +4116,209 @@ class TGMassDM:
         self.start_btn.config(state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         self.is_running = False
+
+    def scrape_single_target_sync(self, account, target, current, total):
+        """同步方式采集单个目标（在线程池中运行）"""
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            return loop.run_until_complete(self.scrape_single_target(account, target, current, total))
+        finally:
+            loop.close()
+
+    async def scrape_single_target(self, account, target, current, total):
+        """采集单个目标"""
+        from datetime import datetime, timedelta
+        
+        try:
+            client = TelegramClient(account["path"], self.api_id, self.api_hash)
+            await client.connect()
+
+            me = await client.get_me()
+            account_name = f"@{me.username or me.phone}"
+            
+            self.log(f"\n[{current}/{total}] 📌 采集: {target} (账号: {account_name})")
+
+            # 获取群组/频道实体
+            entity = await client.get_entity(target)
+            
+            users_collected = []
+            
+            # 根据采集模式选择不同的方法
+            if self.scrape_mode.get() == "messages":
+                # 通过聊天记录采集
+                self.log(f"  💬 使用聊天记录模式")
+                users_collected = await self.scrape_from_messages(client, entity, target)
+            else:
+                # 默认采集
+                self.log(f"  🚀 使用默认模式")
+                users_collected = await self.scrape_from_participants(client, entity, target)
+            
+            await client.disconnect()
+            
+            self.log(f"  ✅ 完成: 采集 {len(users_collected)} 个用户")
+            return users_collected
+
+        except Exception as e:
+            self.log(f"  ❌ 失败: {target} - {type(e).__name__}: {str(e)[:50]}")
+            return []
+
+    async def scrape_from_participants(self, client, entity, target):
+        """默认模式：从成员列表采集"""
+        from datetime import datetime, timedelta
+        
+        users_collected = []
+        
+        try:
+            # 获取成员
+            participants = await client.get_participants(entity, limit=self.scrape_limit.get())
+            
+            for user in participants:
+                if not self.is_running:
+                    break
+                
+                # 应用过滤条件
+                if not self.check_user_filters(user):
+                    continue
+                
+                # 添加到结果
+                user_data = {
+                    "username": f"@{user.username}" if user.username else f"user_{user.id}",
+                    "name": f"{user.first_name or ''} {user.last_name or ''}".strip() or "未知",
+                    "source": target,
+                    "selected": False
+                }
+                
+                # 检查是否已存在
+                if not any(u["username"] == user_data["username"] for u in self.collected_users):
+                    self.collected_users.append(user_data)
+                    users_collected.append(user_data)
+                    
+                    # 在主线程中更新 UI
+                    self.root.after(0, lambda u=user_data: self.result_tree.insert("", tk.END, values=(
+                        "",
+                        u["username"],
+                        u["name"],
+                        u["source"]
+                    )))
+        
+        except Exception as e:
+            self.log(f"    ⚠️ 采集成员失败: {str(e)[:50]}")
+        
+        return users_collected
+
+    async def scrape_from_messages(self, client, entity, target):
+        """通过聊天记录采集（可采集隐藏成员群组）"""
+        from datetime import datetime, timedelta
+        
+        users_collected = []
+        user_ids = set()
+        
+        try:
+            self.log(f"    📨 获取聊天记录...")
+            
+            # 获取最近的消息（最多3000条）
+            messages = await client.get_messages(entity, limit=3000)
+            
+            self.log(f"    📊 分析 {len(messages)} 条消息")
+            
+            for msg in messages:
+                if not self.is_running:
+                    break
+                
+                if not msg.sender:
+                    continue
+                
+                # 避免重复
+                if msg.sender_id in user_ids:
+                    continue
+                
+                user_ids.add(msg.sender_id)
+                
+                # 获取完整用户信息
+                try:
+                    user = await client.get_entity(msg.sender_id)
+                    
+                    # 应用过滤条件
+                    if not self.check_user_filters(user):
+                        continue
+                    
+                    # 添加到结果
+                    user_data = {
+                        "username": f"@{user.username}" if user.username else f"user_{user.id}",
+                        "name": f"{user.first_name or ''} {user.last_name or ''}".strip() or "未知",
+                        "source": target,
+                        "selected": False
+                    }
+                    
+                    # 检查是否已存在
+                    if not any(u["username"] == user_data["username"] for u in self.collected_users):
+                        self.collected_users.append(user_data)
+                        users_collected.append(user_data)
+                        
+                        # 在主线程中更新 UI
+                        self.root.after(0, lambda u=user_data: self.result_tree.insert("", tk.END, values=(
+                            "",
+                            u["username"],
+                            u["name"],
+                            u["source"]
+                        )))
+                        
+                        # 达到限制后停止
+                        if len(users_collected) >= self.scrape_limit.get():
+                            break
+                
+                except Exception:
+                    continue
+        
+        except Exception as e:
+            self.log(f"    ⚠️ 获取消息失败: {str(e)[:50]}")
+        
+        return users_collected
+
+    def check_user_filters(self, user):
+        """检查用户是否符合过滤条件"""
+        from datetime import datetime, timedelta
+        from telethon import types
+        
+        # 排除机器人
+        if self.filter_bot.get() and user.bot:
+            return False
+        
+        # 仅有用户名
+        if self.filter_username.get() and not user.username:
+            return False
+        
+        # 在线时间过滤
+        if self.filter_online_time.get():
+            online_days = self.online_days.get()
+            cutoff_time = datetime.now() - timedelta(days=online_days)
+            
+            if user.status:
+                # 当前在线
+                if isinstance(user.status, types.UserStatusOnline):
+                    if self.include_online.get():
+                        return True
+                # 最近在线（隐藏具体时间）
+                elif isinstance(user.status, types.UserStatusRecently):
+                    if self.include_recently.get():
+                        return True
+                # 离线，检查离线时间
+                elif isinstance(user.status, types.UserStatusOffline):
+                    if hasattr(user.status, 'was_online'):
+                        if user.status.was_online >= cutoff_time:
+                            return True
+                        else:
+                            return False
+                # 一周内/一个月内/很久未上线（隐藏时间）
+                elif isinstance(user.status, (types.UserStatusLastWeek, types.UserStatusLastMonth, types.UserStatusEmpty)):
+                    # 这些状态无法精确判断，默认排除
+                    return False
+            else:
+                # 没有状态信息，默认排除
+                return False
+        
+        return True
 
     # ========== 持久化存储 ==========
 
