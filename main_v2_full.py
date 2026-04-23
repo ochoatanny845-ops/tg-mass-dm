@@ -853,6 +853,16 @@ class TGMassDM:
                        variable=self.scrape_mode, value="default").pack(anchor=tk.W, pady=2)
         ttk.Radiobutton(mode_frame, text="💬 通过聊天记录采集（慢速，可采集隐藏成员群组）", 
                        variable=self.scrape_mode, value="messages").pack(anchor=tk.W, pady=2)
+        
+        # 聊天记录限制（仅消息模式）
+        msg_limit_frame = ttk.Frame(mode_frame)
+        msg_limit_frame.pack(fill=tk.X, pady=(5, 0), padx=(20, 0))
+        ttk.Label(msg_limit_frame, text="最多分析消息数:").pack(side=tk.LEFT)
+        self.message_limit = tk.IntVar(value=3000)
+        ttk.Spinbox(msg_limit_frame, from_=500, to=50000, increment=500,
+                   textvariable=self.message_limit, width=8).pack(side=tk.LEFT, padx=(5, 0))
+        ttk.Label(msg_limit_frame, text="条 (↓越小越快)", 
+                 font=("微软雅黑", 8), foreground="gray").pack(side=tk.LEFT, padx=(5, 0))
 
         # 采集来源
         source_frame = ttk.LabelFrame(left_scrollable, text="📍 采集来源", padding="10")
@@ -3546,6 +3556,7 @@ class TGMassDM:
                 "mode": self.scrape_mode.get(),
                 "threads": self.scrape_threads.get(),
                 "limit": self.scrape_limit.get(),
+                "message_limit": self.message_limit.get(),
                 "groups_per_account": self.groups_per_account.get(),
                 "filter_online_time": self.filter_online_time.get(),
                 "online_days": self.online_days.get(),

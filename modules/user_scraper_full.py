@@ -297,40 +297,51 @@ class UserScraper:
         }
         
         try:
-            # 获取时间范围（从在线时间过滤获取天数）
-            if config.get("filter_online_time", False):
-                days = config.get("online_days", 3)
+            # 使用消息数量限制（如果设置）或时间范围
+            message_limit = config.get("message_limit", 0)
+            
+            if message_limit > 0:
+                # 按数量限制
+                self.log(f"    📨 获取最近 {message_limit} 条消息...")
+                
+                messages = await client.get_messages(entity, limit=message_limit)
+                
+                self.log(f"    📊 分析 {len(messages)} 条消息")
             else:
-                days = 3  # 默认3天（之前是7天，太慢）
-            
-            from datetime import datetime, timedelta
-            cutoff_time = datetime.now() - timedelta(days=days)
-            
-            self.log(f"    📨 获取最近 {days} 天的聊天记录...")
-            
-            # 按时间范围获取消息（优化：减少进度提示频率）
-            messages = []
-            last_progress = 0
-            async for msg in client.iter_messages(entity, offset_date=cutoff_time):
-                messages.append(msg)
+                # 按时间范围（旧逻辑）
+                if config.get("filter_online_time", False):
+                    days = config.get("online_days", 3)
+                else:
+                    days = 3
                 
-                # 每5000条显示进度（之前1000条太频繁）
-                if len(messages) % 5000 == 0:
+                from datetime import datetime, timedelta
+                cutoff_time = datetime.now() - timedelta(days=days)
+                
+                self.log(f"    📨 获取最近 {days} 天的聊天记录...")
+                
+                # 按时间范围获取消息（优化：减少进度提示频率）
+                messages = []
+                last_progress = 0
+                async for msg in client.iter_messages(entity, offset_date=cutoff_time):
+                    messages.append(msg)
+                    
+                    # 每5000条显示进度
+                    if len(messages) % 5000 == 0:
+                        self.log(f"       已获取 {len(messages)} 条消息...")
+                        last_progress = len(messages)
+                    
+                    # 安全上限：最多30000条消息
+                    if len(messages) >= 30000:
+                        self.log(f"       达到消息上限 (30000 条)，停止获取")
+                        break
+                
+                # 显示最终消息数（如果不是5000的倍数）
+                if len(messages) % 5000 != 0 and len(messages) != last_progress:
                     self.log(f"       已获取 {len(messages)} 条消息...")
-                    last_progress = len(messages)
                 
-                # 安全上限：最多30000条消息（之前50000太多）
-                if len(messages) >= 30000:
-                    self.log(f"       达到消息上限 (30000 条)，停止获取")
-                    break
-            
-            # 显示最终消息数（如果不是5000的倍数）
-            if len(messages) % 5000 != 0 and len(messages) != last_progress:
-                self.log(f"       已获取 {len(messages)} 条消息...")
+                self.log(f"    📊 分析 {len(messages)} 条消息（最近 {days} 天）")
             
             filter_stats["total_messages"] = len(messages)
-            
-            self.log(f"    📊 分析 {len(messages)} 条消息（最近 {days} 天）")
             
             limit = config.get("limit", 500)
             
