@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.55.2"
+VERSION = "v1.56.0"
 
 import os
 import sys
@@ -160,8 +160,10 @@ class TGMassDM:
         self.stop_btn.pack(side=tk.LEFT, padx=5)
 
         # 进度显示(在按钮右侧,使用 Frame 包含三个 Label)
+        # 默认隐藏，只在私信广告页面显示
         progress_container = ttk.Frame(control_frame)
-        progress_container.pack(side=tk.LEFT, padx=20)
+        # progress_container.pack(side=tk.LEFT, padx=20)  # 默认不 pack
+        self.progress_container = progress_container  # 保存引用用于后续显示/隐藏
 
         self.progress_total_label = ttk.Label(progress_container, text="",
                                               font=("微软雅黑", 14, "bold"),
@@ -216,6 +218,14 @@ class TGMassDM:
     def on_tab_changed(self, event):
         """标签页切换事件"""
         current_tab = self.notebook.index(self.notebook.select())
+
+        # 显示/隐藏进度条（只在私信广告页面显示）
+        if current_tab == 1:  # 私信广告页面
+            if not self.progress_container.winfo_ismapped():
+                self.progress_container.pack(side=tk.LEFT, padx=20)
+        else:  # 其他页面
+            if self.progress_container.winfo_ismapped():
+                self.progress_container.pack_forget()
 
         # 根据标签页显示/隐藏开始停止按钮
         if current_tab == 3:  # 代理管理页面 - 隐藏按钮
