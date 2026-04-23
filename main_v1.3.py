@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.59.0"
+VERSION = "v1.60.0"
 
 import os
 import sys
@@ -3580,15 +3580,39 @@ class TGMassDM:
                     await asyncio.sleep(interval)
 
                 except errors.FloodWaitError as e:
-                    self.log(f"  ❌ [{account_name}] 触发频率限制: @{username} - 跳过")
-                    consecutive_fails += 1
-                    async with self.send_lock:
-                        self.total_failed += 1
-                        self.account_stats[account_name]["failed"] += 1
-
-                        # 更新进度显示
-                        self.root.after(0, self.update_progress)
-                    # 直接跳过,不等待
+                    # FloodWaitError 包含需要等待的秒数
+                    wait_seconds = e.seconds if hasattr(e, 'seconds') else 60
+                    
+                    self.log(f"  ⏳ [{account_name}] 触发频率限制，需要等待 {wait_seconds} 秒")
+                    self.log(f"      目标用户 @{username} 将在等待后重试")
+                    
+                    # 智能等待
+                    for remaining in range(wait_seconds, 0, -10):
+                        if self.stop_flag:
+                            self.log(f"  ⏸️ [{account_name}] 等待被中断")
+                            break
+                        
+                        # 每 10 秒显示一次剩余时间
+                        if remaining > 10:
+                            self.log(f"      剩余等待时间: {remaining} 秒...")
+                            await asyncio.sleep(10)
+                        else:
+                            self.log(f"      剩余等待时间: {remaining} 秒...")
+                            await asyncio.sleep(remaining)
+                            break
+                    
+                    if not self.stop_flag:
+                        self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
+                        # 将当前用户放回队列开头，重新尝试
+                        async with self.send_lock:
+                            self.targets.insert(0, target)
+                        continue  # 重新循环，会再次获取这个用户
+                    else:
+                        # 被停止，标记为失败
+                        async with self.send_lock:
+                            self.total_failed += 1
+                            self.account_stats[account_name]["failed"] += 1
+                            self.root.after(0, self.update_progress)
 
                 except errors.UserPrivacyRestrictedError as e:
                     self.log(f"  ❌ [{account_name}] 用户隐私限制: @{username}")
@@ -3719,15 +3743,43 @@ class TGMassDM:
                             self.root.after(0, self.update_progress)
                         break  # 账号已封禁,停止使用
 
-                    # 检测 "Too many requests" 错误
+                    # 检测 "Too many requests" 错误（FloodWait）
                     if "too many requests" in error_str or "flood" in error_str:
-                        self.log(f"  ❌ [{account_name}] 触发请求限制: @{username} - 跳过")
-                        async with self.send_lock:
-                            self.total_failed += 1
-                            self.account_stats[account_name]["failed"] += 1
-                            self.root.after(0, self.update_progress)
-                        # 直接跳过,不等待
-                        continue  # 跳过后续处理,继续下一个用户
+                        # 尝试从错误信息中提取等待时间
+                        import re
+                        wait_match = re.search(r'(\d+)', error_str)
+                        wait_seconds = int(wait_match.group(1)) if wait_match else 60
+                        
+                        self.log(f"  ⏳ [{account_name}] 触发频率限制，需要等待 {wait_seconds} 秒")
+                        self.log(f"      目标用户 @{username} 将在等待后重试")
+                        
+                        # 智能等待
+                        for remaining in range(wait_seconds, 0, -10):
+                            if self.stop_flag:
+                                self.log(f"  ⏸️ [{account_name}] 等待被中断")
+                                break
+                            
+                            if remaining > 10:
+                                self.log(f"      剩余等待时间: {remaining} 秒...")
+                                await asyncio.sleep(10)
+                            else:
+                                self.log(f"      剩余等待时间: {remaining} 秒...")
+                                await asyncio.sleep(remaining)
+                                break
+                        
+                        if not self.stop_flag:
+                            self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
+                            # 将当前用户放回队列开头
+                            async with self.send_lock:
+                                self.targets.insert(0, target)
+                            continue  # 重新尝试
+                        else:
+                            # 被停止，标记为失败
+                            async with self.send_lock:
+                                self.total_failed += 1
+                                self.account_stats[account_name]["failed"] += 1
+                                self.root.after(0, self.update_progress)
+                            continue
 
                     # 检测 "Cannot find any entity" 错误（用户不存在或需要 Premium）
                     if "cannot find any entity" in error_str:
