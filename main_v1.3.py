@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.57.0"
+VERSION = "v1.57.1"
 
 import os
 import sys
@@ -2529,7 +2529,7 @@ class TGMassDM:
 
         # 等待所有客户端断开连接并释放文件锁
         self.log("⏳ 等待所有连接断开并释放文件...")
-        await asyncio.sleep(3)
+        await asyncio.sleep(5)  # 增加到 5 秒
 
         # 清理所有异步任务
         await self.cleanup_async_tasks()
@@ -2589,6 +2589,14 @@ class TGMassDM:
             f"(同时删除文件)")
         if not confirm:
             return
+
+        # 强制垃圾回收，释放文件句柄
+        import gc
+        gc.collect()
+        
+        # 等待文件锁释放
+        import time
+        time.sleep(1)
 
         deleted_count = 0
         for acc in selected_accounts:
