@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.52.0"
+VERSION = "v1.52.1"
 
 import os
 import sys
@@ -17,6 +17,12 @@ from datetime import datetime
 import random
 import time
 import json
+import logging
+import warnings
+
+# 禁用 Telethon 的 Task exception 警告
+warnings.filterwarnings("ignore", message=".*Task exception was never retrieved.*")
+logging.getLogger('telethon').setLevel(logging.CRITICAL)  # 只显示严重错误
 
 try:
     from telethon import TelegramClient, errors
@@ -2042,7 +2048,7 @@ class TGMassDM:
                     # 保留原始手机号
                     # account["phone"] = "-"
                     account["first_name"] = "-"
-                    self.log(f"  ⚠️ 重复登录（同一账号在其他地方使用中）")
+                    self.log(f"{log_prefix} {phone_number} - ⚠️ 账号多IP登录（Session在其他地方使用中）")
                     await client.disconnect()
                     self.root.after(0, self.refresh_account_tree)
                     return
