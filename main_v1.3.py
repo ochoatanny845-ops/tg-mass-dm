@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.45.0"
+VERSION = "v1.46.0"
 
 import os
 import sys
@@ -1360,7 +1360,8 @@ class TGMassDM:
                 "⚠️ 文件损坏",
                 "⚠️ 转换失败",
                 "⚠️ 转换后仍失败",
-                "⚠️ 客户端创建失败"
+                "⚠️ 客户端创建失败",
+                "⚠️ 代理超时"
             ]
         }
         
@@ -1845,61 +1846,79 @@ class TGMassDM:
             # self.log(f"  ✅ 开始创建客户端...")  # 调试日志已隐藏
             
             # 创建 TelegramClient（可能失败）
-            try:
-                client = TelegramClient(path, self.api_id, self.api_hash)
-            except ValueError as ve:
-                # Session 文件格式错误，尝试自动转换
-                # self.log(f"  ⚠️ 检测到格式错误，正在自动转换...")  # 调试日志已隐藏
-                
-                if self.convert_session_file(path):
-                    # self.log(f"  ✅ 转换成功，重新创建客户端...")  # 调试日志已隐藏
-                    try:
+            # 获取可用代理
+            proxy_config = None
+            proxy_retry_count = 0
+            max_proxy_retries = 3
+            
+            while proxy_retry_count < max_proxy_retries:
+                try:
+                    # 如果有可用代理，选择一个
+                    available_proxies = [p for p in self.proxies if p["status"] == "可用" and p["selected"]]
+                    if available_proxies:
+                        import random
+                        proxy = random.choice(available_proxies)
+                        proxy_config = self.parse_proxy_for_telethon(proxy["proxy"])
+                        self.log(f"{log_prefix} {phone_number} - 🌐 使用代理: {proxy['proxy']}")
+                    
+                    # 创建客户端（带或不带代理）
+                    if proxy_config:
+                        client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
+                    else:
                         client = TelegramClient(path, self.api_id, self.api_hash)
-                        # self.log(f"  ✅ 客户端创建成功（已转换）")  # 调试日志已隐藏
-                    except Exception as retry_error:
-                        account["status"] = "⚠️ 转换后仍失败"
+                    
+                    # 尝试连接（会触发代理超时）
+                    await client.connect()
+                    break  # 连接成功，跳出重试循环
+                    
+                except ValueError as ve:
+                    # Session 文件格式错误
+                    if self.convert_session_file(path):
+                        try:
+                            if proxy_config:
+                                client = TelegramClient(path, self.api_id, self.api_hash, proxy=proxy_config)
+                            else:
+                                client = TelegramClient(path, self.api_id, self.api_hash)
+                            await client.connect()
+                            break
+                        except Exception as retry_error:
+                            account["status"] = "⚠️ 转换后仍失败"
+                            account["username"] = "-"
+                            account["phone"] = "-"
+                            self.log(f"{log_prefix} {phone_number} - ❌ 转换失败")
+                            self.root.after(0, self.refresh_account_tree)
+                            return
+                    else:
+                        account["status"] = "⚠️ 转换失败"
                         account["username"] = "-"
                         account["phone"] = "-"
                         self.log(f"{log_prefix} {phone_number} - ❌ 转换失败")
                         self.root.after(0, self.refresh_account_tree)
                         return
-                else:
-                    account["status"] = "⚠️ 转换失败"
-                    account["username"] = "-"
-                    account["phone"] = "-"
-                    self.log(f"{log_prefix} {phone_number} - ❌ 转换失败")
-                    self.root.after(0, self.refresh_account_tree)
-                    return
-                    
-            except Exception as ce:
-                # 其他创建错误
-                account["status"] = "⚠️ 客户端创建失败"
-                account["username"] = "-"
-                account["phone"] = "-"
-                self.log(f"{log_prefix} {phone_number} - ❌ 创建失败")
-                self.root.after(0, self.refresh_account_tree)
-                return
+                        
+                except Exception as proxy_error:
+                    error_str = str(proxy_error).lower()
+                    # 检测代理超时或连接错误
+                    if "timeout" in error_str or "connection" in error_str or "proxy" in error_str:
+                        proxy_retry_count += 1
+                        if proxy_retry_count < max_proxy_retries:
+                            self.log(f"{log_prefix} {phone_number} - ⚠️ 代理超时，重试 {proxy_retry_count}/{max_proxy_retries}")
+                            proxy_config = None  # 清除当前代理，下次循环会选择新的
+                            continue
+                        else:
+                            self.log(f"{log_prefix} {phone_number} - ❌ 代理连接失败（已重试3次）")
+                            account["status"] = "⚠️ 代理超时"
+                            self.root.after(0, self.refresh_account_tree)
+                            return
+                    else:
+                        # 其他错误
+                        raise
             
             # if 'client' not in locals():
             #     self.log(f"  ✅ 客户端创建成功")  # 调试日志已隐藏
             
-            try:
-                await client.connect()
-            except Exception as e:
-                error_type = type(e).__name__
-                error_str = str(e).lower()
-                
-                # AuthKeyDuplicatedError - 重复登录
-                if "authkey" in error_type.lower() and "duplicated" in error_type.lower():
-                    account["status"] = "⚠️ 重复登录"
-                    account["username"] = "-"
-                    account["phone"] = "-"
-                    self.log(f"{log_prefix} {phone_number} - ⚠️ 重复登录")
-                    self.root.after(0, self.refresh_account_tree)
-                    return
-                else:
-                    raise  # 其他连接错误继续抛出
-
+            # 连接已在上面完成，不需要再次连接
+            
             # 1. 尝试登录
             try:
                 me = await client.get_me()
@@ -3893,6 +3912,35 @@ class TGMassDM:
                 self.log(f"✅ 导出了 {len(available)} 个可用代理到: {filename}")
             except Exception as e:
                 self.log(f"❌ 导出代理失败: {e}")
+    
+    def parse_proxy_for_telethon(self, proxy_url):
+        """将代理 URL 转换为 Telethon 所需的格式"""
+        import re
+        from telethon import connection
+        
+        # 解析代理 URL
+        # 格式: http://ip:port 或 http://user:pass@ip:port
+        # 格式: socks5://ip:port 或 socks5://user:pass@ip:port
+        
+        match = re.match(r'^(https?|socks[45])://(?:(.+):(.+)@)?(.+):(\d+)$', proxy_url)
+        if not match:
+            return None
+        
+        proxy_type = match.group(1)
+        username = match.group(2)
+        password = match.group(3)
+        addr = match.group(4)
+        port = int(match.group(5))
+        
+        # Telethon 代理格式
+        if proxy_type in ['socks4', 'socks5']:
+            import socks
+            proxy = (socks.SOCKS5 if proxy_type == 'socks5' else socks.SOCKS4, addr, port, True, username, password)
+        else:
+            # HTTP 代理
+            proxy = (addr, port, username, password)
+        
+        return proxy
 
 
 def main():
