@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.32.0"
+VERSION = "v1.33.0"
 
 import os
 import sys
@@ -3107,8 +3107,15 @@ class TGMassDM:
                             account["status"] = "⚠️ 双向限制"
                             account["selected"] = False
                             
-                            # 实时更新账号列表显示
-                            self.root.after(0, self.refresh_account_tree)
+                            # 强制保存账号数据
+                            self.save_accounts()
+                            
+                            # 在主线程中刷新账号列表（延迟100ms确保数据已保存）
+                            def update_tree():
+                                self.refresh_account_tree()
+                                self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
+                            
+                            self.root.after(100, update_tree)
                             
                             has_spam_restriction = True
                             break
@@ -3146,8 +3153,15 @@ class TGMassDM:
                     account["status"] = "🚫 已封禁"
                     account["selected"] = False  # 自动取消选择
                     
-                    # 实时更新账号列表显示
-                    self.root.after(0, self.refresh_account_tree)
+                    # 强制保存账号数据
+                    self.save_accounts()
+                    
+                    # 在主线程中刷新账号列表（延迟100ms确保数据已保存）
+                    def update_tree():
+                        self.refresh_account_tree()
+                        self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
+                    
+                    self.root.after(100, update_tree)
                     
                     async with self.send_lock:
                         self.total_failed += 1
@@ -3166,8 +3180,15 @@ class TGMassDM:
                         account["status"] = "🚫 已封禁"
                         account["selected"] = False  # 自动取消选择
                         
-                        # 实时更新账号列表显示
-                        self.root.after(0, self.refresh_account_tree)
+                        # 强制保存账号数据
+                        self.save_accounts()
+                        
+                        # 在主线程中刷新账号列表（延迟100ms确保数据已保存）
+                        def update_tree():
+                            self.refresh_account_tree()
+                            self.log(f"  📊 [{account_name}] 状态已更新到账号列表")
+                        
+                        self.root.after(100, update_tree)
                         
                         async with self.send_lock:
                             self.total_failed += 1
