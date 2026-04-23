@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.49.0"
+VERSION = "v1.49.1"
 
 import os
 import sys
@@ -3904,8 +3904,8 @@ class TGMassDM:
                 error_msg = str(e)[:80]
                 return (index, False, f"❌ [{index+1}/{len(self.proxies)}] {proxy['proxy'][:60]}... - {error_msg}")
         
-        # 使用线程池并发检测（10个线程）
-        with ThreadPoolExecutor(max_workers=10) as executor:
+        # 使用线程池并发检测（50个线程）
+        with ThreadPoolExecutor(max_workers=50) as executor:
             futures = {executor.submit(check_single_proxy, i, proxy): i for i, proxy in enumerate(self.proxies)}
             
             for future in as_completed(futures):
