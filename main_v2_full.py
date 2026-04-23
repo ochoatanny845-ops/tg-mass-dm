@@ -2551,12 +2551,17 @@ class TGMassDM:
 
         self.log(f"📊 并发配置: 每批 {concurrent} 个账号,批次间隔 {batch_delay} 秒")
         
-        # 创建信号量：限制同时connect的Client数量（防止SQLite锁定）
-        # 设置为批次大小的一半，确保安全
-        max_concurrent_connections = max(3, concurrent // 2)
-        semaphore = asyncio.Semaphore(max_concurrent_connections)
+        # 创建信号量：如果并发数<=10，限制为一半（安全）；否则不限制（用户自行承担风险）
+        if concurrent <= 10:
+            # 小批次：限制为一半，防止SQLite锁定
+            max_concurrent_connections = max(3, concurrent // 2)
+            self.log(f"🔒 SQLite保护: 最多 {max_concurrent_connections} 个账号同时连接（安全模式）")
+        else:
+            # 大批次：用户明确要高并发，不限制（假设机器能承受）
+            max_concurrent_connections = concurrent
+            self.log(f"⚡ 高并发模式: {max_concurrent_connections} 个账号同时连接（如遇database locked请降低并发数）")
         
-        self.log(f"🔒 SQLite保护: 最多 {max_concurrent_connections} 个账号同时连接")
+        semaphore = asyncio.Semaphore(max_concurrent_connections)
 
         # 分批处理
         for i in range(0, total, concurrent):
