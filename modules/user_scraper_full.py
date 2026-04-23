@@ -366,36 +366,18 @@ class UserScraper:
                 
                 # 获取完整用户信息
                 try:
-                    # 方法1：尝试获取完整用户（包含premium等字段）
-                    used_full_request = False
-                    try:
-                        from telethon.tl.functions.users import GetFullUserRequest
-                        # 先获取基本用户作为input
-                        input_user = await client.get_input_entity(msg.sender_id)
-                        full_result = await client(GetFullUserRequest(input_user))
-                        
-                        # 调试：查看返回类型
-                        if filter_stats["unique_users"] == 1:
-                            self.log(f"       GetFullUserRequest returned: {type(full_result)}, has users: {hasattr(full_result, 'users')}, has full_user: {hasattr(full_result, 'full_user')}")
-                        
-                        # full_result 应该是 users.UserFull
-                        # 包含 .users (基本User对象列表) 和 .full_user (UserFull详情)
-                        if hasattr(full_result, 'users') and full_result.users:
-                            user = full_result.users[0]
-                        else:
-                            user = await client.get_entity(msg.sender_id)
-                        used_full_request = True
-                    except Exception as e:
-                        # 后备：基本get_entity
-                        if filter_stats["unique_users"] <= 5:
-                            self.log(f"       GetFullUserRequest failed: {str(e)[:80]}")
-                        user = await client.get_entity(msg.sender_id)
-                        used_full_request = False
+                    # 直接使用get_entity，Premium信息应该在User对象中
+                    user = await client.get_entity(msg.sender_id)
                     
                     # 调试：检查premium字段（前5个用户）
                     if filter_stats["unique_users"] <= 5:
                         premium_val = getattr(user, 'premium', None)
-                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}, premium={premium_val}, used_full={used_full_request}")
+                        # 打印user对象的所有属性
+                        attrs = [attr for attr in dir(user) if not attr.startswith('_')]
+                        has_premium_attr = 'premium' in attrs
+                        self.log(f"       DEBUG: user_id={user.id}, username={user.username}")
+                        self.log(f"              premium={premium_val}, has_premium_attr={has_premium_attr}")
+                        self.log(f"              user_flags={getattr(user, 'flags', 'NO_FLAGS')}, user_flags2={getattr(user, 'flags2', 'NO_FLAGS')}")
                     
                     # 统计过滤原因
                     if config.get("filter_bot", True) and user.bot:
