@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.53.0"
+VERSION = "v1.53.1"
 
 import os
 import sys
@@ -1857,6 +1857,10 @@ class TGMassDM:
 
     async def check_single_account(self, account, index, total):
         """检测单个账号（并发调用）"""
+        # 检查停止标志
+        if self.stop_flag:
+            return
+        
         # SpamBot 关键词库（多语言，不翻译）
         
         # 1. 正常状态（多语言）
@@ -2414,6 +2418,26 @@ class TGMassDM:
         self.log("=" * 50)
         
         self.root.after(0, self.update_account_stats)
+        
+        # 清理所有异步任务
+        await self.cleanup_async_tasks()
+    
+    async def cleanup_async_tasks(self):
+        """清理所有异步任务，确保程序可以停止"""
+        try:
+            # 获取所有未完成的任务
+            tasks = [task for task in asyncio.all_tasks() if not task.done()]
+            if tasks:
+                self.log(f"🧹 清理 {len(tasks)} 个后台任务...")
+                # 取消所有任务
+                for task in tasks:
+                    task.cancel()
+                # 等待所有任务完成或被取消
+                await asyncio.gather(*tasks, return_exceptions=True)
+                self.log("✅ 后台任务已清理")
+        except Exception as e:
+            # 忽略清理错误
+            pass
 
     def delete_invalid(self):
         """删除重复登录账号(同步删除文件)"""
