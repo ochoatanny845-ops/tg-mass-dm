@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.66.0"
+VERSION = "v1.67.0"
 
 # 隐私保护说明：
 # 代理信息不会保存到 JSON 文件中
@@ -3708,20 +3708,8 @@ class TGMassDM:
                     self.log(f"  ⏳ [{account_name}] 触发频率限制，需要等待 {wait_seconds} 秒")
                     self.log(f"      目标用户 @{username} 将在等待后重试")
                     
-                    # 智能等待
-                    for remaining in range(wait_seconds, 0, -10):
-                        if self.stop_flag:
-                            self.log(f"  ⏸️ [{account_name}] 等待被中断")
-                            break
-                        
-                        # 每 10 秒显示一次剩余时间
-                        if remaining > 10:
-                            self.log(f"      剩余等待时间: {remaining} 秒...")
-                            await asyncio.sleep(10)
-                        else:
-                            self.log(f"      剩余等待时间: {remaining} 秒...")
-                            await asyncio.sleep(remaining)
-                            break
+                    # 静默等待（不显示倒计时，避免刷屏）
+                    await asyncio.sleep(wait_seconds)
                     
                     if not self.stop_flag:
                         self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
@@ -3887,19 +3875,8 @@ class TGMassDM:
                         self.log(f"  ⏳ [{account_name}] 触发频率限制，需要等待 {wait_seconds} 秒")
                         self.log(f"      目标用户 @{username} 将在等待后重试")
                         
-                        # 智能等待
-                        for remaining in range(wait_seconds, 0, -10):
-                            if self.stop_flag:
-                                self.log(f"  ⏸️ [{account_name}] 等待被中断")
-                                break
-                            
-                            if remaining > 10:
-                                self.log(f"      剩余等待时间: {remaining} 秒...")
-                                await asyncio.sleep(10)
-                            else:
-                                self.log(f"      剩余等待时间: {remaining} 秒...")
-                                await asyncio.sleep(remaining)
-                                break
+                        # 静默等待（不显示倒计时，避免刷屏）
+                        await asyncio.sleep(wait_seconds)
                         
                         if not self.stop_flag:
                             self.log(f"  ✅ [{account_name}] 等待完成，继续发送")
