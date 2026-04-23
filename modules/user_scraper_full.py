@@ -256,11 +256,25 @@ class UserScraper:
         users_collected = []
         user_ids = set()
         
+        # 过滤统计
+        filter_stats = {
+            "total_messages": 0,
+            "has_sender": 0,
+            "unique_users": 0,
+            "bot": 0,
+            "no_username": 0,
+            "no_premium": 0,
+            "no_photo": 0,
+            "online_filtered": 0,
+            "passed": 0
+        }
+        
         try:
             self.log(f"    📨 获取聊天记录...")
             
             # 获取最近的消息（最多3000条）
             messages = await client.get_messages(entity, limit=3000)
+            filter_stats["total_messages"] = len(messages)
             
             self.log(f"    📊 分析 {len(messages)} 条消息")
             
@@ -273,19 +287,43 @@ class UserScraper:
                 if not msg.sender:
                     continue
                 
+                filter_stats["has_sender"] += 1
+                
                 # 避免重复
                 if msg.sender_id in user_ids:
                     continue
                 
                 user_ids.add(msg.sender_id)
+                filter_stats["unique_users"] += 1
                 
                 # 获取完整用户信息
                 try:
                     user = await client.get_entity(msg.sender_id)
                     
-                    # 应用过滤条件
-                    if not self._check_user_filters(user, config):
+                    # 统计过滤原因
+                    if config.get("filter_bot", True) and user.bot:
+                        filter_stats["bot"] += 1
                         continue
+                    
+                    if config.get("filter_username", False) and not user.username:
+                        filter_stats["no_username"] += 1
+                        continue
+                    
+                    if config.get("filter_premium", False) and not user.premium:
+                        filter_stats["no_premium"] += 1
+                        continue
+                    
+                    if config.get("filter_photo", False) and not user.photo:
+                        filter_stats["no_photo"] += 1
+                        continue
+                    
+                    # 在线时间过滤
+                    if config.get("filter_online_time", False):
+                        if not self._check_online_time(user, config):
+                            filter_stats["online_filtered"] += 1
+                            continue
+                    
+                    filter_stats["passed"] += 1
                     
                     # 添加到结果
                     user_data = {
@@ -310,11 +348,66 @@ class UserScraper:
                 
                 except Exception:
                     continue
+            
+            # 显示过滤统计
+            self.log(f"    📊 过滤统计:")
+            self.log(f"       总消息数: {filter_stats['total_messages']}")
+            self.log(f"       有发送者: {filter_stats['has_sender']}")
+            self.log(f"       唯一用户: {filter_stats['unique_users']}")
+            if filter_stats['bot'] > 0:
+                self.log(f"       ❌ 机器人: {filter_stats['bot']}")
+            if filter_stats['no_username'] > 0:
+                self.log(f"       ❌ 无用户名: {filter_stats['no_username']}")
+            if filter_stats['no_premium'] > 0:
+                self.log(f"       ❌ 非Premium: {filter_stats['no_premium']}")
+            if filter_stats['no_photo'] > 0:
+                self.log(f"       ❌ 无头像: {filter_stats['no_photo']}")
+            if filter_stats['online_filtered'] > 0:
+                self.log(f"       ❌ 在线时间: {filter_stats['online_filtered']}")
+            self.log(f"       ✅ 通过过滤: {filter_stats['passed']}")
         
         except Exception as e:
             self.log(f"    ⚠️ 获取消息失败: {str(e)[:50]}")
         
         return users_collected
+    
+    def _check_online_time(self, user, config):
+        """单独检查在线时间（用于统计）"""
+        online_days = config.get("online_days", 3)
+        cutoff_time = datetime.now() - timedelta(days=online_days)
+        
+        if user.status:
+            # 当前在线
+            if isinstance(user.status, types.UserStatusOnline):
+                return True
+            # 最近在线（隐藏具体时间）
+            elif isinstance(user.status, types.UserStatusRecently):
+                if config.get("include_recently", True):
+                    return True
+                else:
+                    return False
+            # 离线，检查离线时间
+            elif isinstance(user.status, types.UserStatusOffline):
+                if hasattr(user.status, 'was_online'):
+                    if user.status.was_online >= cutoff_time:
+                        return True
+                    else:
+                        return False
+                else:
+                    # 没有was_online字段，无法判断，默认通过
+                    return True
+            # 一周内/一个月内/很久未上线（隐藏时间）- 无法精确判断
+            elif isinstance(user.status, (types.UserStatusLastWeek, types.UserStatusLastMonth)):
+                # 默认排除（太久未上线）
+                return False
+            elif isinstance(user.status, types.UserStatusEmpty):
+                # 状态为空，无法判断，默认通过
+                return True
+        else:
+            # 没有状态信息，默认通过
+            return True
+        
+        return True
     
     async def _scrape_joined_groups(self, account, config, ui_callbacks):
         """从已加入的群采集（完整版）"""
@@ -443,20 +536,31 @@ class UserScraper:
     
     def _check_user_filters(self, user, config):
         """检查用户是否符合过滤条件（完整版）"""
+        # 调试模式：记录过滤原因
+        debug = config.get("debug_filters", False)
+        
         # 排除机器人
         if config.get("filter_bot", True) and user.bot:
+            if debug:
+                self.log(f"      ❌ 过滤：机器人")
             return False
         
         # 仅有用户名
         if config.get("filter_username", False) and not user.username:
+            if debug:
+                self.log(f"      ❌ 过滤：无用户名")
             return False
         
         # 仅 Premium 会员
         if config.get("filter_premium", False) and not user.premium:
+            if debug:
+                self.log(f"      ❌ 过滤：非Premium")
             return False
         
         # 仅有头像
         if config.get("filter_photo", False) and not user.photo:
+            if debug:
+                self.log(f"      ❌ 过滤：无头像")
             return False
         
         # 在线时间过滤（修复：只在开启时过滤）
