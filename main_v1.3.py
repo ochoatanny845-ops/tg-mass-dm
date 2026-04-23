@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.54.0"
+VERSION = "v1.54.1"
 
 import os
 import sys
@@ -2470,25 +2470,40 @@ class TGMassDM:
 
         self.root.after(0, self.update_account_stats)
 
+        # 等待所有客户端断开连接
+        self.log("⏳ 等待所有连接断开...")
+        await asyncio.sleep(2)
+
         # 清理所有异步任务
         await self.cleanup_async_tasks()
 
     async def cleanup_async_tasks(self):
         """清理所有异步任务,确保程序可以停止"""
         try:
-            # 获取所有未完成的任务
-            tasks = [task for task in asyncio.all_tasks() if not task.done()]
+            # 获取当前任务
+            current_task = asyncio.current_task()
+            
+            # 获取所有未完成的任务（排除当前任务）
+            tasks = [task for task in asyncio.all_tasks() 
+                    if not task.done() and task is not current_task]
+            
             if tasks:
                 self.log(f"🧹 清理 {len(tasks)} 个后台任务...")
                 # 取消所有任务
                 for task in tasks:
                     task.cancel()
-                # 等待所有任务完成或被取消
-                await asyncio.gather(*tasks, return_exceptions=True)
-                self.log("✅ 后台任务已清理")
+                
+                # 等待所有任务完成或被取消（忽略错误）
+                results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # 统计结果
+                cancelled = sum(1 for r in results if isinstance(r, asyncio.CancelledError))
+                self.log(f"✅ 后台任务已清理（取消 {cancelled} 个）")
+            else:
+                self.log("✅ 没有后台任务需要清理")
         except Exception as e:
             # 忽略清理错误
-            pass
+            self.log(f"⚠️ 清理任务时出错: {e}")
 
     def delete_invalid(self):
         """删除重复登录账号(同步删除文件)"""
