@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.33.0"
+VERSION = "v1.34.0"
 
 import os
 import sys
@@ -1378,7 +1378,7 @@ class TGMassDM:
         menu.add_command(label="删除选择的账号", command=self.delete_selected)
         menu.add_command(label="删除全部账号", command=self.delete_all)
         menu.add_separator()
-        menu.add_command(label="删除失效账号", command=self.delete_invalid)
+        menu.add_command(label="删除重复登录账号", command=self.delete_invalid)
         menu.add_command(label="删除冻结账号", command=self.delete_frozen)
         menu.add_command(label="删除封禁账号", command=self.delete_banned)
         
@@ -2140,8 +2140,8 @@ class TGMassDM:
         self.root.after(0, self.update_account_stats)
 
     def delete_invalid(self):
-        """删除失效账号(同步删除文件)"""
-        self._delete_by_status("失效", ["❌"])
+        """删除重复登录账号(同步删除文件)"""
+        self._delete_by_status("重复登录", ["重复登录"])
 
     def delete_selected(self):
         """删除选择的账号"""
