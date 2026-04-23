@@ -4129,44 +4129,38 @@ class TGMassDM:
         loop.run_until_complete(self.scrape_users_async(accounts, targets, source))
 
     async def scrape_users_async(self, accounts, targets, source):
-        """异步采集用户（多账号并发）"""
-        from concurrent.futures import ThreadPoolExecutor
-        from datetime import datetime, timedelta
-        
+        """异步采集用户（使用模块）"""
         try:
-            # 创建线程池
-            max_workers = min(self.scrape_threads.get(), len(accounts))
-            executor = ThreadPoolExecutor(max_workers=max_workers)
+            # 构建配置
+            config_dict = {
+                "source": source,
+                "mode": self.scrape_mode.get(),
+                "threads": self.scrape_threads.get(),
+                "limit": self.scrape_limit.get(),
+                "filter_online_time": self.filter_online_time.get(),
+                "online_days": self.online_days.get(),
+                "include_recently": self.include_recently.get(),
+                "include_online": self.include_online.get(),
+                "filter_bot": self.filter_bot.get(),
+                "filter_username": self.filter_username.get(),
+                "filter_premium": self.filter_premium.get(),
+                "filter_photo": self.filter_photo.get(),
+                "filter_admin": self.filter_admin.get(),
+                "auto_leave": self.auto_leave.get()
+            }
             
-            collected_count = 0
-            tasks = []
+            # 调用模块采集
+            self.user_scraper.stop_flag = False
+            users = await self.user_scraper.scrape(accounts, targets, config_dict)
             
-            # 为每个目标分配账号（轮换）
-            for i, target in enumerate(targets):
-                if not self.is_running:
-                    break
-                
-                account = accounts[i % len(accounts)]
-                # 提交任务到线程池
-                future = executor.submit(self.scrape_single_target_sync, account, target, i+1, len(targets))
-                tasks.append(future)
-            
-            # 等待所有任务完成
-            for future in tasks:
-                if not self.is_running:
-                    break
-                try:
-                    users = future.result()
-                    if users:
-                        collected_count += len(users)
-                except Exception as e:
-                    self.log(f"❌ 任务失败: {str(e)[:50]}")
-            
-            executor.shutdown(wait=True)
+            # 更新采集结果
+            if users:
+                self.collected_users.extend(users)
+                self.save_collected_users()
             
             self.log(f"\n" + "="*50)
             self.log(f"✅ 采集完成!")
-            self.log(f"📊 总共采集 {collected_count} 个用户")
+            self.log(f"📊 总共采集 {len(users)} 个用户")
             self.log("="*50)
             
             self.update_collected_stats()
