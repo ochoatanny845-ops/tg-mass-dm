@@ -147,24 +147,72 @@ class TelegramWebLogin:
                 driver = webdriver.Chrome(options=chrome_options)
             
             self.log("📱 正在打开 Telegram Web...")
+            # 先打开一个空白页面，然后注入localStorage
+            self.log("📱 正在打开 Telegram Web...")
             driver.get("https://web.telegram.org/a/")
+            
+            # 等待页面初始化
             time.sleep(2)
             
             self.log("🔑 正在注入认证数据...")
             dc_id = session_data['dc_id']
             auth_key = session_data['auth_key']
             
+            # 注入localStorage（使用正确的格式）
+            # 参考：https://github.com/LonamiWebs/Telethon/issues/1967
             script = f"""
+            // 清除旧的登录状态
+            localStorage.clear();
+            
+            // 注入auth_key（主要认证信息）
             localStorage.setItem('dc{dc_id}_auth_key', '{auth_key}');
             localStorage.setItem('dc', '{dc_id}');
+            
+            // 注入server_salt（如果需要）
+            localStorage.setItem('dc{dc_id}_server_salt', '0'.repeat(16));
+            
+            // 标记user_auth（部分版本需要）
+            localStorage.setItem('user_auth', '{dc_id}');
+            
+            console.log('[TG-Login] Injected auth for DC' + {dc_id});
+            console.log('[TG-Login] Auth key length: ' + '{auth_key}'.length);
             """
             driver.execute_script(script)
             
-            self.log("♻️ 正在刷新页面...")
+            self.log("♻️ 第1次刷新页面...")
             driver.refresh()
-            time.sleep(3)
+            time.sleep(4)
             
-            self.log("✅ Telegram Web 已打开并自动登录！")
+            # 检查是否成功登录
+            try:
+                # 如果还有QR码，说明没登录成功
+                qr_elements = driver.find_elements("xpath", "//*[contains(@class, 'qr')]")
+                login_button = driver.find_elements("xpath", "//*[contains(text(), 'Log in')]")
+                
+                if qr_elements or login_button:
+                    self.log("⚠️ 首次注入未生效，尝试第二次...")
+                    
+                    # 再次注入（有时需要多次）
+                    driver.execute_script(script)
+                    driver.refresh()
+                    time.sleep(4)
+                    
+                    # 再次检查
+                    qr_elements = driver.find_elements("xpath", "//*[contains(@class, 'qr')]")
+                    if qr_elements:
+                        self.log("⚠️ 注入可能失败，但浏览器已打开")
+                        self.log("💡 如果未自动登录，可能需要：")
+                        self.log("   1. Session文件版本太旧")
+                        self.log("   2. Auth key已过期")
+                        self.log("   3. 需要重新登录生成新session")
+                    else:
+                        self.log("✅ 第二次注入成功！")
+                else:
+                    self.log("✅ 注入成功，已自动登录！")
+                    
+            except Exception as check_error:
+                self.log(f"⚠️ 无法检查登录状态: {str(check_error)}")
+                self.log("💡 请手动查看浏览器窗口")
             
             if keep_open:
                 self.log("💡 浏览器将保持打开，手动关闭窗口即可退出")
