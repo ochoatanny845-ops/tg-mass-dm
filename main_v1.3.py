@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.58.0"
+VERSION = "v1.58.1"
 
 import os
 import sys
@@ -1894,6 +1894,10 @@ class TGMassDM:
             "свободен от каких-либо ограничений", "свободен", "ограничений",
             # 葡萄牙语
             "nenhum limite", "livre como",
+            # 西班牙语
+            "buenas noticias", "no existen limitaciones", "libre como un pájaro",
+            # 阿拉伯语
+            "رائع", "لاتوجد قيود", "أنت حر طليق",
         ]
 
         # 2. 地理受限
