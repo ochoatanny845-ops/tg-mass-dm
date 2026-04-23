@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.44.0"
+VERSION = "v1.45.0"
 
 import os
 import sys
@@ -106,10 +106,11 @@ class TGMassDM:
                        borderwidth=2,
                        padding=6)
 
-        # 创建三个功能标签页
+        # 创建四个功能标签页
         self.setup_tab_accounts()
         self.setup_tab_messaging()
         self.setup_tab_scraper()
+        self.setup_tab_proxy()  # 新增：代理管理
 
         # 下方：日志区域（50%）
         log_container = ttk.Frame(main_paned)
@@ -768,6 +769,101 @@ class TGMassDM:
         self.collected_stats = ttk.Label(action_frame, text="已采集 0 个用户,已选 0 个",
                                          font=("微软雅黑", 9))
         self.collected_stats.pack(side=tk.RIGHT, padx=10)
+
+    def setup_tab_proxy(self):
+        """功能4: 代理管理"""
+        tab4 = ttk.Frame(self.notebook, padding="10")
+        self.notebook.add(tab4, text="🌐 代理管理")
+
+        # 左右分栏
+        paned = ttk.PanedWindow(tab4, orient=tk.HORIZONTAL)
+        paned.pack(fill=tk.BOTH, expand=True)
+
+        # ========== 左侧:导入和操作 ==========
+        left = ttk.Frame(paned)
+        paned.add(left, weight=1)
+
+        # 导入代理
+        import_frame = ttk.LabelFrame(left, text="📥 导入代理", padding="10")
+        import_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+
+        ttk.Label(import_frame, text="支持格式:").pack(anchor=tk.W)
+        ttk.Label(import_frame, text="• http://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
+        ttk.Label(import_frame, text="• http://user:pass@ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
+        ttk.Label(import_frame, text="• socks5://ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
+        ttk.Label(import_frame, text="• socks5://user:pass@ip:port", font=("Consolas", 9)).pack(anchor=tk.W)
+
+        self.proxy_input = scrolledtext.ScrolledText(import_frame, height=10, font=("Consolas", 9))
+        self.proxy_input.pack(fill=tk.BOTH, expand=True, pady=(10, 0))
+
+        btn_frame1 = ttk.Frame(import_frame)
+        btn_frame1.pack(fill=tk.X, pady=(10, 0))
+        ttk.Button(btn_frame1, text="📂 从文件导入", width=15,
+                  command=self.import_proxy_file).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame1, text="➕ 添加到列表", width=15,
+                  command=self.add_proxies).pack(side=tk.LEFT, padx=2)
+        ttk.Button(btn_frame1, text="🧹 清空输入框", width=15,
+                  command=lambda: self.proxy_input.delete("1.0", tk.END)).pack(side=tk.LEFT, padx=2)
+
+        # 批量操作
+        action_frame = ttk.LabelFrame(left, text="⚙️ 批量操作", padding="10")
+        action_frame.pack(fill=tk.X)
+
+        ttk.Button(action_frame, text="🔍 检测所有代理", width=20,
+                  command=self.check_all_proxies).pack(fill=tk.X, pady=2)
+        ttk.Button(action_frame, text="✅ 选中可用代理", width=20,
+                  command=self.select_available_proxies).pack(fill=tk.X, pady=2)
+        ttk.Button(action_frame, text="🗑️ 删除不可用代理", width=20,
+                  command=self.delete_unavailable_proxies).pack(fill=tk.X, pady=2)
+        ttk.Button(action_frame, text="🧹 清空所有代理", width=20,
+                  command=self.clear_all_proxies).pack(fill=tk.X, pady=2)
+        ttk.Button(action_frame, text="💾 导出可用代理", width=20,
+                  command=self.export_available_proxies).pack(fill=tk.X, pady=2)
+
+        # ========== 右侧:代理列表 ==========
+        right = ttk.Frame(paned)
+        paned.add(right, weight=2)
+
+        # 代理列表
+        list_frame = ttk.LabelFrame(right, text="📋 代理列表", padding="10")
+        list_frame.pack(fill=tk.BOTH, expand=True)
+
+        self.proxy_tree = ttk.Treeview(list_frame,
+                                       columns=("选择", "代理地址", "类型", "状态", "延迟"),
+                                       show="headings", height=25)
+
+        self.proxy_tree.heading("选择", text="✓")
+        self.proxy_tree.heading("代理地址", text="代理地址")
+        self.proxy_tree.heading("类型", text="类型")
+        self.proxy_tree.heading("状态", text="状态")
+        self.proxy_tree.heading("延迟", text="延迟 (ms)")
+
+        self.proxy_tree.column("选择", width=40, anchor=tk.CENTER)
+        self.proxy_tree.column("代理地址", width=350)
+        self.proxy_tree.column("类型", width=80, anchor=tk.CENTER)
+        self.proxy_tree.column("状态", width=100, anchor=tk.CENTER)
+        self.proxy_tree.column("延迟", width=100, anchor=tk.CENTER)
+
+        self.proxy_tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+
+        proxy_scroll = ttk.Scrollbar(list_frame, orient=tk.VERTICAL,
+                                     command=self.proxy_tree.yview)
+        proxy_scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        self.proxy_tree.config(yscrollcommand=proxy_scroll.set)
+
+        # 双击切换选择
+        self.proxy_tree.bind("<Double-1>", self.toggle_proxy_selection)
+
+        # 统计信息
+        stats_frame = ttk.Frame(right)
+        stats_frame.pack(fill=tk.X, pady=(10, 0))
+
+        self.proxy_stats = ttk.Label(stats_frame, text="总计: 0 | 可用: 0 | 不可用: 0 | 未检测: 0",
+                                      font=("微软雅黑", 10, "bold"))
+        self.proxy_stats.pack(side=tk.LEFT)
+
+        # 初始化代理列表
+        self.proxies = []  # 存储代理数据: [{"proxy": "...", "type": "http/socks5", "status": "未检测/可用/不可用", "ping": 0, "selected": False}]
 
     def log(self, message):
         """输出日志"""
@@ -3563,6 +3659,240 @@ class TGMassDM:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             self.log(f"⚠️ 保存文本消息失败: {e}")
+
+    # ==================== 代理管理功能 ====================
+    
+    def import_proxy_file(self):
+        """从文件导入代理"""
+        from tkinter import filedialog
+        
+        filename = filedialog.askopenfilename(
+            title="选择代理文件",
+            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
+        )
+        
+        if filename:
+            try:
+                with open(filename, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    self.proxy_input.delete("1.0", tk.END)
+                    self.proxy_input.insert("1.0", content)
+                    self.log(f"✅ 已导入代理文件: {filename}")
+            except Exception as e:
+                self.log(f"❌ 导入代理文件失败: {e}")
+    
+    def add_proxies(self):
+        """添加代理到列表"""
+        content = self.proxy_input.get("1.0", tk.END).strip()
+        
+        if not content:
+            messagebox.showwarning("警告", "请先输入或导入代理")
+            return
+        
+        lines = [line.strip() for line in content.split("\n") if line.strip()]
+        added = 0
+        
+        for line in lines:
+            # 解析代理格式
+            proxy_info = self.parse_proxy(line)
+            if proxy_info:
+                # 检查是否已存在
+                if not any(p["proxy"] == proxy_info["proxy"] for p in self.proxies):
+                    self.proxies.append(proxy_info)
+                    added += 1
+        
+        self.refresh_proxy_tree()
+        self.log(f"✅ 添加了 {added} 个代理到列表")
+        self.proxy_input.delete("1.0", tk.END)
+    
+    def parse_proxy(self, line):
+        """解析代理格式"""
+        import re
+        
+        # 支持的格式:
+        # http://ip:port
+        # http://user:pass@ip:port
+        # socks5://ip:port
+        # socks5://user:pass@ip:port
+        # ip:port (默认 http)
+        # user:pass@ip:port (默认 http)
+        
+        line = line.strip()
+        if not line:
+            return None
+        
+        # 匹配完整格式
+        match = re.match(r'^(https?|socks[45])://(.+)$', line)
+        if match:
+            proxy_type = match.group(1)
+            proxy_addr = match.group(2)
+            return {
+                "proxy": line,
+                "type": proxy_type,
+                "status": "未检测",
+                "ping": 0,
+                "selected": False
+            }
+        
+        # 匹配 ip:port 或 user:pass@ip:port
+        if ':' in line:
+            return {
+                "proxy": f"http://{line}",
+                "type": "http",
+                "status": "未检测",
+                "ping": 0,
+                "selected": False
+            }
+        
+        return None
+    
+    def refresh_proxy_tree(self):
+        """刷新代理列表显示"""
+        # 清空树
+        for item in self.proxy_tree.get_children():
+            self.proxy_tree.delete(item)
+        
+        # 重新填充
+        for proxy in self.proxies:
+            check = "☑" if proxy["selected"] else "☐"
+            ping_display = f"{proxy['ping']}" if proxy['ping'] > 0 else "-"
+            
+            self.proxy_tree.insert("", tk.END, values=(
+                check,
+                proxy["proxy"],
+                proxy["type"],
+                proxy["status"],
+                ping_display
+            ))
+        
+        # 更新统计
+        self.update_proxy_stats()
+    
+    def update_proxy_stats(self):
+        """更新代理统计"""
+        total = len(self.proxies)
+        available = sum(1 for p in self.proxies if p["status"] == "可用")
+        unavailable = sum(1 for p in self.proxies if p["status"] == "不可用")
+        unchecked = sum(1 for p in self.proxies if p["status"] == "未检测")
+        
+        self.proxy_stats.config(
+            text=f"总计: {total} | 可用: {available} | 不可用: {unavailable} | 未检测: {unchecked}"
+        )
+    
+    def toggle_proxy_selection(self, event):
+        """双击切换代理选择"""
+        item = self.proxy_tree.selection()
+        if item:
+            index = self.proxy_tree.index(item[0])
+            self.proxies[index]["selected"] = not self.proxies[index]["selected"]
+            self.refresh_proxy_tree()
+    
+    def check_all_proxies(self):
+        """批量检测所有代理"""
+        if not self.proxies:
+            messagebox.showwarning("警告", "代理列表为空")
+            return
+        
+        self.log(f"🔍 开始检测 {len(self.proxies)} 个代理...")
+        
+        # 使用异步检测
+        import threading
+        thread = threading.Thread(target=self._check_proxies_thread, daemon=True)
+        thread.start()
+    
+    def _check_proxies_thread(self):
+        """代理检测线程"""
+        import requests
+        import time
+        
+        for i, proxy in enumerate(self.proxies):
+            try:
+                # 测试 URL
+                test_url = "https://www.google.com"
+                
+                # 构造代理字典
+                proxies = {
+                    "http": proxy["proxy"],
+                    "https": proxy["proxy"]
+                }
+                
+                # 测试连接
+                start_time = time.time()
+                response = requests.get(test_url, proxies=proxies, timeout=10)
+                end_time = time.time()
+                
+                if response.status_code == 200:
+                    ping = int((end_time - start_time) * 1000)
+                    proxy["status"] = "可用"
+                    proxy["ping"] = ping
+                    self.root.after(0, lambda: self.log(f"✅ [{i+1}/{len(self.proxies)}] {proxy['proxy']} - 可用 ({ping}ms)"))
+                else:
+                    proxy["status"] = "不可用"
+                    proxy["ping"] = 0
+                    self.root.after(0, lambda: self.log(f"❌ [{i+1}/{len(self.proxies)}] {proxy['proxy']} - 不可用"))
+            
+            except Exception as e:
+                proxy["status"] = "不可用"
+                proxy["ping"] = 0
+                self.root.after(0, lambda p=proxy: self.log(f"❌ [{i+1}/{len(self.proxies)}] {p['proxy']} - 超时/错误"))
+            
+            # 刷新显示
+            self.root.after(0, self.refresh_proxy_tree)
+        
+        self.root.after(0, lambda: self.log(f"✅ 代理检测完成"))
+    
+    def select_available_proxies(self):
+        """选中所有可用代理"""
+        for proxy in self.proxies:
+            if proxy["status"] == "可用":
+                proxy["selected"] = True
+        self.refresh_proxy_tree()
+        self.log(f"✅ 已选中所有可用代理")
+    
+    def delete_unavailable_proxies(self):
+        """删除所有不可用代理"""
+        before = len(self.proxies)
+        self.proxies = [p for p in self.proxies if p["status"] != "不可用"]
+        after = len(self.proxies)
+        deleted = before - after
+        
+        self.refresh_proxy_tree()
+        self.log(f"✅ 删除了 {deleted} 个不可用代理")
+    
+    def clear_all_proxies(self):
+        """清空所有代理"""
+        if not self.proxies:
+            return
+        
+        if messagebox.askyesno("确认", f"确定要清空所有 {len(self.proxies)} 个代理吗？"):
+            self.proxies = []
+            self.refresh_proxy_tree()
+            self.log(f"✅ 已清空代理列表")
+    
+    def export_available_proxies(self):
+        """导出可用代理到文件"""
+        from tkinter import filedialog
+        
+        available = [p for p in self.proxies if p["status"] == "可用"]
+        
+        if not available:
+            messagebox.showwarning("警告", "没有可用代理")
+            return
+        
+        filename = filedialog.asksaveasfilename(
+            title="保存可用代理",
+            defaultextension=".txt",
+            filetypes=[("文本文件", "*.txt"), ("所有文件", "*.*")]
+        )
+        
+        if filename:
+            try:
+                with open(filename, "w", encoding="utf-8") as f:
+                    for proxy in available:
+                        f.write(f"{proxy['proxy']}\n")
+                self.log(f"✅ 导出了 {len(available)} 个可用代理到: {filename}")
+            except Exception as e:
+                self.log(f"❌ 导出代理失败: {e}")
 
 
 def main():
