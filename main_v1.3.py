@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.60.0"
+VERSION = "v1.61.0"
 
 import os
 import sys
@@ -3651,7 +3651,12 @@ class TGMassDM:
 
                 except errors.UserIsBlockedError as e:
                     self.log(f"  ❌ [{account_name}] 已被用户拉黑: @{username}")
+                    self.log(f"      已从目标列表中移除")
                     consecutive_fails += 1
+                    
+                    # 从目标列表中删除
+                    self.root.after(0, lambda: self.remove_successful_target(target))
+                    
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3659,7 +3664,12 @@ class TGMassDM:
 
                 except errors.PeerIdInvalidError as e:
                     self.log(f"  ❌ [{account_name}] 用户不存在或无效: @{username}")
+                    self.log(f"      已从目标列表中移除")
                     consecutive_fails += 1
+                    
+                    # 从目标列表中删除
+                    self.root.after(0, lambda: self.remove_successful_target(target))
+                    
                     async with self.send_lock:
                         self.total_failed += 1
                         self.account_stats[account_name]["failed"] += 1
@@ -3784,6 +3794,7 @@ class TGMassDM:
                     # 检测 "Cannot find any entity" 错误（用户不存在或需要 Premium）
                     if "cannot find any entity" in error_str:
                         # 尝试获取更详细的信息
+                        should_remove = False
                         try:
                             # 尝试搜索用户
                             search_result = await client(functions.contacts.SearchRequest(
@@ -3794,12 +3805,22 @@ class TGMassDM:
                             if search_result and search_result.users:
                                 # 用户存在，可能是隐私设置或需要 Premium
                                 self.log(f"  ⚠️ [{account_name}] 用户需要 Premium 或付费才能发送: @{username}")
+                                self.log(f"      已从目标列表中移除")
+                                should_remove = True
                             else:
                                 # 用户不存在
                                 self.log(f"  ❌ [{account_name}] 用户不存在: @{username}")
+                                self.log(f"      已从目标列表中移除")
+                                should_remove = True
                         except:
                             # 搜索失败，简单提示
                             self.log(f"  ❌ [{account_name}] 无法发送: @{username} (用户不存在/需要Premium/隐私限制)")
+                            self.log(f"      已从目标列表中移除")
+                            should_remove = True
+                        
+                        # 从目标列表中删除
+                        if should_remove:
+                            self.root.after(0, lambda: self.remove_successful_target(target))
                         
                         async with self.send_lock:
                             self.total_failed += 1
