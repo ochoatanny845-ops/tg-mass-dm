@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.51.1"
+VERSION = "v1.52.0"
 
 import os
 import sys
@@ -1914,8 +1914,8 @@ class TGMassDM:
             
             while proxy_retry_count < max_proxy_retries:
                 try:
-                    # 如果有可用代理，选择一个
-                    available_proxies = [p for p in self.proxies if p["status"] == "可用" and p["selected"]]
+                    # 如果有可用代理，随机选择一个（不需要选中状态）
+                    available_proxies = [p for p in self.proxies if p["status"] == "可用"]
                     if available_proxies:
                         import random
                         proxy = random.choice(available_proxies)
@@ -1925,12 +1925,11 @@ class TGMassDM:
                     else:
                         proxy_used = None  # 没有可用代理
                         if self.proxies:
-                            # 有代理但都不可用或未选中
+                            # 有代理但都不可用
                             total_proxies = len(self.proxies)
                             available_count = sum(1 for p in self.proxies if p["status"] == "可用")
-                            selected_count = sum(1 for p in self.proxies if p["selected"])
-                            available_selected = sum(1 for p in self.proxies if p["status"] == "可用" and p["selected"])
-                            self.log(f"{log_prefix} {phone_number} - ⚠️ 无可用代理（总计:{total_proxies} 可用:{available_count} 已选:{selected_count} 可用且已选:{available_selected}）")
+                            unchecked_count = sum(1 for p in self.proxies if p["status"] == "未检测")
+                            self.log(f"{log_prefix} {phone_number} - ⚠️ 无可用代理（总计:{total_proxies} 可用:{available_count} 未检测:{unchecked_count}）")
                     
                     # 创建客户端（带或不带代理）
                     if proxy_config:
