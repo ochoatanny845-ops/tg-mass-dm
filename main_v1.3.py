@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.53.2"
+VERSION = "v1.53.3"
 
 import os
 import sys
@@ -1835,14 +1835,22 @@ class TGMassDM:
 
         # 重置停止标志
         self.stop_flag = False
+        self.is_running = True
 
         # 获取并发配置
         concurrent = self.check_concurrent.get()
         self.log(f"🔍 开始检测账号状态... (选中 {len(selected_accounts)} 个账号,并发: {concurrent})")
 
-        # 启用停止按钮
+        # 禁用所有操作按钮
         self.stop_btn.config(state=tk.NORMAL)
         self.start_btn.config(state=tk.DISABLED)
+        
+        # 禁用删除按钮（防止检测时删除文件）
+        try:
+            self.delete_selected_btn.config(state=tk.DISABLED)
+            self.delete_invalid_btn.config(state=tk.DISABLED)
+        except:
+            pass
 
         thread = threading.Thread(target=self.run_check_accounts, args=(selected_accounts,))
         thread.start()
@@ -1855,8 +1863,16 @@ class TGMassDM:
             loop.run_until_complete(self.check_accounts_async(accounts))
         finally:
             # 恢复按钮状态
+            self.is_running = False
             self.root.after(0, lambda: self.stop_btn.config(state=tk.DISABLED))
             self.root.after(0, lambda: self.start_btn.config(state=tk.NORMAL))
+            
+            # 恢复删除按钮
+            try:
+                self.root.after(0, lambda: self.delete_selected_btn.config(state=tk.NORMAL))
+                self.root.after(0, lambda: self.delete_invalid_btn.config(state=tk.NORMAL))
+            except:
+                pass
 
     async def check_single_account(self, account, index, total):
         """检测单个账号(并发调用)"""
@@ -2451,10 +2467,20 @@ class TGMassDM:
 
     def delete_invalid(self):
         """删除重复登录账号(同步删除文件)"""
+        # 检查是否正在检测
+        if self.is_running:
+            messagebox.showwarning("提示", "正在检测账号，无法删除！请先停止检测")
+            return
+        
         self._delete_by_status("重复登录", ["重复登录"])
 
     def delete_selected(self):
         """删除选择的账号"""
+        # 检查是否正在检测
+        if self.is_running:
+            messagebox.showwarning("提示", "正在检测账号，无法删除！请先停止检测")
+            return
+        
         selected_accounts = [acc for acc in self.accounts if acc["selected"]]
 
         if not selected_accounts:
