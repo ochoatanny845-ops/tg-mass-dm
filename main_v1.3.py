@@ -4,7 +4,7 @@ TG 批量私信系统 - 多功能版
 """
 
 # 版本号（每次更新修改这里）
-VERSION = "v1.54.1"
+VERSION = "v1.54.2"
 
 import os
 import sys
@@ -2184,8 +2184,18 @@ class TGMassDM:
 
             # 2. 向 @spambot 发送消息检测状态
             try:
+                # 检查停止标志
+                if self.stop_flag:
+                    await client.disconnect()
+                    return
+                
                 await client.send_message("@spambot", "/start")
                 await asyncio.sleep(2)
+
+                # 检查停止标志
+                if self.stop_flag:
+                    await client.disconnect()
+                    return
 
                 messages = await client.get_messages("@spambot", limit=1)
 
@@ -2440,10 +2450,24 @@ class TGMassDM:
             tasks = [self.check_single_account(acc, i+j, total) for j, acc in enumerate(batch)]
             await asyncio.gather(*tasks)
 
+            # 检查停止标志（批次完成后）
+            if self.stop_flag:
+                self.log("⏸️ 检测已停止")
+                break
+
             # 批次间隔
             if i + concurrent < total:
                 self.log(f"⏳ 等待 {batch_delay} 秒后继续下一批...")
-                await asyncio.sleep(batch_delay)
+                # 分段等待，每秒检查停止标志
+                for _ in range(batch_delay):
+                    if self.stop_flag:
+                        self.log("⏸️ 检测已停止")
+                        break
+                    await asyncio.sleep(1)
+                
+                # 再次检查停止标志
+                if self.stop_flag:
+                    break
 
         if not self.stop_flag:
             self.log("✅ 账号检测完成")
