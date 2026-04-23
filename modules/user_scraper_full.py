@@ -233,9 +233,20 @@ class UserScraper:
         users_collected = []
         
         try:
-            # 获取成员
+            # 获取成员（0或999999=不限制，获取所有）
             limit = config.get("limit", 500)
-            participants = await client.get_participants(entity, limit=limit)
+            if limit == 0 or limit >= 999999:
+                # 不限制：使用iter_participants获取所有成员
+                self.log(f"    📊 获取所有成员（无限制）...")
+                participants = []
+                async for user in client.iter_participants(entity):
+                    participants.append(user)
+                    if len(participants) % 1000 == 0:
+                        self.log(f"       已获取 {len(participants)} 个成员...")
+            else:
+                participants = await client.get_participants(entity, limit=limit)
+            
+            self.log(f"    📊 分析 {len(participants)} 个成员")
             
             for user in participants:
                 if self.stop_flag or (ui_callbacks and not ui_callbacks.get("is_running", lambda: True)()):
@@ -387,8 +398,9 @@ class UserScraper:
                         if ui_callbacks and "insert_row" in ui_callbacks and self.root:
                             self.root.after(0, lambda u=user_data: ui_callbacks["insert_row"](u))
                         
-                        # 达到限制后停止
-                        if len(users_collected) >= limit:
+                        # 达到限制后停止（0或999999=不限制）
+                        if limit > 0 and limit < 999999 and len(users_collected) >= limit:
+                            self.log(f"       ⚠️ 已达到数量限制 ({limit})，停止采集")
                             break
                 
                 except Exception:
@@ -507,8 +519,8 @@ class UserScraper:
                         except:
                             pass
                     
-                    # 达到总限制
-                    if len(all_users) >= limit:
+                    # 达到总限制（0或999999=不限制）
+                    if limit > 0 and limit < 999999 and len(all_users) >= limit:
                         self.log(f"  ⚠️ 已达到采集总数限制 ({limit})，停止采集")
                         break
                 
@@ -570,8 +582,9 @@ class UserScraper:
                         if ui_callbacks and "insert_row" in ui_callbacks and self.root:
                             self.root.after(0, lambda u=user_data: ui_callbacks["insert_row"](u))
                     
-                    # 达到限制
-                    if len(all_users) >= limit:
+                    # 达到限制（0或999999=不限制）
+                    if limit > 0 and limit < 999999 and len(all_users) >= limit:
+                        self.log(f"  ⚠️ 已达到采集总数限制 ({limit})，停止采集")
                         break
                 
                 except Exception as e:
